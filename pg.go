@@ -1,5 +1,6 @@
 package cpool
 
+/*
 func NewPG(size int) (Pool, error) {
 	return NewPool(NewPGResource(), size)
 }
@@ -27,7 +28,8 @@ func (r *pgresource) Create() Item {
 type pgitem struct {
 }
 
-func (i *pgitem) IsReady() {
+func (i *pgitem) ID() string {
+	return ""
 }
 
 func (i *pgitem) Configure() {
@@ -38,3 +40,4 @@ func (i *pgitem) Initialize() {
 
 func (i *pgitem) Teardown() {
 }
+*/
