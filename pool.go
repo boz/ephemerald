@@ -51,13 +51,49 @@ type pool struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	events chan (event)
+
 	cond *sync.Cond
 
-	ready   []Item
-	taken   []Item
-	pending []Item
+	ready map[string]*rcontainer
+	taken map[string]*rcontainer
 
-	all []Item
+	containers map[string]*rcontainer
+}
+
+type eventId int
+
+const (
+	eventCreated eventId = iota
+	eventStarted
+	eventDied
+	eventReturned
+	eventCheckedOut
+)
+
+type event struct {
+	id        eventId
+	container *rcontainer
+}
+
+type cState int
+
+const (
+	cStateCreated cState = iota
+	cStateStarted
+	cStateStopped
+)
+
+type rcontainer struct {
+	id    string
+	state cState
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	client *client.Client
+
+	donech <-chan int
 }
 
 func NewPool(r Resource, size int) (Pool, error) {
@@ -81,6 +117,8 @@ func NewPool(r Resource, size int) (Pool, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	events := make(chan event)
+
 	p := &pool{
 		r:      r,
 		size:   size,
@@ -90,6 +128,7 @@ func NewPool(r Resource, size int) (Pool, error) {
 		client: client,
 		ctx:    ctx,
 		cancel: cancel,
+		events: events,
 		cond:   sync.NewCond(&sync.Mutex{}),
 	}
 	go p.run()
@@ -112,10 +151,18 @@ func (p *pool) Checkout() Item {
 
 	next := p.ready[0]
 	p.ready = p.ready[1:]
+
+	p.events <- event{eventCheckedOut, next}
 	return next
 }
 
-func (p *pool) Return(Item) {
+func (p *pool) Return(i Item) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+	if rc, ok := p.taken[i.ID()]; ok {
+		delete(p.taken, i.ID())
+		p.events <- event{eventReturned, rc}
+	}
 }
 
 func (p *pool) Fetch() error {
@@ -174,10 +221,14 @@ func (p *pool) run() {
 		select {
 		case <-p.ctx.Done():
 			return
-			/*
-				case event := <-p.events:
-					p.handleEvent(event)
-			*/
+		case e := <-p.events:
+			switch e.id {
+			case eventCreated:
+			case eventStarted:
+			case eventDied:
+			case eventCheckedOut:
+			case eventReturned:
+			}
 		}
 	}
 }
@@ -191,26 +242,6 @@ func (p *pool) primeBacklog() {
 	for ; current < p.size; current++ {
 		p.createItem()
 	}
-}
-
-type cState int
-
-const (
-	cStateCreated cState = iota
-	cStateStarted
-	cStateStopped
-)
-
-type rcontainer struct {
-	id    string
-	state cState
-
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	client *client.Client
-
-	donech <-chan int
 }
 
 func (p *pool) createItem() (Item, error) {
@@ -321,9 +352,7 @@ func (rc *rcontainer) waitExit() {
 							status = code
 						}
 					}
-				case "detach":
-					return
-				case "destroy":
+				case "detach", "destroy":
 					return
 				}
 			case err := <-errq:
