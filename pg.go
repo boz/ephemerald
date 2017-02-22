@@ -1,4 +1,4 @@
-package pool
+package cpool
 
 func NewPG(size int) (Pool, error) {
 	return NewPool(NewPGResource(), size)
