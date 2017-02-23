@@ -95,10 +95,8 @@ type item struct {
 }
 
 func NewItem(parent cpool.StatusItem) Item {
-	status := parent.Status()
-	status.NetworkSettings.Ports
-
-	return &item{parent, port}
+	ports := cpool.TCPPorts(parent.Status())
+	return &item{parent, ports["5432"]}
 }
 
 func (i *item) ID() string {

@@ -127,3 +127,27 @@ func pullImage(p *pool, ref reference.Named) error {
 	log.Info("done pulling image")
 	return nil
 }
+
+func TCPPorts(status types.ContainerJSON) map[string]string {
+	ports := make(map[string]string)
+
+	if status.Config == nil {
+		return ports
+	}
+	if status.NetworkSettings == nil {
+		return ports
+	}
+
+	for port, _ := range status.Config.ExposedPorts {
+		if port.Port() != "tcp" {
+			continue
+		}
+		eport, ok := status.NetworkSettings.Ports[port]
+		if !ok || len(eport) == 0 {
+			continue
+		}
+		ports[port.Port()] = eport[0].HostPort
+	}
+
+	return ports
+}
