@@ -11,8 +11,13 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+const (
+	checkoutTimeout = LiveCheckDefaultDelay * LiveCheckDefaultRetries
+)
+
 type Pool interface {
-	Checkout() StatusItem
+	Checkout() (StatusItem, error)
+	CheckoutWith(context.Context) (StatusItem, error)
 	Return(Item)
 	Stop() error
 }
@@ -75,6 +80,10 @@ type pool struct {
 }
 
 func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
+	return NewPoolWithContext(context.Background(), config, size, provisioner)
+}
+
+func NewPoolWithContext(ctx context.Context, config *Config, size int, provisioner Provisioner) (Pool, error) {
 
 	log := logrus.StandardLogger().WithField("component", "pool")
 
@@ -98,7 +107,7 @@ func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	events := make(chan event)
 
@@ -154,23 +163,51 @@ func (p *pool) Stop() error {
 	return nil
 }
 
-func (p *pool) Checkout() StatusItem {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+func (p *pool) Checkout() (StatusItem, error) {
+	ctx, cancel := context.WithTimeout(p.ctx, checkoutTimeout)
+	defer cancel()
+	return p.CheckoutWith(ctx)
+}
 
-	for len(p.ready) == 0 {
-		p.cond.Wait()
+func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
+
+	ch := make(chan *child)
+
+	go func() {
+		defer close(ch)
+		p.cond.L.Lock()
+		defer p.cond.L.Unlock()
+
+		for len(p.ready) == 0 && ctx.Err() == nil {
+			p.cond.Wait()
+		}
+
+		if ctx.Err() != nil {
+			return
+		}
+
+		// get a single child
+		var next *child
+		for _, next = range p.ready {
+			break
+		}
+		delete(p.ready, next.id)
+
+		p.events <- event{eventCheckedOut, next}
+
+		select {
+		case <-ctx.Done():
+		case ch <- next:
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case next := <-ch:
+		return next, nil
 	}
-
-	// get a single child
-	var next *child
-	for _, next = range p.ready {
-		break
-	}
-	delete(p.ready, next.id)
-
-	p.events <- event{eventCheckedOut, next}
-	return next
+	return nil, context.DeadlineExceeded
 }
 
 func (p *pool) Return(i Item) {

@@ -25,7 +25,8 @@ func TestPool(t *testing.T) {
 	pool, err := NewPool(config, 1, prov)
 	require.NoError(t, err)
 
-	item := pool.Checkout()
+	item, err := pool.Checkout()
+	require.NoError(t, err)
 
 	assert.NotNil(t, item)
 

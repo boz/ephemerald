@@ -26,7 +26,7 @@ type Item interface {
 }
 
 type Pool interface {
-	Checkout() Item
+	Checkout() (Item, error)
 	Return(Item)
 	Stop() error
 }
@@ -123,8 +123,12 @@ type pool struct {
 	parent cpool.Pool
 }
 
-func (p *pool) Checkout() Item {
-	return NewItem(p.parent.Checkout())
+func (p *pool) Checkout() (Item, error) {
+	item, err := p.parent.Checkout()
+	if err != nil {
+		return nil, err
+	}
+	return NewItem(item), nil
 }
 func (p *pool) Return(item Item) {
 	p.parent.Return(item)
