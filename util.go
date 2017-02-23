@@ -32,7 +32,7 @@ func createContainer(p *pool, ref reference.Named, config *Config) (string, erro
 		ExposedPorts: make(nat.PortSet),
 	}
 
-	for p, _ := range config.Ports {
+	for p := range config.Ports {
 		dconfig.ExposedPorts[p] = struct{}{}
 	}
 

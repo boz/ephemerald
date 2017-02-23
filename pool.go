@@ -6,7 +6,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/registry"
 )
@@ -21,15 +20,6 @@ type Pool interface {
 	Checkout() StatusItem
 	Return(Item)
 	Stop() error
-}
-
-type Item interface {
-	ID() string
-}
-
-type StatusItem interface {
-	Item
-	Status() types.ContainerJSON
 }
 
 type eventId int

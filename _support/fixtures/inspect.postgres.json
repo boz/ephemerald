@@ -1,0 +1,198 @@
+{
+    "Id": "942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14",
+    "Created": "2017-02-22T23:45:55.203973852Z",
+    "Path": "docker-entrypoint.sh",
+    "Args": [
+        "postgres"
+    ],
+    "State": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 21277,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2017-02-22T23:45:55.579207286Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+    },
+    "Image": "sha256:ecd991538a0fbb77f8a0327d5ef92b4fe1c50da57719c4a8e810b399199e53e3",
+    "ResolvConfPath": "/var/lib/docker/containers/942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14/hostname",
+    "HostsPath": "/var/lib/docker/containers/942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14/hosts",
+    "LogPath": "/var/lib/docker/containers/942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14/942a202900fe3061eda72bb8b4f20a3642d64e9bb342cf59cd1d9a65b8d8ee14-json.log",
+    "Name": "/hungry_morse",
+    "RestartCount": 0,
+    "Driver": "aufs",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "ExecIDs": null,
+    "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LogConfig": {
+            "Type": "json-file",
+            "Config": {}
+        },
+        "NetworkMode": "default",
+        "PortBindings": {},
+        "RestartPolicy": {
+            "Name": "no",
+            "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "CapAdd": null,
+        "CapDrop": null,
+        "Dns": [],
+        "DnsOptions": [],
+        "DnsSearch": [],
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": true,
+        "ReadonlyRootfs": false,
+        "SecurityOpt": null,
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "ConsoleSize": [
+            0,
+            0
+        ],
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 0,
+        "NanoCpus": 0,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": [],
+        "DiskQuota": 0,
+        "KernelMemory": 0,
+        "MemoryReservation": 0,
+        "MemorySwap": 0,
+        "MemorySwappiness": -1,
+        "OomKillDisable": false,
+        "PidsLimit": 0,
+        "Ulimits": null,
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0
+    },
+    "GraphDriver": {
+        "Name": "aufs",
+        "Data": null
+    },
+    "Mounts": [
+        {
+            "Type": "volume",
+            "Name": "417c95857e70646b36abcdd4286d3307685d9e6fcc374f2cb50c84de7644db49",
+            "Source": "/var/lib/docker/volumes/417c95857e70646b36abcdd4286d3307685d9e6fcc374f2cb50c84de7644db49/_data",
+            "Destination": "/var/lib/postgresql/data",
+            "Driver": "local",
+            "Mode": "",
+            "RW": true,
+            "Propagation": ""
+        }
+    ],
+    "Config": {
+        "Hostname": "942a202900fe",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": true,
+        "AttachStderr": true,
+        "ExposedPorts": {
+            "5432/tcp": {}
+        },
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": [
+            "PATH=/usr/lib/postgresql/9.6/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "GOSU_VERSION=1.7",
+            "LANG=en_US.utf8",
+            "PG_MAJOR=9.6",
+            "PG_VERSION=9.6.2-1.pgdg80+1",
+            "PGDATA=/var/lib/postgresql/data"
+        ],
+        "Cmd": [
+            "postgres"
+        ],
+        "ArgsEscaped": true,
+        "Image": "postgres",
+        "Volumes": {
+            "/var/lib/postgresql/data": {}
+        },
+        "WorkingDir": "",
+        "Entrypoint": [
+            "docker-entrypoint.sh"
+        ],
+        "OnBuild": null,
+        "Labels": {}
+    },
+    "NetworkSettings": {
+        "Bridge": "",
+        "SandboxID": "c9de5a77ec0b0188e1ceceaa23050de1e6dea41a0bd09e68f35ff91e5d5c08c7",
+        "HairpinMode": false,
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "Ports": {
+            "5432/tcp": [
+                {
+                    "HostIp": "0.0.0.0",
+                    "HostPort": "32768"
+                }
+            ]
+        },
+        "SandboxKey": "/var/run/docker/netns/c9de5a77ec0b",
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "c894626e21700ec429adecbe55b16997617f3eda02574689f4ab16e27e305ca7",
+        "Gateway": "172.17.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "172.17.0.2",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "MacAddress": "02:42:ac:11:00:02",
+        "Networks": {
+            "bridge": {
+                "IPAMConfig": null,
+                "Links": null,
+                "Aliases": null,
+                "NetworkID": "8a96091779349bb06306075746113f3c2dda0c96adf3c5dcd114966011a14853",
+                "EndpointID": "c894626e21700ec429adecbe55b16997617f3eda02574689f4ab16e27e305ca7",
+                "Gateway": "172.17.0.1",
+                "IPAddress": "172.17.0.2",
+                "IPPrefixLen": 16,
+                "IPv6Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "MacAddress": "02:42:ac:11:00:02"
+            }
+        }
+    }
+}

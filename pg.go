@@ -1,9 +1,13 @@
 package cpool
 
 /*
+
 func NewPG(size int) (Pool, error) {
 	return NewPool(NewPGResource(), size)
 }
+*/
+
+/*
 
 func NewPGResource() *pgresource {
 	return &pgresource{}
