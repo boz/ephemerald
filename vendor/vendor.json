@@ -361,6 +361,18 @@
 			"revisionTime": "2017-02-21T22:13:32Z"
 		},
 		{
+			"checksumSHA1": "FZem1OXCd+ogu1yeG11GMlGiGVA=",
+			"path": "github.com/lib/pq",
+			"revision": "ba5d4f7a35561e22fbdf7a39aa0070f4d460cfc0",
+			"revisionTime": "2017-02-13T22:10:49Z"
+		},
+		{
+			"checksumSHA1": "xppHi82MLqVx1eyQmbhTesAEjx8=",
+			"path": "github.com/lib/pq/oid",
+			"revision": "ba5d4f7a35561e22fbdf7a39aa0070f4d460cfc0",
+			"revisionTime": "2017-02-13T22:10:49Z"
+		},
+		{
 			"checksumSHA1": "6qI8HIHUPhGyRyxhe3Ds6N1pgUo=",
 			"origin": "github.com/docker/distribution/vendor/github.com/opencontainers/go-digest",
 			"path": "github.com/opencontainers/go-digest",
