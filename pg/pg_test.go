@@ -12,7 +12,7 @@ import (
 
 func TestPGPool(t *testing.T) {
 	pool, err := pg.DefaultBuilder().
-		WithSize(2).
+		WithSize(1).
 		Create()
 
 	require.NoError(t, err)

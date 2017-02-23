@@ -21,21 +21,23 @@ func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn Provisi
 func LiveCheckTimeout(timeout time.Duration, fn ProvisionFn) ProvisionFn {
 	return func(ctx context.Context, si StatusItem) error {
 
-		ctx, _ = context.WithTimeout(ctx, timeout)
+		checkctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
 
 		errch := make(chan error)
 
 		go func() {
 			defer close(errch)
 			select {
-			case errch <- fn(ctx, si):
+			case errch <- fn(checkctx, si):
 			}
 		}()
 
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-checkctx.Done():
+			return checkctx.Err()
 		case err := <-errch:
+
 			return err
 		}
 	}

@@ -11,12 +11,6 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-var (
-	log = logrus.StandardLogger().
-		WithField("package", "github.com/ovrclk/cpool").
-		WithField("module", "pool")
-)
-
 type Pool interface {
 	Checkout() StatusItem
 	Return(Item)
@@ -75,16 +69,25 @@ type pool struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	log logrus.FieldLogger
+
 	shutdown bool
 }
 
 func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
 
+	log := logrus.StandardLogger().
+		WithField("package", "github.com/ovrclk/cpool")
+
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {
-		log.Errorf("Unable to parse image '%s'", config.Image)
+		log.WithField("fn", "NewPool").
+			WithError(err).
+			Errorf("Unable to parse image '%s'", config.Image)
 		return nil, err
 	}
+
+	log = log.WithField("image", ref.String())
 
 	info, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
@@ -119,6 +122,8 @@ func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
 
 		ctx:    ctx,
 		cancel: cancel,
+
+		log: log,
 	}
 
 	go p.run()
@@ -192,16 +197,16 @@ func (p *pool) run() {
 		select {
 
 		case <-p.ctx.Done():
-			log.Debugf("closing events....")
+			p.log.Debugf("closing events....")
 			close(p.events)
 			return
 
 		case e := <-p.events:
 
 			if e.child != nil {
-				log.Debugf("received event: %v %v", e.id, e.child.id)
+				p.log.Debugf("received event: %v %v", e.id, e.child.id)
 			} else {
-				log.Debugf("received event: %v", e.id)
+				p.log.Debugf("received event: %v", e.id)
 			}
 
 			switch e.id {
@@ -211,7 +216,6 @@ func (p *pool) run() {
 				go p.stopChildren()
 
 			case eventCreated:
-
 				go e.child.doStart()
 
 			case eventStarted:
@@ -235,7 +239,6 @@ func (p *pool) run() {
 				}()
 
 			case eventExitError:
-				// todo: retry?
 				p.purgeChild(e.child)
 
 			case eventExitSuccess:
@@ -256,7 +259,7 @@ func (p *pool) onChildStarted(c *child) {
 
 	if prov, ok := isLiveCheckProvisioner(p.provisioner); ok {
 		if err := prov.LiveCheck(p.ctx, c); err != nil {
-			log.WithError(err).Error("error checking liveliness")
+			p.log.WithError(err).Error("error checking liveliness")
 			p.events <- event{eventLiveErr, c}
 			return
 		}
@@ -271,7 +274,7 @@ func (p *pool) onChildStarted(c *child) {
 func (p *pool) onChildLive(c *child) {
 	if prov, ok := isInitializeProvisioner(p.provisioner); ok {
 		if err := prov.Initialize(p.ctx, c); err != nil {
-			log.WithError(err).Error("error initializing")
+			p.log.WithError(err).Error("error initializing")
 			p.events <- event{eventInitializeErr, c}
 			return
 		}
@@ -282,7 +285,7 @@ func (p *pool) onChildLive(c *child) {
 func (p *pool) onChildReturned(c *child) {
 	if prov, ok := isResetProvisioner(p.provisioner); ok {
 		if err := prov.Reset(p.ctx, c); err != nil {
-			log.WithError(err).Error("error provisioning")
+			p.log.WithError(err).Error("error provisioning")
 			p.events <- event{eventResetErr, c}
 		}
 	}
@@ -314,7 +317,7 @@ func (p *pool) primeBacklog() {
 	for ; current < p.size && p.ctx.Err() == nil; current++ {
 		child, err := createChildFor(p)
 		if err != nil {
-			log.WithError(err).Error("can't create child; abort filling backlog")
+			p.log.WithError(err).Error("can't create child; abort filling backlog")
 			break
 		}
 

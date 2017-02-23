@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -22,6 +23,8 @@ type child struct {
 	client *client.Client
 	events chan<- event
 	done   chan interface{}
+
+	log logrus.FieldLogger
 }
 
 func (c *child) ID() string {
@@ -49,6 +52,7 @@ func createChildFor(p *pool) (*child, error) {
 		client: p.client,
 		events: p.events,
 		done:   make(chan interface{}),
+		log:    p.log.WithField("image", cid),
 	}
 
 	go c.monitor()
@@ -77,6 +81,7 @@ func (c *child) doStart() {
 func (c *child) start() error {
 	options := types.ContainerStartOptions{}
 	if err := c.client.ContainerStart(c.ctx, c.id, options); err != nil {
+		c.log.WithError(err).Error("error starting container")
 		return err
 	}
 	return nil
@@ -84,19 +89,27 @@ func (c *child) start() error {
 
 func (c *child) getStatus() (types.ContainerJSON, error) {
 	status, err := c.client.ContainerInspect(c.ctx, c.id)
+	if err != nil {
+		c.log.WithError(err).Error("error inspecting container")
+	}
 	return status, err
 }
 
 func (c *child) kill() error {
-	return c.client.ContainerKill(c.ctx, c.id, "KILL")
+	err := c.client.ContainerKill(c.ctx, c.id, "KILL")
+	if err != nil {
+		c.log.WithError(err).Error("error killing container")
+	}
+	return err
 }
 
 func (c *child) monitor() {
 	err := c.doMonitor()
 	for err != nil && c.ctx.Err() == nil {
-		log.Errorf("error reading events: %v", err)
+		c.log.WithError(err).Errorf("error reading events")
 		err = c.doMonitor()
 	}
+	c.log.Debugf("done monitoring")
 }
 
 func (c *child) doMonitor() error {
@@ -115,18 +128,18 @@ func (c *child) doMonitor() error {
 	for {
 		select {
 		case evt := <-eventq:
-			log.Debugf("event: %+v", evt)
+			c.log.Debugf("docker event: %v", evt.Status)
 			switch evt.Status {
 			case "die":
 				if v, ok := evt.Actor.Attributes["exitCode"]; ok {
 					if code, err := strconv.Atoi(v); err != nil {
-						log.WithError(err).Error("error converting exit code")
+						c.log.WithError(err).Error("error converting exit code")
 					} else {
-						log.Infof("setting status to: %v", code)
 						status = syscall.WaitStatus(code)
 					}
 				}
 			case "detach", "destroy":
+				c.log.Debugf("container exited")
 				if status == 0 {
 					c.events <- event{eventExitSuccess, c}
 				} else {
@@ -135,6 +148,7 @@ func (c *child) doMonitor() error {
 			}
 		case err := <-errq:
 			if err == io.EOF {
+				c.log.Debugf("done reading docker events")
 				return nil
 			}
 			return err
