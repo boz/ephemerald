@@ -221,7 +221,6 @@ func (p *pool) run() {
 				go p.onChildLive(e.child)
 
 			case eventStartFailed:
-				// todo: retry?
 				p.purgeChild(e.child)
 
 			case eventInitializeErr:

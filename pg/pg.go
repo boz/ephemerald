@@ -2,8 +2,10 @@ package pg
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/ovrclk/cpool"
 )
@@ -27,8 +29,10 @@ type Pool interface {
 }
 
 type Builder interface {
+	WithDefaults() Builder
 	WithImage(string) Builder
 	WithSize(int) Builder
+	WithLiveCheck(func(context.Context, Item) error) Builder
 	WithInitialize(func(context.Context, Item) error) Builder
 	WithReset(func(context.Context, Item) error) Builder
 	Create() (Pool, error)
@@ -47,7 +51,31 @@ func DefaultConfig() *cpool.Config {
 }
 
 func NewBuilder() Builder {
-	return &builder{1, DefaultConfig(), cpool.BuildProvisioner()}
+	return &builder{1, cpool.NewConfig(), cpool.BuildProvisioner()}
+}
+
+func DefaultBuilder() Builder {
+	return NewBuilder().
+		WithDefaults()
+}
+
+func Default() (Pool, error) {
+	return DefaultBuilder().
+		Create()
+}
+
+func (b *builder) WithDefaults() Builder {
+	b.config.WithImage("postgres").
+		ExposePort("tcp", 5432)
+
+	b.pbuilder.WithLiveCheck(
+		LiveCheck(
+			cpool.LiveCheckDefaultTimeout,
+			cpool.LiveCheckDefaultRetries,
+			cpool.LiveCheckDefaultDelay,
+			PQPingLiveCheck()))
+
+	return b
 }
 
 func (b *builder) WithSize(size int) Builder {
@@ -60,16 +88,23 @@ func (b *builder) WithImage(name string) Builder {
 	return b
 }
 
+func (b *builder) WithLiveCheck(fn func(context.Context, Item) error) Builder {
+	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cpool.StatusItem) error {
+		return fn(ctx, NewItem(si))
+	})
+	return b
+}
+
 func (b *builder) WithInitialize(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithInitialize(func(ctx context.Context, item cpool.StatusItem) error {
-		return fn(ctx, NewItem(item))
+	b.pbuilder.WithInitialize(func(ctx context.Context, si cpool.StatusItem) error {
+		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
 func (b *builder) WithReset(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithReset(func(ctx context.Context, item cpool.StatusItem) error {
-		return fn(ctx, NewItem(item))
+	b.pbuilder.WithReset(func(ctx context.Context, si cpool.StatusItem) error {
+		return fn(ctx, NewItem(si))
 	})
 	return b
 }
@@ -138,4 +173,20 @@ func (i *item) URL() string {
 	ui := url.UserPassword(i.User(), i.Password())
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(), url.QueryEscape(i.Host()), url.QueryEscape(i.Port()), url.QueryEscape(i.Database()))
+}
+
+func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(context.Context, Item) error) cpool.ProvisionFn {
+	return cpool.LiveCheck(timeout, tries, delay, func(ctx context.Context, si cpool.StatusItem) error {
+		return fn(ctx, NewItem(si))
+	})
+}
+
+func PQPingLiveCheck() func(context.Context, Item) error {
+	return func(ctx context.Context, item Item) error {
+		db, err := sql.Open("postgres", item.URL())
+		if err != nil {
+			return err
+		}
+		return db.Ping()
+	}
 }
