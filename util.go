@@ -128,7 +128,7 @@ func pullImage(p *pool, ref reference.Named) error {
 	return nil
 }
 
-func TCPPorts(status types.ContainerJSON) map[string]string {
+func TCPPortsFor(status types.ContainerJSON) map[string]string {
 	ports := make(map[string]string)
 
 	if status.Config == nil {

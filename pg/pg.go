@@ -35,8 +35,14 @@ type builder struct {
 	pbuilder cpool.ProvisionerBuilder
 }
 
+func DefaultConfig() *cpool.Config {
+	return cpool.NewConfig().
+		WithImage("postgres").
+		ExposePort("tcp", 5432)
+}
+
 func NewBuilder() Builder {
-	return &builder{1, cpool.NewConfig(), cpool.BuildProvisioner()}
+	return &builder{1, DefaultConfig(), cpool.BuildProvisioner()}
 }
 
 func (b *builder) WithSize(size int) Builder {
@@ -95,7 +101,7 @@ type item struct {
 }
 
 func NewItem(parent cpool.StatusItem) Item {
-	ports := cpool.TCPPorts(parent.Status())
+	ports := cpool.TCPPortsFor(parent.Status())
 	return &item{parent, ports["5432"]}
 }
 
