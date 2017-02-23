@@ -14,6 +14,9 @@ func TestProvisionBuilder(t *testing.T) {
 	{
 		p = BuildProvisioner().Create()
 
+		_, ok = isLiveCheckProvisioner(p)
+		assert.False(t, ok)
+
 		_, ok = isInitializeProvisioner(p)
 		assert.False(t, ok)
 
@@ -21,11 +24,30 @@ func TestProvisionBuilder(t *testing.T) {
 		assert.False(t, ok)
 	}
 
-	{
+	{ // livecheck
+		p = BuildProvisioner().
+			WithLiveCheck(func(_ context.Context, _ StatusItem) error {
+				return nil
+			}).Create()
+
+		_, ok = isLiveCheckProvisioner(p)
+		assert.True(t, ok)
+
+		_, ok = isInitializeProvisioner(p)
+		assert.False(t, ok)
+
+		_, ok = isResetProvisioner(p)
+		assert.False(t, ok)
+	}
+
+	{ // initialize
 		p = BuildProvisioner().
 			WithInitialize(func(_ context.Context, _ StatusItem) error {
 				return nil
 			}).Create()
+
+		_, ok = isLiveCheckProvisioner(p)
+		assert.False(t, ok)
 
 		_, ok = isInitializeProvisioner(p)
 		assert.True(t, ok)
@@ -34,11 +56,14 @@ func TestProvisionBuilder(t *testing.T) {
 		assert.False(t, ok)
 	}
 
-	{
+	{ // reset
 		p = BuildProvisioner().
 			WithReset(func(_ context.Context, _ StatusItem) error {
 				return nil
 			}).Create()
+
+		_, ok = isLiveCheckProvisioner(p)
+		assert.False(t, ok)
 
 		_, ok = isInitializeProvisioner(p)
 		assert.False(t, ok)

@@ -2,6 +2,8 @@ package pg
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 
 	"github.com/ovrclk/cpool"
 )
@@ -14,6 +16,8 @@ type Item interface {
 	User() string
 	Database() string
 	Password() string
+
+	URL() string
 }
 
 type Pool interface {
@@ -24,6 +28,7 @@ type Pool interface {
 
 type Builder interface {
 	WithImage(string) Builder
+	WithSize(int) Builder
 	WithInitialize(func(context.Context, Item) error) Builder
 	WithReset(func(context.Context, Item) error) Builder
 	Create() (Pool, error)
@@ -127,4 +132,10 @@ func (i *item) Database() string {
 
 func (i *item) Password() string {
 	return ""
+}
+
+func (i *item) URL() string {
+	ui := url.UserPassword(i.User(), i.Password())
+	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
+		ui.String(), url.QueryEscape(i.Host()), url.QueryEscape(i.Port()), url.QueryEscape(i.Database()))
 }

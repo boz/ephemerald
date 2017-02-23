@@ -32,36 +32,23 @@ type StatusItem interface {
 	Status() types.ContainerJSON
 }
 
-type eventId int
+type eventId string
 
 const (
-	eventCreated eventId = iota
-	eventStarted
-	eventStartFailed
-	eventExitSuccess
-	eventExitError
-	eventInitializeErr
-	eventResetErr
-	eventReady
-
-	eventReturned
-	eventCheckedOut
-	eventShutDown
+	eventCreated       eventId = "eventCreated"
+	eventStarted       eventId = "eventStarted"
+	eventStartFailed   eventId = "eventStartFailed"
+	eventLive          eventId = "eventLive"
+	eventLiveErr       eventId = "eventLiveErr"
+	eventInitializeErr eventId = "eventInitializeErr"
+	eventResetErr      eventId = "eventResetErr"
+	eventReady         eventId = "eventReady"
+	eventExitSuccess   eventId = "eventExitSuccess"
+	eventExitError     eventId = "eventExitError"
+	eventReturned      eventId = "eventReturned"
+	eventCheckedOut    eventId = "eventCheckedOut"
+	eventShutDown      eventId = "eventShutDown"
 )
-
-var eventNames = []string{
-	"created",
-	"started",
-	"startFailed",
-	"exitSuccess",
-	"exitError",
-	"initializeErr",
-	"resetErr",
-	"ready",
-	"returned",
-	"checkedOut",
-	"shutDown",
-}
 
 type event struct {
 	id    eventId
@@ -205,15 +192,16 @@ func (p *pool) run() {
 		select {
 
 		case <-p.ctx.Done():
+			log.Debugf("closing events....")
 			close(p.events)
 			return
 
 		case e := <-p.events:
 
 			if e.child != nil {
-				log.Debugf("received event: %v %v", eventNames[e.id], e.child.id)
+				log.Debugf("received event: %v %v", e.id, e.child.id)
 			} else {
-				log.Debugf("received event: %v", eventNames[e.id])
+				log.Debugf("received event: %v", e.id)
 			}
 
 			switch e.id {
@@ -224,16 +212,13 @@ func (p *pool) run() {
 
 			case eventCreated:
 
-				func() {
-					p.cond.L.Lock()
-					defer p.cond.L.Unlock()
-					p.children[e.child.id] = e.child
-				}()
-
 				go e.child.doStart()
 
 			case eventStarted:
 				go p.onChildStarted(e.child)
+
+			case eventLive:
+				go p.onChildLive(e.child)
 
 			case eventStartFailed:
 				// todo: retry?
@@ -269,6 +254,22 @@ func (p *pool) run() {
 }
 
 func (p *pool) onChildStarted(c *child) {
+
+	if prov, ok := isLiveCheckProvisioner(p.provisioner); ok {
+		if err := prov.LiveCheck(p.ctx, c); err != nil {
+			log.WithError(err).Error("error checking liveliness")
+			p.events <- event{eventLiveErr, c}
+			return
+		}
+		p.events <- event{eventLive, c}
+		return
+	}
+
+	// no live check
+	p.onChildLive(c)
+}
+
+func (p *pool) onChildLive(c *child) {
 	if prov, ok := isInitializeProvisioner(p.provisioner); ok {
 		if err := prov.Initialize(p.ctx, c); err != nil {
 			log.WithError(err).Error("error initializing")
@@ -311,14 +312,18 @@ func (p *pool) primeBacklog() {
 
 	current := len(p.children)
 
-	for ; current < p.size; current++ {
+	for ; current < p.size && p.ctx.Err() == nil; current++ {
 		child, err := createChildFor(p)
 		if err != nil {
 			log.WithError(err).Error("can't create child; abort filling backlog")
 			break
 		}
+
+		p.children[child.id] = child
+
 		go func() {
 			p.events <- event{eventCreated, child}
 		}()
 	}
+	p.cond.Broadcast()
 }
