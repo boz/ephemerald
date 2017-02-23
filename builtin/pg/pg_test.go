@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
-	"github.com/ovrclk/cpool/pg"
+	"github.com/ovrclk/cpool/builtin/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

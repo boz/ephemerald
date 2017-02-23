@@ -5,9 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/ovrclk/cpool"
+)
+
+const (
+	defaultImage = "postgres"
+	defaultPort  = 5432
 )
 
 type Item interface {
@@ -46,8 +52,8 @@ type builder struct {
 
 func DefaultConfig() *cpool.Config {
 	return cpool.NewConfig().
-		WithImage("postgres").
-		ExposePort("tcp", 5432)
+		WithImage(defaultImage).
+		ExposePort("tcp", defaultPort)
 }
 
 func NewBuilder() Builder {
@@ -65,8 +71,8 @@ func Default() (Pool, error) {
 }
 
 func (b *builder) WithDefaults() Builder {
-	b.config.WithImage("postgres").
-		ExposePort("tcp", 5432)
+	b.config.WithImage(defaultImage).
+		ExposePort("tcp", defaultPort)
 
 	b.pbuilder.WithLiveCheck(
 		LiveCheck(
@@ -142,7 +148,7 @@ type item struct {
 
 func NewItem(parent cpool.StatusItem) Item {
 	ports := cpool.TCPPortsFor(parent.Status())
-	return &item{parent, ports["5432"]}
+	return &item{parent, ports[strconv.Itoa(defaultPort)]}
 }
 
 func (i *item) ID() string {
