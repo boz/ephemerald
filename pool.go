@@ -2,6 +2,7 @@ package cpool
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -34,19 +35,32 @@ type StatusItem interface {
 type eventId string
 
 const (
-	eventCreated       eventId = "eventCreated"
-	eventStarted       eventId = "eventStarted"
-	eventStartFailed   eventId = "eventStartFailed"
-	eventLive          eventId = "eventLive"
-	eventLiveErr       eventId = "eventLiveErr"
-	eventInitializeErr eventId = "eventInitializeErr"
-	eventResetErr      eventId = "eventResetErr"
-	eventReady         eventId = "eventReady"
-	eventExitSuccess   eventId = "eventExitSuccess"
-	eventExitError     eventId = "eventExitError"
-	eventReturned      eventId = "eventReturned"
-	eventCheckedOut    eventId = "eventCheckedOut"
-	eventShutDown      eventId = "eventShutDown"
+	eventCreated       eventId = "created"
+	eventStarted       eventId = "started"
+	eventStartFailed   eventId = "start-failed"
+	eventLive          eventId = "live"
+	eventLiveErr       eventId = "live-err"
+	eventInitializeErr eventId = "initialize-err"
+	eventResetErr      eventId = "reset-err"
+	eventReady         eventId = "ready"
+	eventExitSuccess   eventId = "exit-success"
+	eventExitError     eventId = "exit-error"
+	eventReturned      eventId = "returned"
+	eventCheckedOut    eventId = "checked-out"
+	eventShutDown      eventId = "shut-down"
+
+	eventImagePulled  eventId = "image-pulled"
+	eventImagePullErr eventId = "image-pull-error"
+)
+
+type poolState string
+
+const (
+	stateInitializing poolState = "initializing"
+	stateImagePullErr poolState = "image-pull-error"
+	stateRunning      poolState = "running"
+	stateShuttingDown poolState = "shutting-down"
+	stateShutdown     poolState = "shutdown"
 )
 
 type event struct {
@@ -55,6 +69,8 @@ type event struct {
 }
 
 type pool struct {
+	state poolState
+
 	config      *Config
 	size        int
 	provisioner Provisioner
@@ -75,8 +91,6 @@ type pool struct {
 	cancel context.CancelFunc
 
 	log logrus.FieldLogger
-
-	shutdown bool
 }
 
 func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
@@ -112,6 +126,8 @@ func NewPoolWithContext(ctx context.Context, config *Config, size int, provision
 	events := make(chan event)
 
 	p := &pool{
+		state: stateInitializing,
+
 		config:      config,
 		size:        size,
 		provisioner: provisioner,
@@ -161,6 +177,9 @@ func (p *pool) Stop() error {
 	}
 
 	return nil
+}
+
+func (p *pool) WaitReady() error {
 }
 
 func (p *pool) Checkout() (StatusItem, error) {
@@ -219,21 +238,56 @@ func (p *pool) Return(i Item) {
 	}
 }
 
-func (p *pool) Fetch() error {
-	return ensureImageExists(p, p.ref)
+func (p *pool) run() {
+	p.runInitialize()
+
+	if p.state != stateRunning {
+		return
+	}
+
+	p.runRunning()
 }
 
-func (p *pool) run() {
+func (p *pool) runInitialize() error {
+
+	for {
+		if p.state == stateInitializing {
+			go p.doPullImage()
+		}
+
+		select {
+		case <-p.ctx.Done():
+			p.state = stateShutdown
+			close(p.events)
+			return p.ctx.Err()
+
+		case e := <-p.events:
+			switch e.id {
+			case eventImagePulled:
+				p.state = stateRunning
+				return nil
+			case eventImagePullErr:
+				p.state = stateImagePullErr
+				p.cancel()
+				close(p.events)
+				return fmt.Errorf("error pulling image")
+			}
+		}
+	}
+}
+
+func (p *pool) runRunning() {
 	for {
 
-		if !p.shutdown {
+		if p.state == stateRunning {
 			go p.primeBacklog()
 		}
 
 		select {
 
 		case <-p.ctx.Done():
-			p.log.Debugf("closing events....")
+			p.log.Debugf("shut down due to context timeout")
+			p.state = stateShutdown
 			close(p.events)
 			return
 
@@ -245,50 +299,74 @@ func (p *pool) run() {
 				p.log.Debugf("received event: %v", e.id)
 			}
 
+			if p.state == stateRunning {
+
+				// running; maintain child lifecycle
+
+				switch e.id {
+				case eventShutDown:
+					p.state = stateShuttingDown
+					go p.stopChildren()
+
+				case eventCreated:
+					go e.child.doStart()
+
+				case eventStarted:
+					go p.onChildStarted(e.child)
+
+				case eventLive:
+					go p.onChildLive(e.child)
+
+				case eventReady:
+					func() {
+						p.cond.L.Lock()
+						defer p.cond.L.Unlock()
+						p.ready[e.child.id] = e.child
+						p.cond.Broadcast()
+					}()
+				case eventReturned:
+					go p.onChildReturned(e.child)
+				}
+			} else {
+
+				// not running; kill new children.
+
+				switch e.id {
+				case eventCreated:
+					fallthrough
+				case eventStarted:
+					fallthrough
+				case eventLive:
+					fallthrough
+				case eventReady:
+					go e.child.kill()
+				}
+			}
+
+			// applicable to all states:
+
 			switch e.id {
-
-			case eventShutDown:
-				p.shutdown = true
-				go p.stopChildren()
-
-			case eventCreated:
-				go e.child.doStart()
-
-			case eventStarted:
-				go p.onChildStarted(e.child)
-
-			case eventLive:
-				go p.onChildLive(e.child)
-
-			case eventStartFailed:
-				p.purgeChild(e.child)
-
 			case eventInitializeErr:
-				e.child.kill()
-
-			case eventReady:
-				func() {
-					p.cond.L.Lock()
-					defer p.cond.L.Unlock()
-					p.ready[e.child.id] = e.child
-					p.cond.Broadcast()
-				}()
-
-			case eventExitError:
-				p.purgeChild(e.child)
-
-			case eventExitSuccess:
-				p.purgeChild(e.child)
-
-			case eventCheckedOut:
-			case eventReturned:
-				go p.onChildReturned(e.child)
-
+				fallthrough
 			case eventResetErr:
 				go e.child.kill()
+
+			case eventStartFailed:
+				fallthrough
+			case eventExitError:
+				fallthrough
+			case eventExitSuccess:
+				p.purgeChild(e.child)
 			}
 		}
 	}
+}
+
+func (p *pool) doPullImage() {
+	if err := ensureImageExists(p, p.ref); err != nil {
+		p.events <- event{eventImagePullErr, nil}
+	}
+	p.events <- event{eventImagePulled, nil}
 }
 
 func (p *pool) onChildStarted(c *child) {
