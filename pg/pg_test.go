@@ -33,3 +33,8 @@ func TestPGPool(t *testing.T) {
 
 	pool.Return(item)
 }
+
+func TestMain(m *testing.M) {
+	//logrus.SetLevel(logrus.DebugLevel)
+	m.Run()
+}

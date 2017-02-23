@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,6 +34,6 @@ func TestPool(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	logrus.SetLevel(logrus.DebugLevel)
+	//logrus.SetLevel(logrus.DebugLevel)
 	m.Run()
 }
