@@ -76,8 +76,7 @@ type pool struct {
 
 func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
 
-	log := logrus.StandardLogger().
-		WithField("package", "github.com/ovrclk/cpool")
+	log := logrus.StandardLogger().WithField("component", "pool")
 
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {
@@ -204,7 +203,7 @@ func (p *pool) run() {
 		case e := <-p.events:
 
 			if e.child != nil {
-				p.log.Debugf("received event: %v %v", e.id, e.child.id)
+				lcid(p.log, e.child.id).Debugf("received event: %v", e.id)
 			} else {
 				p.log.Debugf("received event: %v", e.id)
 			}

@@ -1,6 +1,8 @@
 package cpool
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
@@ -23,6 +25,11 @@ func NewConfig() *Config {
 
 func (c *Config) WithImage(image string) *Config {
 	c.Image = image
+	return c
+}
+
+func (c *Config) WithEnv(name, value string) *Config {
+	c.Env = append(c.Env, fmt.Sprintf("%v=%v", name, value))
 	return c
 }
 

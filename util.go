@@ -2,7 +2,9 @@ package cpool
 
 import (
 	"io"
+	"io/ioutil"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -43,9 +45,9 @@ func createContainer(p *pool, ref reference.Named, config *Config) (string, erro
 		return "", err
 	}
 
-	p.log.Infof("Created container %v", container.ID)
+	lcid(p.log, container.ID).Infof("container created")
 	for _, w := range container.Warnings {
-		p.log.WithField("container", container.ID).Warn(w)
+		lcid(p.log, container.ID).Warn(w)
 	}
 
 	return container.ID, nil
@@ -94,18 +96,11 @@ func pullImage(p *pool, ref reference.Named) error {
 
 	defer body.Close()
 
-	buf := make([]byte, 1024)
-
-	for {
-		_, err := body.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			p.log.WithError(err).
-				Error("error while pulling image")
-			return err
-		}
+	_, err = io.Copy(ioutil.Discard, body)
+	if err != nil {
+		p.log.WithError(err).
+			Error("error while pulling image")
+		return err
 	}
 
 	p.log.Info("done pulling image")
@@ -134,4 +129,8 @@ func TCPPortsFor(status types.ContainerJSON) map[string]string {
 	}
 
 	return ports
+}
+
+func lcid(log logrus.FieldLogger, id string) logrus.FieldLogger {
+	return log.WithField("container", id[0:12])
 }

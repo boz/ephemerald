@@ -3,6 +3,7 @@ package cpool
 import (
 	"context"
 	"io"
+	"os"
 	"strconv"
 	"syscall"
 
@@ -13,7 +14,8 @@ import (
 )
 
 type child struct {
-	id string
+	id      string
+	shortId string
 
 	status types.ContainerJSON
 
@@ -44,7 +46,8 @@ func createChildFor(p *pool) (*child, error) {
 	ctx, cancel := context.WithCancel(p.ctx)
 
 	c := &child{
-		id: cid,
+		id:      cid,
+		shortId: cid[0:12],
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -52,8 +55,10 @@ func createChildFor(p *pool) (*child, error) {
 		client: p.client,
 		events: p.events,
 		done:   make(chan interface{}),
-		log:    p.log.WithField("image", cid),
+		log:    lcid(p.log, cid).WithField("component", "child"),
 	}
+
+	go c.dumpLogs()
 
 	go c.monitor()
 
@@ -154,4 +159,28 @@ func (c *child) doMonitor() error {
 			return err
 		}
 	}
+}
+
+func (c *child) dumpLogs() {
+
+	c.log.Debug("dumping logs")
+
+	options := types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Details:    true,
+		Tail:       "1",
+	}
+
+	body, err := c.client.ContainerLogs(c.ctx, c.id, options)
+	if err != nil {
+		c.log.WithError(err).Error("error getting logs")
+	}
+	defer body.Close()
+
+	_, err = io.Copy(os.Stdout, body)
+	if err != nil {
+		c.log.WithError(err).Error("reading logs")
+	}
+
 }
