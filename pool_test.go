@@ -1,24 +1,40 @@
 package cpool
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestResource(t *testing.T) {
-	/*
-		resource := NewPGResource()
-		pool, err := NewPool(resource, 5)
-		require.NoError(t, err)
-		defer pool.Stop()
+func TestPool(t *testing.T) {
 
-		assert.NoError(t, pool.Fetch())
+	config := NewConfig().
+		WithImage("postgres").
+		ExposePort("tcp", 5432)
 
-		require.NoError(t, pool.Stop())
-	*/
+	prov := BuildProvisioner().
+		WithInitialize(func(_ context.Context, si StatusItem) error {
+			return nil
+		}).
+		WithReset(func(_ context.Context, si StatusItem) error {
+			return nil
+		}).Create()
+
+	pool, err := NewPool(config, 1, prov)
+	require.NoError(t, err)
+
+	item := pool.Checkout()
+
+	assert.NotNil(t, item)
+
+	require.NoError(t, pool.Stop())
 
 }
+
 func TestMain(m *testing.M) {
 	logrus.SetLevel(logrus.DebugLevel)
+	m.Run()
 }

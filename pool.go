@@ -49,6 +49,20 @@ const (
 	eventShutDown
 )
 
+var eventNames = []string{
+	"created",
+	"started",
+	"startFailed",
+	"exitSuccess",
+	"exitError",
+	"initializeErr",
+	"resetErr",
+	"ready",
+	"returned",
+	"checkedOut",
+	"shutDown",
+}
+
 type event struct {
 	id    eventId
 	child *child
@@ -126,7 +140,6 @@ func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
 }
 
 func (p *pool) Stop() error {
-	defer p.cancel()
 
 	p.events <- event{eventShutDown, nil}
 
@@ -135,7 +148,7 @@ func (p *pool) Stop() error {
 		p.cond.L.Lock()
 		defer p.cond.L.Unlock()
 		defer close(ch)
-		for p.ctx.Err() == nil && len(p.children) == 0 {
+		for p.ctx.Err() == nil && len(p.children) > 0 {
 			p.cond.Wait()
 		}
 	}()
@@ -144,6 +157,7 @@ func (p *pool) Stop() error {
 	case <-p.ctx.Done():
 		return p.ctx.Err()
 	case <-ch:
+		p.cancel()
 	}
 
 	return nil
@@ -185,7 +199,7 @@ func (p *pool) run() {
 	for {
 
 		if !p.shutdown {
-			p.primeBacklog()
+			go p.primeBacklog()
 		}
 
 		select {
@@ -196,7 +210,11 @@ func (p *pool) run() {
 
 		case e := <-p.events:
 
-			log.Debug("received event: %+v", e)
+			if e.child != nil {
+				log.Debugf("received event: %v %v", eventNames[e.id], e.child.id)
+			} else {
+				log.Debugf("received event: %v", eventNames[e.id])
+			}
 
 			switch e.id {
 
@@ -211,6 +229,7 @@ func (p *pool) run() {
 					defer p.cond.L.Unlock()
 					p.children[e.child.id] = e.child
 				}()
+
 				go e.child.doStart()
 
 			case eventStarted:
@@ -271,9 +290,11 @@ func (p *pool) onChildReturned(c *child) {
 }
 
 func (p *pool) purgeChild(c *child) {
+	c.cancel()
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 	delete(p.children, c.id)
+	p.cond.Broadcast()
 }
 
 func (p *pool) stopChildren() {
@@ -286,7 +307,7 @@ func (p *pool) stopChildren() {
 
 func (p *pool) primeBacklog() {
 	p.cond.L.Lock()
-	defer p.cond.L.Lock()
+	defer p.cond.L.Unlock()
 
 	current := len(p.children)
 

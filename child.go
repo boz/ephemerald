@@ -2,7 +2,9 @@ package cpool
 
 import (
 	"context"
+	"io"
 	"strconv"
+	"syscall"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -55,6 +57,7 @@ func createChildFor(p *pool) (*child, error) {
 }
 
 func (c *child) doStart() {
+
 	if err := c.start(); err != nil {
 		c.events <- event{eventStartFailed, c}
 		return
@@ -85,10 +88,18 @@ func (c *child) getStatus() (types.ContainerJSON, error) {
 }
 
 func (c *child) kill() error {
-	return c.client.ContainerKill(c.ctx, c.id, "SIGKILL")
+	return c.client.ContainerKill(c.ctx, c.id, "KILL")
 }
 
 func (c *child) monitor() {
+	err := c.doMonitor()
+	for err != nil && c.ctx.Err() == nil {
+		log.Errorf("error reading events: %v", err)
+		err = c.doMonitor()
+	}
+}
+
+func (c *child) doMonitor() error {
 	f := filters.NewArgs()
 	f.Add("type", "container")
 	f.Add("container", c.id)
@@ -99,13 +110,10 @@ func (c *child) monitor() {
 
 	eventq, errq := c.client.Events(c.ctx, options)
 
-	status := 125
+	status := syscall.WaitStatus(0)
 
 	for {
 		select {
-		case <-c.ctx.Done():
-			log.Errorf("context deadline exceeded")
-			return
 		case evt := <-eventq:
 			log.Debugf("event: %+v", evt)
 			switch evt.Status {
@@ -114,7 +122,8 @@ func (c *child) monitor() {
 					if code, err := strconv.Atoi(v); err != nil {
 						log.WithError(err).Error("error converting exit code")
 					} else {
-						status = code
+						log.Infof("setting status to: %v", code)
+						status = syscall.WaitStatus(code)
 					}
 				}
 			case "detach", "destroy":
@@ -125,7 +134,10 @@ func (c *child) monitor() {
 				}
 			}
 		case err := <-errq:
-			log.WithError(err).Error("error running container")
+			if err == io.EOF {
+				return nil
+			}
+			return err
 		}
 	}
 }

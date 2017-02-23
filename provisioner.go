@@ -49,21 +49,35 @@ func (pb *provisionerBuilder) WithReset(fn ProvisionFn) ProvisionerBuilder {
 	return pb
 }
 
+type initializeProvisioner struct {
+	initialize ProvisionFn
+}
+
+func (p *initializeProvisioner) Initialize(ctx context.Context, si StatusItem) error {
+	return p.initialize(ctx, si)
+}
+
+type resetProvisioner struct {
+	reset ProvisionFn
+}
+
+func (p *resetProvisioner) Reset(ctx context.Context, si StatusItem) error {
+	return p.reset(ctx, si)
+}
+
+type allProvisioner struct {
+	initializeProvisioner
+	resetProvisioner
+}
+
 func (pb *provisionerBuilder) Create() Provisioner {
 	switch {
 	case pb.initialize != nil && pb.reset != nil:
-		return struct {
-			Initialize ProvisionFn
-			Reset      ProvisionFn
-		}{pb.initialize, pb.reset}
+		return &allProvisioner{initializeProvisioner{pb.initialize}, resetProvisioner{pb.reset}}
 	case pb.initialize != nil:
-		return struct {
-			Initialize ProvisionFn
-		}{pb.initialize}
+		return &initializeProvisioner{pb.initialize}
 	case pb.reset != nil:
-		return struct {
-			Reset ProvisionFn
-		}{pb.reset}
+		return &resetProvisioner{pb.reset}
 	}
 	return struct{}{}
 }
