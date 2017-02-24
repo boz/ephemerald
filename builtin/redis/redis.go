@@ -28,6 +28,7 @@ type Item interface {
 type Pool interface {
 	Checkout() (Item, error)
 	Return(Item)
+	WaitReady() error
 	Stop() error
 }
 
@@ -132,6 +133,9 @@ func (p *pool) Checkout() (Item, error) {
 }
 func (p *pool) Return(item Item) {
 	p.parent.Return(item)
+}
+func (p *pool) WaitReady() error {
+	return p.parent.WaitReady()
 }
 func (p *pool) Stop() error {
 	return p.parent.Stop()

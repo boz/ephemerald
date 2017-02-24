@@ -22,8 +22,8 @@ type child struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	pool   *pool
 	client *client.Client
-	events chan<- event
 	done   chan interface{}
 
 	log logrus.FieldLogger
@@ -52,8 +52,8 @@ func createChildFor(p *pool) (*child, error) {
 		ctx:    ctx,
 		cancel: cancel,
 
+		pool:   p,
 		client: p.client,
-		events: p.events,
 		done:   make(chan interface{}),
 		log:    lcid(p.log, cid).WithField("component", "child"),
 	}
@@ -68,19 +68,19 @@ func createChildFor(p *pool) (*child, error) {
 func (c *child) doStart() {
 
 	if err := c.start(); err != nil {
-		c.events <- event{eventStartFailed, c}
+		c.sendEvent(eventStartFailed)
 		return
 	}
 
 	status, err := c.getStatus()
 	if err != nil {
-		c.events <- event{eventStartFailed, c}
+		c.sendEvent(eventStartFailed)
 		return
 	}
 
 	c.status = status
 
-	c.events <- event{eventStarted, c}
+	c.sendEvent(eventStarted)
 }
 
 func (c *child) start() error {
@@ -146,9 +146,9 @@ func (c *child) doMonitor() error {
 			case "detach", "destroy":
 				c.log.Debugf("container exited")
 				if status == 0 {
-					c.events <- event{eventExitSuccess, c}
+					c.sendEvent(eventExitSuccess)
 				} else {
-					c.events <- event{eventExitError, c}
+					c.sendEvent(eventExitError)
 				}
 			}
 		case err := <-errq:
@@ -183,4 +183,8 @@ func (c *child) dumpLogs() {
 		c.log.WithError(err).Error("reading logs")
 	}
 
+}
+
+func (c *child) sendEvent(id eventId) {
+	c.pool.sendEvent(id, c)
 }

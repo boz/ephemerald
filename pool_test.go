@@ -25,6 +25,8 @@ func TestPool(t *testing.T) {
 	pool, err := NewPool(config, 1, prov)
 	require.NoError(t, err)
 
+	require.NoError(t, pool.WaitReady())
+
 	item, err := pool.Checkout()
 	require.NoError(t, err)
 

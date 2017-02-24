@@ -18,6 +18,8 @@ func TestRedisPool(t *testing.T) {
 
 	require.NoError(t, err)
 
+	require.NoError(t, pool.WaitReady())
+
 	defer func() {
 		require.NoError(t, pool.Stop())
 	}()

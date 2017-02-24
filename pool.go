@@ -16,11 +16,18 @@ const (
 	checkoutTimeout = LiveCheckDefaultDelay * LiveCheckDefaultRetries
 )
 
+var (
+	errImagePull      = fmt.Errorf("error pulling docker image")
+	errNotRunning     = fmt.Errorf("pool not running")
+	errNotInitialized = fmt.Errorf("pool not initialized")
+)
+
 type Pool interface {
 	Checkout() (StatusItem, error)
 	CheckoutWith(context.Context) (StatusItem, error)
 	Return(Item)
 	Stop() error
+	WaitReady() error
 }
 
 type Item interface {
@@ -47,7 +54,6 @@ const (
 	eventExitError     eventId = "exit-error"
 	eventReturned      eventId = "returned"
 	eventCheckedOut    eventId = "checked-out"
-	eventShutDown      eventId = "shut-down"
 
 	eventImagePulled  eventId = "image-pulled"
 	eventImagePullErr eventId = "image-pull-error"
@@ -57,9 +63,7 @@ type poolState string
 
 const (
 	stateInitializing poolState = "initializing"
-	stateImagePullErr poolState = "image-pull-error"
 	stateRunning      poolState = "running"
-	stateShuttingDown poolState = "shutting-down"
 	stateShutdown     poolState = "shutdown"
 )
 
@@ -70,6 +74,7 @@ type event struct {
 
 type pool struct {
 	state poolState
+	err   error
 
 	config      *Config
 	size        int
@@ -79,7 +84,10 @@ type pool struct {
 	ref    reference.Named
 	info   *registry.RepositoryInfo
 
-	events chan event
+	events  chan event
+	statech chan poolState
+	childch chan *child
+	readych chan *child
 
 	cond *sync.Cond
 
@@ -93,18 +101,19 @@ type pool struct {
 	log logrus.FieldLogger
 }
 
-func NewPool(config *Config, size int, provisioner Provisioner) (Pool, error) {
+func NewPool(
+	config *Config, size int, provisioner Provisioner) (Pool, error) {
 	return NewPoolWithContext(context.Background(), config, size, provisioner)
 }
 
-func NewPoolWithContext(ctx context.Context, config *Config, size int, provisioner Provisioner) (Pool, error) {
+func NewPoolWithContext(
+	ctx context.Context, config *Config, size int, provisioner Provisioner) (Pool, error) {
 
 	log := logrus.StandardLogger().WithField("component", "pool")
 
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {
-		log.WithField("fn", "NewPool").
-			WithError(err).
+		log.WithError(err).
 			Errorf("Unable to parse image '%s'", config.Image)
 		return nil, err
 	}
@@ -113,17 +122,17 @@ func NewPoolWithContext(ctx context.Context, config *Config, size int, provision
 
 	info, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
+		log.WithError(err).Error("unable to parse repository info")
 		return nil, err
 	}
 
 	client, err := client.NewEnvClient()
 	if err != nil {
+		log.WithError(err).Error("unable to crate docker client")
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-
-	events := make(chan event)
 
 	p := &pool{
 		state: stateInitializing,
@@ -136,7 +145,10 @@ func NewPoolWithContext(ctx context.Context, config *Config, size int, provision
 		ref:    ref,
 		info:   info,
 
-		events: events,
+		events:  make(chan event),
+		statech: make(chan poolState, 1),
+		childch: make(chan *child, 1),
+		readych: make(chan *child, 1),
 
 		cond: sync.NewCond(&sync.Mutex{}),
 
@@ -156,30 +168,59 @@ func NewPoolWithContext(ctx context.Context, config *Config, size int, provision
 }
 
 func (p *pool) Stop() error {
+	defer close(p.events)
+	defer close(p.statech)
+	defer close(p.childch)
+	defer close(p.readych)
+	defer p.cancel()
 
-	p.events <- event{eventShutDown, nil}
+	p.setTerminalState(stateShutdown, nil)
 
-	ch := make(chan interface{})
-	go func() {
+	check := func() (int, error) {
 		p.cond.L.Lock()
 		defer p.cond.L.Unlock()
-		defer close(ch)
-		for p.ctx.Err() == nil && len(p.children) > 0 {
-			p.cond.Wait()
-		}
-	}()
-
-	select {
-	case <-p.ctx.Done():
-		return p.ctx.Err()
-	case <-ch:
-		p.cancel()
+		return len(p.children), p.err
 	}
 
-	return nil
+	for {
+		count, err := check()
+		if count == 0 {
+			return err
+		}
+
+		select {
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		case <-p.childch:
+		}
+	}
 }
 
 func (p *pool) WaitReady() error {
+
+	check := func() (bool, error) {
+		p.cond.L.Lock()
+		defer p.cond.L.Unlock()
+		state, err := p.state, p.err
+		switch state {
+		case stateInitializing:
+			return false, err
+		default:
+			return true, err
+		}
+	}
+
+	for {
+		done, err := check()
+		if done {
+			return err
+		}
+		select {
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		case <-p.statech:
+		}
+	}
 }
 
 func (p *pool) Checkout() (StatusItem, error) {
@@ -190,19 +231,20 @@ func (p *pool) Checkout() (StatusItem, error) {
 
 func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
 
-	ch := make(chan *child)
-
-	go func() {
-		defer close(ch)
+	check := func() (*child, error) {
 		p.cond.L.Lock()
 		defer p.cond.L.Unlock()
 
-		for len(p.ready) == 0 && ctx.Err() == nil {
-			p.cond.Wait()
+		if p.state == stateInitializing {
+			return nil, errNotInitialized
 		}
 
-		if ctx.Err() != nil {
-			return
+		if p.state != stateRunning {
+			return nil, errNotRunning
+		}
+
+		if len(p.ready) == 0 {
+			return nil, nil
 		}
 
 		// get a single child
@@ -211,22 +253,24 @@ func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
 			break
 		}
 		delete(p.ready, next.id)
+		p.taken[next.id] = next
 
-		p.events <- event{eventCheckedOut, next}
-
-		select {
-		case <-ctx.Done():
-		case ch <- next:
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case next := <-ch:
 		return next, nil
 	}
-	return nil, context.DeadlineExceeded
+
+	for {
+		next, err := check()
+		if next != nil || err != nil {
+			return next, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-p.ctx.Done():
+			return nil, p.ctx.Err()
+		case <-p.readych:
+		}
+	}
 }
 
 func (p *pool) Return(i Item) {
@@ -234,14 +278,14 @@ func (p *pool) Return(i Item) {
 	defer p.cond.L.Unlock()
 	if rc, ok := p.taken[i.ID()]; ok {
 		delete(p.taken, i.ID())
-		p.events <- event{eventReturned, rc}
+		p.sendEvent(eventReturned, rc)
 	}
 }
 
 func (p *pool) run() {
 	p.runInitialize()
 
-	if p.state != stateRunning {
+	if p.getState() != stateRunning {
 		return
 	}
 
@@ -250,48 +294,51 @@ func (p *pool) run() {
 
 func (p *pool) runInitialize() error {
 
-	for {
-		if p.state == stateInitializing {
-			go p.doPullImage()
+	go p.doPullImage()
+
+	select {
+	case <-p.ctx.Done():
+		p.setTerminalState(stateShutdown, p.ctx.Err())
+		return p.ctx.Err()
+
+	case e, ok := <-p.events:
+
+		if !ok {
+			p.log.Debug("events closed; shutting down")
+			return nil
 		}
 
-		select {
-		case <-p.ctx.Done():
-			p.state = stateShutdown
-			close(p.events)
-			return p.ctx.Err()
-
-		case e := <-p.events:
-			switch e.id {
-			case eventImagePulled:
-				p.state = stateRunning
-				return nil
-			case eventImagePullErr:
-				p.state = stateImagePullErr
-				p.cancel()
-				close(p.events)
-				return fmt.Errorf("error pulling image")
-			}
+		switch e.id {
+		case eventImagePulled:
+			p.setState(stateRunning)
+			return nil
+		case eventImagePullErr:
+			p.setTerminalState(stateShutdown, errImagePull)
+			return errImagePull
 		}
 	}
+	return nil
 }
 
 func (p *pool) runRunning() {
 	for {
 
-		if p.state == stateRunning {
+		if p.getState() == stateRunning {
 			go p.primeBacklog()
 		}
 
 		select {
 
 		case <-p.ctx.Done():
-			p.log.Debugf("shut down due to context timeout")
-			p.state = stateShutdown
-			close(p.events)
+			p.setTerminalState(stateShutdown, p.ctx.Err())
 			return
 
-		case e := <-p.events:
+		case e, ok := <-p.events:
+
+			if !ok {
+				p.log.Debugf("p.events closed; shutting down")
+				return
+			}
 
 			if e.child != nil {
 				lcid(p.log, e.child.id).Debugf("received event: %v", e.id)
@@ -299,17 +346,13 @@ func (p *pool) runRunning() {
 				p.log.Debugf("received event: %v", e.id)
 			}
 
-			if p.state == stateRunning {
-
+			switch p.getState() {
+			case stateRunning:
 				// running; maintain child lifecycle
-
 				switch e.id {
-				case eventShutDown:
-					p.state = stateShuttingDown
-					go p.stopChildren()
 
 				case eventCreated:
-					go e.child.doStart()
+					go p.onChildCreated(e.child)
 
 				case eventStarted:
 					go p.onChildStarted(e.child)
@@ -318,19 +361,13 @@ func (p *pool) runRunning() {
 					go p.onChildLive(e.child)
 
 				case eventReady:
-					func() {
-						p.cond.L.Lock()
-						defer p.cond.L.Unlock()
-						p.ready[e.child.id] = e.child
-						p.cond.Broadcast()
-					}()
+					p.onChildReady(e.child)
+
 				case eventReturned:
 					go p.onChildReturned(e.child)
 				}
-			} else {
-
+			default:
 				// not running; kill new children.
-
 				switch e.id {
 				case eventCreated:
 					fallthrough
@@ -364,9 +401,14 @@ func (p *pool) runRunning() {
 
 func (p *pool) doPullImage() {
 	if err := ensureImageExists(p, p.ref); err != nil {
-		p.events <- event{eventImagePullErr, nil}
+		p.sendEvent(eventImagePullErr, nil)
+		return
 	}
-	p.events <- event{eventImagePulled, nil}
+	p.sendEvent(eventImagePulled, nil)
+}
+
+func (p *pool) onChildCreated(c *child) {
+	c.doStart()
 }
 
 func (p *pool) onChildStarted(c *child) {
@@ -374,10 +416,10 @@ func (p *pool) onChildStarted(c *child) {
 	if prov, ok := isLiveCheckProvisioner(p.provisioner); ok {
 		if err := prov.LiveCheck(p.ctx, c); err != nil {
 			p.log.WithError(err).Error("error checking liveliness")
-			p.events <- event{eventLiveErr, c}
+			p.sendEvent(eventLiveErr, c)
 			return
 		}
-		p.events <- event{eventLive, c}
+		p.sendEvent(eventLive, c)
 		return
 	}
 
@@ -389,21 +431,33 @@ func (p *pool) onChildLive(c *child) {
 	if prov, ok := isInitializeProvisioner(p.provisioner); ok {
 		if err := prov.Initialize(p.ctx, c); err != nil {
 			p.log.WithError(err).Error("error initializing")
-			p.events <- event{eventInitializeErr, c}
+			p.sendEvent(eventInitializeErr, c)
 			return
 		}
 	}
-	p.events <- event{eventReady, c}
+	p.sendEvent(eventReady, c)
+}
+
+func (p *pool) onChildReady(c *child) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+	if c, ok := p.children[c.id]; ok && p.state == stateRunning {
+		p.ready[c.id] = c
+		select {
+		case p.readych <- c:
+		default:
+		}
+	}
 }
 
 func (p *pool) onChildReturned(c *child) {
 	if prov, ok := isResetProvisioner(p.provisioner); ok {
 		if err := prov.Reset(p.ctx, c); err != nil {
 			p.log.WithError(err).Error("error provisioning")
-			p.events <- event{eventResetErr, c}
+			p.sendEvent(eventResetErr, c)
 		}
 	}
-	c.events <- event{eventReady, c}
+	p.sendEvent(eventReady, c)
 }
 
 func (p *pool) purgeChild(c *child) {
@@ -411,20 +465,20 @@ func (p *pool) purgeChild(c *child) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 	delete(p.children, c.id)
-	p.cond.Broadcast()
-}
 
-func (p *pool) stopChildren() {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
-	for _, child := range p.children {
-		child.kill()
+	select {
+	case p.childch <- c:
+	default:
 	}
 }
 
 func (p *pool) primeBacklog() {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
+
+	if p.state != stateRunning {
+		return
+	}
 
 	current := len(p.children)
 
@@ -437,9 +491,57 @@ func (p *pool) primeBacklog() {
 
 		p.children[child.id] = child
 
-		go func() {
-			p.events <- event{eventCreated, child}
-		}()
+		select {
+		case p.childch <- child:
+		default:
+		}
+
+		go p.sendEvent(eventCreated, child)
 	}
-	p.cond.Broadcast()
+}
+
+func (p *pool) setState(state poolState) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+	p.state = state
+	select {
+	case p.statech <- state:
+	default:
+	}
+}
+
+func (p *pool) getState() poolState {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+	return p.state
+}
+
+func (p *pool) setTerminalState(state poolState, err error) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	if p.state == state {
+		return
+	}
+
+	p.state = state
+
+	if p.err != nil {
+		p.err = err
+	}
+
+	for _, child := range p.children {
+		child.kill()
+	}
+	select {
+	case p.statech <- state:
+	default:
+	}
+}
+
+func (p *pool) sendEvent(id eventId, c *child) {
+	select {
+	case <-p.ctx.Done():
+	case p.events <- event{id, c}:
+	}
 }
