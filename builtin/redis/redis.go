@@ -185,8 +185,6 @@ func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(co
 func RediGoLiveCheck() func(context.Context, Item) error {
 	return func(ctx context.Context, item Item) error {
 
-		fmt.Printf("url: %v\n", item.URL())
-
 		conn, err := rredis.DialURL(item.URL())
 
 		if err != nil {
