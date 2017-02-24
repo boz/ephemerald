@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/ovrclk/cleanroom"
@@ -14,23 +13,28 @@ import (
 const (
 	defaultImage = "postgres"
 	defaultPort  = 5432
+
+	defaultHost     = "localhost"
+	defaultUsername = "postgres"
+	defaultDatabase = "postgres"
+	defaultPassword = ""
 )
 
-type Item interface {
-	ID() string
+type Item struct {
+	Cid string
 
-	Host() string
-	Port() string
-	User() string
-	Database() string
-	Password() string
+	Host     string
+	Port     string
+	User     string
+	Database string
+	Password string
 
-	URL() string
+	URL string
 }
 
 type Pool interface {
-	Checkout() (Item, error)
-	Return(Item)
+	Checkout() (*Item, error)
+	Return(*Item)
 	Stop() error
 	WaitReady() error
 }
@@ -39,10 +43,18 @@ type Builder interface {
 	WithDefaults() Builder
 	WithImage(string) Builder
 	WithSize(int) Builder
-	WithLiveCheck(func(context.Context, Item) error) Builder
-	WithInitialize(func(context.Context, Item) error) Builder
-	WithReset(func(context.Context, Item) error) Builder
+	WithLiveCheck(ProvisionFn) Builder
+	WithInitialize(ProvisionFn) Builder
+	WithReset(ProvisionFn) Builder
 	Create() (Pool, error)
+}
+
+type ProvisionFn func(context.Context, StatusItem) error
+
+func MakeProvisioner(fn ProvisionFn) cleanroom.ProvisionFn {
+	return func(ctx context.Context, si cleanroom.StatusItem) error {
+		fn(ctx, NewItem(si))
+	}
 }
 
 type builder struct {
@@ -94,24 +106,18 @@ func (b *builder) WithImage(name string) Builder {
 	return b
 }
 
-func (b *builder) WithLiveCheck(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cleanroom.StatusItem) error {
-		return fn(ctx, NewItem(si))
-	})
+func (b *builder) WithLiveCheck(fn ProvisionFn) Builder {
+	b.pbuilder.WithLiveCheck(MakeProvisioner(fn))
 	return b
 }
 
-func (b *builder) WithInitialize(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithInitialize(func(ctx context.Context, si cleanroom.StatusItem) error {
-		return fn(ctx, NewItem(si))
-	})
+func (b *builder) WithInitialize(fn ProvisionFn) Builder {
+	b.pbuilder.WithInitialize(MakeProvisioner(fn))
 	return b
 }
 
-func (b *builder) WithReset(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithReset(func(ctx context.Context, si cleanroom.StatusItem) error {
-		return fn(ctx, NewItem(si))
-	})
+func (b *builder) WithReset(fn ProvisionFn) Builder {
+	b.pbuilder.WithReset(MakeProvisioner(fn))
 	return b
 }
 
@@ -131,14 +137,14 @@ type pool struct {
 	parent cleanroom.Pool
 }
 
-func (p *pool) Checkout() (Item, error) {
+func (p *pool) Checkout() (*Item, error) {
 	item, err := p.parent.Checkout()
 	if err != nil {
 		return nil, err
 	}
 	return NewItem(item), nil
 }
-func (p *pool) Return(item Item) {
+func (p *pool) Return(item *Item) {
 	p.parent.Return(item)
 }
 func (p *pool) WaitReady() error {
@@ -148,55 +154,44 @@ func (p *pool) Stop() error {
 	return p.parent.Stop()
 }
 
-type item struct {
-	parent cleanroom.StatusItem
-	port   string
-}
-
-func NewItem(parent cleanroom.StatusItem) Item {
-	ports := cleanroom.TCPPortsFor(parent.Status())
-	return &item{parent, ports[strconv.Itoa(defaultPort)]}
+func NewItem(parent cleanroom.StatusItem) *Item {
+	port := cleanroom.TCPPortFor(parent.Status(), defaultPort)
+	item := &Item{
+		Cid:      parent.ID(),
+		Host:     defaultHost,
+		Port:     port,
+		User:     defaultUser,
+		Database: defaultDatabase,
+		Password: defaultPassword,
+	}
+	item.URL = genURL(item)
+	return item
 }
 
 func (i *item) ID() string {
-	return i.parent.ID()
+	return i.Cid
 }
 
-func (i *item) Host() string {
-	return "localhost"
-}
+func genURL(item *Item) string {
+	ui := url.UserPassword(item.User, item.Password)
 
-func (i *item) Port() string {
-	return i.port
-}
-
-func (i *item) User() string {
-	return "postgres"
-}
-
-func (i *item) Database() string {
-	return "postgres"
-}
-
-func (i *item) Password() string {
-	return ""
+	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
+		ui.String(),
+		url.QueryEscape(item.Host),
+		url.QueryEscape(item.Port),
+		url.QueryEscape(item.Database))
 }
 
 func (i *item) URL() string {
-	ui := url.UserPassword(i.User(), i.Password())
-	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
-		ui.String(), url.QueryEscape(i.Host()), url.QueryEscape(i.Port()), url.QueryEscape(i.Database()))
 }
 
-func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(context.Context, Item) error) cleanroom.ProvisionFn {
-	return cleanroom.LiveCheck(timeout, tries, delay, func(ctx context.Context, si cleanroom.StatusItem) error {
-		return fn(ctx, NewItem(si))
-	})
+func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn ProvisionFn) cleanroom.ProvisionFn {
+	return cleanroom.LiveCheck(timeout, tries, delay, MakeProvisioner(fn))
 }
 
-func PQPingLiveCheck() func(context.Context, Item) error {
-	return func(ctx context.Context, item Item) error {
-		db, err := sql.Open("postgres", item.URL())
+func PQPingLiveCheck() ProvisionFn {
+	return func(ctx context.Context, item *Item) error {
+		db, err := sql.Open("postgres", item.URL)
 		if err != nil {
 			return err
 		}

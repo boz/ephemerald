@@ -1,8 +1,7 @@
-package main
+package net
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/cleanroom/builtin/redis"
 	"github.com/koding/kite"
@@ -85,6 +84,7 @@ func NewClient() *kite.Client {
 	return client
 }
 
+/*
 func main() {
 	if os.Args[1] == "server" {
 		NewServer().Run()
@@ -101,3 +101,4 @@ func main() {
 
 	}
 }
+*/

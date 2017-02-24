@@ -3,6 +3,7 @@ package cleanroom
 import (
 	"io"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -105,6 +106,11 @@ func pullImage(p *pool, ref reference.Named) error {
 
 	p.log.Info("done pulling image")
 	return nil
+}
+
+func TCPPortFor(status types.ContainerJSON, port int) string {
+	ports := TCPPortsFor(status)
+	return ports[strconv.Itoa(port)]
 }
 
 func TCPPortsFor(status types.ContainerJSON) map[string]string {

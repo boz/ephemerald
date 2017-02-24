@@ -14,7 +14,7 @@ func Build() *NetPool {
 func (p *pool) HandleCheckout(r *kite.Request) (interface{}, error) {
 	item, err := p.pool.Checkout()
 	if err != nil {
-		return netItem(item), nil
+		return netItem(r, item), nil
 	}
 	return nil, err
 }
@@ -26,4 +26,7 @@ func (p *pool) HandleReturn(r *kite.Request) (interface{}, error) {
 	}
 	p.pool.Return(&item)
 	return nil, nil
+}
+
+func netItem(r *kite.Request, item *Item) *Item {
 }
