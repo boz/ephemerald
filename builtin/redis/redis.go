@@ -16,18 +16,17 @@ const (
 	defaultImage = "redis"
 )
 
-type Item interface {
-	ID() string
-
-	Host() string
-	Port() string
-	Database() string
-	URL() string
+type Item struct {
+	Cid      string `json:cid`
+	Host     string `json:host`
+	Port     string `json:port`
+	Database string `json:database`
+	URL      string `json:url`
 }
 
 type Pool interface {
-	Checkout() (Item, error)
-	Return(Item)
+	Checkout() (*Item, error)
+	Return(*Item)
 	WaitReady() error
 	Stop() error
 }
@@ -36,9 +35,9 @@ type Builder interface {
 	WithDefaults() Builder
 	WithImage(string) Builder
 	WithSize(int) Builder
-	WithLiveCheck(func(context.Context, Item) error) Builder
-	WithInitialize(func(context.Context, Item) error) Builder
-	WithReset(func(context.Context, Item) error) Builder
+	WithLiveCheck(func(context.Context, *Item) error) Builder
+	WithInitialize(func(context.Context, *Item) error) Builder
+	WithReset(func(context.Context, *Item) error) Builder
 	Create() (Pool, error)
 }
 
@@ -91,21 +90,21 @@ func (b *builder) WithImage(name string) Builder {
 	return b
 }
 
-func (b *builder) WithLiveCheck(fn func(context.Context, Item) error) Builder {
+func (b *builder) WithLiveCheck(fn func(context.Context, *Item) error) Builder {
 	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
-func (b *builder) WithInitialize(fn func(context.Context, Item) error) Builder {
+func (b *builder) WithInitialize(fn func(context.Context, *Item) error) Builder {
 	b.pbuilder.WithInitialize(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
-func (b *builder) WithReset(fn func(context.Context, Item) error) Builder {
+func (b *builder) WithReset(fn func(context.Context, *Item) error) Builder {
 	b.pbuilder.WithReset(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
@@ -128,14 +127,14 @@ type pool struct {
 	parent cleanroom.Pool
 }
 
-func (p *pool) Checkout() (Item, error) {
+func (p *pool) Checkout() (*Item, error) {
 	item, err := p.parent.Checkout()
 	if err != nil {
 		return nil, err
 	}
 	return NewItem(item), nil
 }
-func (p *pool) Return(item Item) {
+func (p *pool) Return(item *Item) {
 	p.parent.Return(item)
 }
 func (p *pool) WaitReady() error {
@@ -150,42 +149,43 @@ type item struct {
 	port   string
 }
 
-func NewItem(parent cleanroom.StatusItem) Item {
+func NewItem(parent cleanroom.StatusItem) *Item {
 	ports := cleanroom.TCPPortsFor(parent.Status())
-	return &item{parent, ports[strconv.Itoa(defaultPort)]}
+	port := ports[strconv.Itoa(defaultPort)]
+
+	item := &Item{
+		Cid:      parent.ID(),
+		Host:     "localhost",
+		Port:     port,
+		Database: "0",
+	}
+
+	item.URL = makeItemURL(item)
+
+	return item
 }
 
-func (i *item) ID() string {
-	return i.parent.ID()
+func (i *Item) ID() string {
+	return i.Cid
 }
 
-func (i *item) Host() string {
-	return "localhost"
-}
-
-func (i *item) Port() string {
-	return i.port
-}
-
-func (i *item) Database() string {
-	return "0"
-}
-
-func (i *item) URL() string {
+func makeItemURL(i *Item) string {
 	return fmt.Sprintf("redis://%v:%v/%v",
-		url.QueryEscape(i.Host()), url.QueryEscape(i.Port()), url.QueryEscape(i.Database()))
+		url.QueryEscape(i.Host), url.QueryEscape(i.Port), url.QueryEscape(i.Database))
 }
 
-func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(context.Context, Item) error) cleanroom.ProvisionFn {
-	return cleanroom.LiveCheck(timeout, tries, delay, func(ctx context.Context, si cleanroom.StatusItem) error {
-		return fn(ctx, NewItem(si))
-	})
+func LiveCheck(timeout time.Duration, tries int, delay time.Duration,
+	fn func(context.Context, *Item) error) cleanroom.ProvisionFn {
+	return cleanroom.LiveCheck(timeout, tries, delay,
+		func(ctx context.Context, si cleanroom.StatusItem) error {
+			return fn(ctx, NewItem(si))
+		})
 }
 
-func RediGoLiveCheck() func(context.Context, Item) error {
-	return func(ctx context.Context, item Item) error {
+func RediGoLiveCheck() func(context.Context, *Item) error {
+	return func(ctx context.Context, item *Item) error {
 
-		conn, err := rredis.DialURL(item.URL())
+		conn, err := rredis.DialURL(item.URL)
 
 		if err != nil {
 			return err
