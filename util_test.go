@@ -1,4 +1,4 @@
-package cpool_test
+package cleanroom_test
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/ovrclk/cpool"
+	"github.com/ovrclk/cleanroom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestTCPPorts(t *testing.T) {
 
 	require.NoError(t, json.NewDecoder(file).Decode(&status))
 
-	ports := cpool.TCPPortsFor(status)
+	ports := cleanroom.TCPPortsFor(status)
 
 	assert.Equal(t, 1, len(ports))
 

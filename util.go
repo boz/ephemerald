@@ -1,4 +1,4 @@
-package cpool
+package cleanroom
 
 import (
 	"io"

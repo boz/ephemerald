@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ovrclk/cpool"
+	"github.com/ovrclk/cleanroom"
 )
 
 const (
@@ -45,16 +45,16 @@ type Builder interface {
 
 type builder struct {
 	size     int
-	config   *cpool.Config
-	pbuilder cpool.ProvisionerBuilder
+	config   *cleanroom.Config
+	pbuilder cleanroom.ProvisionerBuilder
 }
 
-func DefaultConfig() *cpool.Config {
-	return applyDefaults(cpool.NewConfig())
+func DefaultConfig() *cleanroom.Config {
+	return applyDefaults(cleanroom.NewConfig())
 }
 
 func NewBuilder() Builder {
-	return &builder{1, cpool.NewConfig(), cpool.BuildProvisioner()}
+	return &builder{1, cleanroom.NewConfig(), cleanroom.BuildProvisioner()}
 }
 
 func DefaultBuilder() Builder {
@@ -67,15 +67,15 @@ func (b *builder) WithDefaults() Builder {
 
 	b.pbuilder.WithLiveCheck(
 		LiveCheck(
-			cpool.LiveCheckDefaultTimeout,
-			cpool.LiveCheckDefaultRetries,
-			cpool.LiveCheckDefaultDelay,
+			cleanroom.LiveCheckDefaultTimeout,
+			cleanroom.LiveCheckDefaultRetries,
+			cleanroom.LiveCheckDefaultDelay,
 			HTTPLiveCheck()))
 
 	return b
 }
 
-func applyDefaults(config *cpool.Config) *cpool.Config {
+func applyDefaults(config *cleanroom.Config) *cleanroom.Config {
 	return config.
 		WithImage(defaultImage).
 		ExposePort("tcp", defaultPort).
@@ -93,21 +93,21 @@ func (b *builder) WithImage(name string) Builder {
 }
 
 func (b *builder) WithLiveCheck(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cpool.StatusItem) error {
+	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
 func (b *builder) WithInitialize(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithInitialize(func(ctx context.Context, si cpool.StatusItem) error {
+	b.pbuilder.WithInitialize(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
 func (b *builder) WithReset(fn func(context.Context, Item) error) Builder {
-	b.pbuilder.WithReset(func(ctx context.Context, si cpool.StatusItem) error {
+	b.pbuilder.WithReset(func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
@@ -117,8 +117,8 @@ func (b *builder) Create() (Pool, error) {
 	return NewPool(b.config, b.size, b.pbuilder.Create())
 }
 
-func NewPool(config *cpool.Config, size int, provisioner cpool.Provisioner) (Pool, error) {
-	parent, err := cpool.NewPool(config, size, provisioner)
+func NewPool(config *cleanroom.Config, size int, provisioner cleanroom.Provisioner) (Pool, error) {
+	parent, err := cleanroom.NewPool(config, size, provisioner)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func NewPool(config *cpool.Config, size int, provisioner cpool.Provisioner) (Poo
 }
 
 type pool struct {
-	parent cpool.Pool
+	parent cleanroom.Pool
 }
 
 func (p *pool) Checkout() (Item, error) {
@@ -147,12 +147,12 @@ func (p *pool) Stop() error {
 }
 
 type item struct {
-	parent cpool.StatusItem
+	parent cleanroom.StatusItem
 	port   string
 }
 
-func NewItem(parent cpool.StatusItem) Item {
-	ports := cpool.TCPPortsFor(parent.Status())
+func NewItem(parent cleanroom.StatusItem) Item {
+	ports := cleanroom.TCPPortsFor(parent.Status())
 	return &item{parent, ports[strconv.Itoa(defaultPort)]}
 }
 
@@ -173,8 +173,8 @@ func (i *item) URL() string {
 		url.QueryEscape(i.Host()), url.QueryEscape(i.Port()))
 }
 
-func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(context.Context, Item) error) cpool.ProvisionFn {
-	return cpool.LiveCheck(timeout, tries, delay, func(ctx context.Context, si cpool.StatusItem) error {
+func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn func(context.Context, Item) error) cleanroom.ProvisionFn {
+	return cleanroom.LiveCheck(timeout, tries, delay, func(ctx context.Context, si cleanroom.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 }

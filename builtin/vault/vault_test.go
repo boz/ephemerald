@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/ovrclk/cpool/builtin/vault"
+	"github.com/ovrclk/cleanroom/builtin/vault"
 	"github.com/stretchr/testify/require"
 )
 
