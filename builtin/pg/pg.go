@@ -52,9 +52,7 @@ type builder struct {
 }
 
 func DefaultConfig() *cpool.Config {
-	return cpool.NewConfig().
-		WithImage(defaultImage).
-		ExposePort("tcp", defaultPort)
+	return applyDefaults(cpool.NewConfig())
 }
 
 func NewBuilder() Builder {
@@ -66,14 +64,9 @@ func DefaultBuilder() Builder {
 		WithDefaults()
 }
 
-func Default() (Pool, error) {
-	return DefaultBuilder().
-		Create()
-}
-
 func (b *builder) WithDefaults() Builder {
-	b.config.WithImage(defaultImage).
-		ExposePort("tcp", defaultPort)
+
+	applyDefaults(b.config)
 
 	b.pbuilder.WithLiveCheck(
 		LiveCheck(
@@ -83,6 +76,12 @@ func (b *builder) WithDefaults() Builder {
 			PQPingLiveCheck()))
 
 	return b
+}
+
+func applyDefaults(config *cpool.Config) *cpool.Config {
+	return config.
+		WithImage(defaultImage).
+		ExposePort("tcp", defaultPort)
 }
 
 func (b *builder) WithSize(size int) Builder {
