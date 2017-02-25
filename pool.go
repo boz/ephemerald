@@ -463,8 +463,10 @@ func (p *pool) onChildReturned(c *child) {
 			p.log.WithError(err).Error("error provisioning")
 			p.sendEvent(eventResetErr, c)
 		}
+		p.sendEvent(eventReady, c)
+		return
 	}
-	p.sendEvent(eventReady, c)
+	c.kill()
 }
 
 func (p *pool) purgeChild(c *child) {
