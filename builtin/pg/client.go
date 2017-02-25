@@ -71,7 +71,7 @@ func (c *Client) Checkout() (*Item, error) {
 }
 
 func (c *Client) Return(i *Item) error {
-	_, err := c.kclient.Tell(rpcCheckoutName, i)
+	_, err := c.kclient.Tell(rpcReturnName, i)
 	return err
 }
 

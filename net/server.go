@@ -1,8 +1,6 @@
 package net
 
 import (
-	"fmt"
-
 	"github.com/koding/kite"
 	"github.com/ovrclk/cleanroom/builtin/pg"
 	"github.com/ovrclk/cleanroom/builtin/redis"
@@ -51,19 +49,4 @@ func NewServer() (*Server, error) {
 		redis: redis,
 		pg:    pg,
 	}, nil
-}
-
-func NewClient(host string, port int) *kite.Client {
-
-	k := kite.New(kiteName, kiteVersion)
-
-	k.SetLogLevel(kite.DEBUG)
-
-	k.Config.Environment = host
-
-	url := fmt.Sprintf("http://%v:%v/kite", host, port)
-
-	client := k.NewClient(url)
-
-	return client
 }
