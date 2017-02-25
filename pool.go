@@ -172,6 +172,7 @@ func NewPoolWithContext(
 
 func (p *pool) Stop() error {
 	if !atomic.CompareAndSwapInt32(&p.stopped, 0, 1) {
+		p.log.Warning("double stop")
 		return nil
 	}
 	defer close(p.events)

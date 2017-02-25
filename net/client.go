@@ -25,7 +25,7 @@ type Client struct {
 }
 
 func NewClientBuilder() *ClientBuilder {
-	k := kite.New(kiteName, kiteVersion)
+	k := kite.New(kiteName+"-client", kiteVersion)
 	k.SetLogLevel(kite.DEBUG)
 	c := k.NewClient("")
 
@@ -51,7 +51,7 @@ func (b *ClientBuilder) BuildPG(fn func(*pg.ClientBuilder)) *ClientBuilder {
 
 func (b *ClientBuilder) Create() (*Client, error) {
 	b.kclient.URL = fmt.Sprintf("http://%v:%v/kite", b.host, b.port)
-	b.kclient.Environment = b.host
+	b.kclient.Kite.Environment = b.host
 
 	pg, _ := b.pgb.Create()
 	redis := redis.BuildClient(b.kclient)

@@ -25,6 +25,8 @@ type Server struct {
 	redis PoolServer
 	pg    PoolServer
 	vault PoolServer
+
+	closech chan bool
 }
 
 func NewServer() (*Server, error) {
@@ -51,13 +53,38 @@ func NewServerWithPort(port int) (*Server, error) {
 	}
 
 	return &Server{
-		kite:  k,
-		redis: redis,
-		pg:    pg,
+		kite:    k,
+		redis:   redis,
+		pg:      pg,
+		closech: make(chan bool),
 	}, nil
 }
 
-func (s *Server) Stop() {
+func (s *Server) Run() {
+	defer close(s.closech)
+	ch := s.kite.ServerCloseNotify()
+	go s.kite.Run()
+	<-ch
+	s.stopPools()
+}
+
+func (s *Server) Close() {
+	s.kite.Close()
+}
+
+func (s *Server) ServerCloseNotify() chan bool {
+	return s.closech
+}
+
+func (s *Server) ServerReadyNotify() chan bool {
+	return s.kite.ServerReadyNotify()
+}
+
+func (s *Server) Port() int {
+	return s.kite.Port()
+}
+
+func (s *Server) stopPools() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -70,24 +97,4 @@ func (s *Server) Stop() {
 	go fn(s.pg)
 
 	wg.Wait()
-}
-
-func (s *Server) Run() {
-	ch := s.kite.ServerCloseNotify()
-	go s.kite.Run()
-
-	<-ch
-	s.Stop()
-}
-
-func (s *Server) ServerCloseNotify() chan bool {
-	return s.kite.ServerCloseNotify()
-}
-
-func (s *Server) ServerReadyNotify() chan bool {
-	return s.kite.ServerReadyNotify()
-}
-
-func (s *Server) Port() int {
-	return s.kite.Port()
 }

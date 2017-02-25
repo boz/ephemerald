@@ -36,6 +36,7 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
+	s.kite.Log.Info("remote addr: %v", r.Client.RemoteAddr())
 	item, err := s.pool.Checkout()
 	if err != nil {
 		return nil, err

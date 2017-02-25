@@ -16,7 +16,7 @@ func (c *Client) Checkout() (*Item, error) {
 		return nil, err
 	}
 	i := Item{}
-	response.One().MustUnmarshal(&i)
+	response.MustUnmarshal(&i)
 	return &i, nil
 }
 
