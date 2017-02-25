@@ -92,6 +92,7 @@ func (s *Server) stopSession(c *kite.Client) {
 }
 
 func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
+	s.kite.Log.Info(">pg.checkout")
 	pool, err := s.poolForSession(r)
 	if err != nil {
 		return nil, err
@@ -100,10 +101,12 @@ func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.kite.Log.Info("<pg.checkout")
 	return transformItem(r.Client, i), nil
 }
 
 func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
+	s.kite.Log.Info(">pg.return")
 	i := Item{}
 	r.Args.One().MustUnmarshal(&i)
 
@@ -114,6 +117,7 @@ func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
 
 	pool.Return(&i)
 
+	s.kite.Log.Info("<pg.return")
 	return nil, nil
 }
 

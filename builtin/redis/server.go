@@ -13,7 +13,7 @@ type Server struct {
 }
 
 func BuildServer(kite *kite.Kite) (*Server, error) {
-	pool, err := DefaultBuilder().Create()
+	pool, err := DefaultBuilder().WithSize(2).Create()
 
 	if err != nil {
 		return nil, err
@@ -36,18 +36,21 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
-	s.kite.Log.Info("remote addr: %v", r.Client.RemoteAddr())
+	s.kite.Log.Info(">redis.checkout")
 	item, err := s.pool.Checkout()
 	if err != nil {
 		return nil, err
 	}
+	s.kite.Log.Info("<redis.checkout")
 	return s.transformItem(r, item), nil
 }
 
 func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
+	s.kite.Log.Info(">redis.return")
 	item := Item{}
 	r.Args.One().MustUnmarshal(&item)
 	s.pool.Return(&item)
+	s.kite.Log.Info("<redis.return")
 	return nil, nil
 }
 

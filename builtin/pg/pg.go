@@ -192,6 +192,7 @@ func PQPingLiveCheck() ProvisionFn {
 	return func(ctx context.Context, item *Item) error {
 		db, err := sql.Open("postgres", item.URL)
 		if err != nil {
+			fmt.Printf("error:%v\n", err)
 			return err
 		}
 		return db.Ping()

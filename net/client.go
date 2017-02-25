@@ -29,6 +29,8 @@ func NewClientBuilder() *ClientBuilder {
 	k := kite.New(kiteName+"-client", kiteVersion)
 	k.SetLogLevel(kite.DEBUG)
 	c := k.NewClient("")
+	c.Concurrent = true
+	c.ConcurrentCallbacks = true
 
 	pgb := pg.NewClientBuilder().WithClient(c)
 
