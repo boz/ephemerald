@@ -3,8 +3,9 @@ package net
 import (
 	"fmt"
 
-	"github.com/cleanroom/builtin/redis"
 	"github.com/koding/kite"
+	"github.com/ovrclk/cleanroom/builtin/pg"
+	"github.com/ovrclk/cleanroom/builtin/redis"
 )
 
 const (
@@ -13,12 +14,20 @@ const (
 	kitePort    = 6000
 )
 
-type Item struct {
-	ID   string
-	Host string
+type PoolServer interface {
+	WaitReady() error
+	Stop() error
 }
 
-func NewServer() *kite.Kite {
+type Server struct {
+	kite *kite.Kite
+
+	redis PoolServer
+	pg    PoolServer
+	vault PoolServer
+}
+
+func NewServer() (*Server, error) {
 	k := kite.New(kiteName, kiteVersion)
 
 	k.SetLogLevel(kite.DEBUG)
@@ -26,79 +35,35 @@ func NewServer() *kite.Kite {
 	k.Config.Port = kitePort
 	k.Config.DisableAuthentication = true
 
-	k.HandleFunc("connect", func(r *kite.Request) (interface{}, error) {
-		var services []string
+	redis, err := redis.BuildServer(k)
+	if err != nil {
+		return nil, err
+	}
 
-		for _, arg := range r.Args.MustSlice() {
-			services = append(services, arg.MustString())
-		}
+	pg, err := pg.BuildServer(k)
+	if err != nil {
+		redis.Stop()
+		return nil, err
+	}
 
-		for svc := range services {
-			switch svc {
-			case "redis":
-
-			}
-		}
-
-		return nil, nil
-	})
-
-	var pool redis.Pool
-
-	k.HandleFunc("redis/checkout", func(r *kite.Request) (interface{}, error) {
-		return pool.Checkout()
-	})
-
-	k.HandleFunc("redis/return", func(r *kite.Request) (interface{}, error) {
-	})
-
-	k.HandleFunc("do-reset", func(r *kite.Request) (interface{}, error) {
-		k.Log.Info("do-reset")
-		return "ok", nil
-	})
-	return k
+	return &Server{
+		kite:  k,
+		redis: redis,
+		pg:    pg,
+	}, nil
 }
 
-func NewClient() *kite.Client {
+func NewClient(host string, port int) *kite.Client {
 
 	k := kite.New(kiteName, kiteVersion)
 
 	k.SetLogLevel(kite.DEBUG)
 
-	url := fmt.Sprintf("http://localhost:%v/kite", kitePort)
+	k.Config.Environment = host
 
-	k.HandleFunc("reset", func(r *kite.Request) (interface{}, error) {
-		k.Log.Info("received request: %v", r.Args)
-
-		item := Item{}
-		//err := json.Unmarshal(r.Args.Raw, &item)
-		err := r.Args.One().Unmarshal(&item)
-
-		k.Log.Info("item: %v; err: %v", item, err)
-
-		return "sup", nil
-	})
+	url := fmt.Sprintf("http://%v:%v/kite", host, port)
 
 	client := k.NewClient(url)
 
 	return client
 }
-
-/*
-func main() {
-	if os.Args[1] == "server" {
-		NewServer().Run()
-	} else {
-		client := NewClient()
-
-		if err := client.Dial(); err != nil {
-			fmt.Printf("error: %v\n", err)
-			return
-		}
-
-		response, err := client.Tell("redis/checkout", "hello")
-		fmt.Printf("response: %v err: %v\n", response, err)
-
-	}
-}
-*/

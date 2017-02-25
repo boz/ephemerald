@@ -1,10 +1,10 @@
 package pg
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/koding/kite"
-	"github.com/ovrclk/cleanroom"
 )
 
 const (
@@ -19,72 +19,69 @@ var (
 )
 
 type ClientBuilder struct {
-	client     *kite.Client
+	kclient    *kite.Client
 	initialize ProvisionFn
 	reset      ProvisionFn
 }
 
-func NewClientBuilder() *ClientBuilder {
-	return &ClientBuilder{
-		pbuilder: cleanroom.BuildProvisioner(),
-	}
+type Client struct {
+	kclient *kite.Client
 }
 
-func (b *ClientBuilder) WithClient(client *kite.Client) ClientBuilder {
-	b.client = client
+func NewClientBuilder() *ClientBuilder {
+	return &ClientBuilder{}
+}
+
+func (b *ClientBuilder) WithClient(c *kite.Client) *ClientBuilder {
+	b.kclient = c
 	return b
 }
 
-func (b *ClientBuilder) WithInitialize(fn ProvisionFn) ClientBuilder {
+func (b *ClientBuilder) WithInitialize(fn ProvisionFn) *ClientBuilder {
 	b.initialize = fn
 	return b
 }
 
-func (b *ClientBuilder) WithReset(fn ProvisionFn) ClientBuilder {
+func (b *ClientBuilder) WithReset(fn ProvisionFn) *ClientBuilder {
 	b.reset = fn
 	return b
 }
 
 func (b *ClientBuilder) Create() (*Client, error) {
 
-	if b.client == nil {
+	if b.kclient == nil {
 		return nil, errClientRequired
 	}
 
-	b.client.LocalKite.HandlerFunc(rpcInitializeName, MakeRPCProvisioner(b.initialize))
-	b.client.LocalKite.HandlerFunc(rpcResetName, MakeRPCProvisioner(b.reset))
+	c := &Client{kclient: b.kclient}
+	c.kclient.LocalKite.HandleFunc(rpcInitializeName, c.makeProvisioner(b.initialize))
+	c.kclient.LocalKite.HandleFunc(rpcResetName, c.makeProvisioner(b.reset))
 
-	return &Client{client: b.client}, nil
+	return c, nil
 }
 
 func (c *Client) Checkout() (*Item, error) {
-	response := c.client.Tell(rpcCheckoutName, item)
-	if response.Err != nil {
-		return nil, response.Err
+	response, err := c.kclient.Tell(rpcCheckoutName)
+	if err != nil {
+		return nil, err
 	}
-	return unmarshalPartial(response.Result)
+	i := Item{}
+	response.One().MustUnmarshal(&i)
+	return &i, nil
 }
 
-func (c *Client) Return(*Item) error {
-	response := c.client.Tell(rpcCheckoutName, item)
-	return response.Err
+func (c *Client) Return(i *Item) error {
+	_, err := c.kclient.Tell(rpcCheckoutName, i)
+	return err
 }
 
-func unmarshalPartial(p kite.Partial) (*Item, error) {
-	item := Item{}
-	return &item, p.One().Unmarshal(&item)
-}
-
-func MakeRPCProvisioner(fn ProvisionFn) kite.HandlerFunc {
+func (c *Client) makeProvisioner(fn ProvisionFn) kite.HandlerFunc {
 	return func(r *kite.Request) (interface{}, error) {
 		if fn == nil {
 			return nil, nil
 		}
-		item := Item{}
-		err := r.Args.One().Unmarshal(&item)
-		if err != nil {
-			return nil, err
-		}
-		return err, fn(item)
+		i := Item{}
+		r.Args.One().MustUnmarshal(&i)
+		return nil, fn(context.TODO(), &i)
 	}
 }

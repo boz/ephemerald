@@ -15,7 +15,7 @@ const (
 	defaultPort  = 5432
 
 	defaultHost     = "localhost"
-	defaultUsername = "postgres"
+	defaultUser     = "postgres"
 	defaultDatabase = "postgres"
 	defaultPassword = ""
 )
@@ -49,11 +49,11 @@ type Builder interface {
 	Create() (Pool, error)
 }
 
-type ProvisionFn func(context.Context, StatusItem) error
+type ProvisionFn func(context.Context, *Item) error
 
 func MakeProvisioner(fn ProvisionFn) cleanroom.ProvisionFn {
 	return func(ctx context.Context, si cleanroom.StatusItem) error {
-		fn(ctx, NewItem(si))
+		return fn(ctx, NewItem(si))
 	}
 }
 
@@ -168,7 +168,7 @@ func NewItem(parent cleanroom.StatusItem) *Item {
 	return item
 }
 
-func (i *item) ID() string {
+func (i *Item) ID() string {
 	return i.Cid
 }
 
@@ -180,9 +180,6 @@ func genURL(item *Item) string {
 		url.QueryEscape(item.Host),
 		url.QueryEscape(item.Port),
 		url.QueryEscape(item.Database))
-}
-
-func (i *item) URL() string {
 }
 
 func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn ProvisionFn) cleanroom.ProvisionFn {

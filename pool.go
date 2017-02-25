@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -99,6 +100,8 @@ type pool struct {
 	cancel context.CancelFunc
 
 	log logrus.FieldLogger
+
+	stopped int32
 }
 
 func NewPool(
@@ -168,6 +171,9 @@ func NewPoolWithContext(
 }
 
 func (p *pool) Stop() error {
+	if !atomic.CompareAndSwapInt32(&p.stopped, 0, 1) {
+		return nil
+	}
 	defer close(p.events)
 	defer close(p.statech)
 	defer close(p.childch)
