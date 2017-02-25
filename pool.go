@@ -408,10 +408,10 @@ func (p *pool) runRunning() {
 
 func (p *pool) doPullImage() {
 	if err := ensureImageExists(p, p.ref); err != nil {
-		p.sendEvent(eventImagePullErr, nil)
+		p.sendStateEvent(eventImagePullErr, nil)
 		return
 	}
-	p.sendEvent(eventImagePulled, nil)
+	p.sendStateEvent(eventImagePulled, nil)
 }
 
 func (p *pool) onChildCreated(c *child) {
@@ -469,6 +469,7 @@ func (p *pool) onChildReturned(c *child) {
 
 func (p *pool) purgeChild(c *child) {
 	c.cancel()
+	close(c.done)
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 	delete(p.children, c.id)
@@ -547,6 +548,15 @@ func (p *pool) setTerminalState(state poolState, err error) {
 }
 
 func (p *pool) sendEvent(id eventId, c *child) {
+	select {
+	case <-p.ctx.Done():
+	case <-c.done:
+	case <-c.ctx.Done():
+	case p.events <- event{id, c}:
+	}
+}
+
+func (p *pool) sendStateEvent(id eventId, c *child) {
 	select {
 	case <-p.ctx.Done():
 	case p.events <- event{id, c}:
