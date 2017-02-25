@@ -1,10 +1,11 @@
 package net_test
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/ovrclk/cleanroom/net"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,14 +23,31 @@ func TestClientServer(t *testing.T) {
 
 	go server.Run()
 	<-readych
-	fmt.Printf("server ready; port: %v\n", server.Port())
 
 	client, err := net.NewClientBuilder().
 		WithPort(server.Port()).
 		Create()
 	require.NoError(t, err)
 
-	item, err := client.Redis().Checkout()
-	require.NoError(t, err)
-	require.NoError(t, client.Redis().Return(item))
+	{
+		item, err := client.Redis().Checkout()
+		require.NoError(t, err)
+		defer func() {
+			assert.NoError(t, client.Redis().Return(item))
+		}()
+
+		db, err := redis.DialURL(item.URL)
+		require.NoError(t, err)
+
+		_, err = db.Do("PING")
+		require.NoError(t, err)
+	}
+	{
+		item, err := client.PG().Checkout()
+		require.NoError(t, err)
+		defer func() {
+			assert.NoError(t, client.PG().Return(item))
+		}()
+	}
+
 }

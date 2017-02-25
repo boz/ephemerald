@@ -2,8 +2,10 @@ package pg_test
 
 import (
 	"database/sql"
+	"os"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"github.com/ovrclk/cleanroom/builtin/pg"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +29,7 @@ func TestPGPool(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Return(item)
 
-	db, err := sql.Open("postgres", item.URL())
+	db, err := sql.Open("postgres", item.URL)
 
 	require.NoError(t, err)
 
@@ -38,6 +40,6 @@ func TestPGPool(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	//logrus.SetLevel(logrus.DebugLevel)
-	m.Run()
+	logrus.SetLevel(logrus.DebugLevel)
+	os.Exit(m.Run())
 }

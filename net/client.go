@@ -10,6 +10,7 @@ import (
 
 type ClientBuilder struct {
 	kclient *kite.Client
+	kite    *kite.Kite
 
 	host string
 	port int
@@ -31,7 +32,7 @@ func NewClientBuilder() *ClientBuilder {
 
 	pgb := pg.NewClientBuilder().WithClient(c)
 
-	return &ClientBuilder{c, "localhost", kitePort, pgb}
+	return &ClientBuilder{c, k, "localhost", kitePort, pgb}
 }
 
 func (b *ClientBuilder) WithHost(host string) *ClientBuilder {
@@ -51,7 +52,7 @@ func (b *ClientBuilder) BuildPG(fn func(*pg.ClientBuilder)) *ClientBuilder {
 
 func (b *ClientBuilder) Create() (*Client, error) {
 	b.kclient.URL = fmt.Sprintf("http://%v:%v/kite", b.host, b.port)
-	b.kclient.Kite.Environment = b.host
+	b.kite.Config.Environment = b.host
 
 	pg, _ := b.pgb.Create()
 	redis := redis.BuildClient(b.kclient)

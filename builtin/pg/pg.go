@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"github.com/ovrclk/cleanroom"
 )
 

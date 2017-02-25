@@ -49,8 +49,8 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) startSession(c *kite.Client) {
-
 	pool, err := DefaultBuilder().
+		WithSize(2).
 		WithInitialize(func(ctx context.Context, i *Item) error {
 			return RemoteDo(ctx, c, rpcInitializeName, i)
 		}).

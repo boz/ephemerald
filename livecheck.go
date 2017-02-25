@@ -8,8 +8,8 @@ import (
 
 const (
 	LiveCheckDefaultTimeout = time.Second
-	LiveCheckDefaultRetries = 10
-	LiveCheckDefaultDelay   = time.Second
+	LiveCheckDefaultRetries = 20
+	LiveCheckDefaultDelay   = time.Second / 2
 )
 
 var RetryCountExceeded = fmt.Errorf("retry count exceeded")
