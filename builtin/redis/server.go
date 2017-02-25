@@ -13,7 +13,7 @@ type Server struct {
 }
 
 func BuildServer(kite *kite.Kite) (*Server, error) {
-	pool, err := DefaultBuilder().WithSize(5).Create()
+	pool, err := DefaultBuilder().WithSize(10).Create()
 
 	if err != nil {
 		return nil, err

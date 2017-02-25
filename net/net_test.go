@@ -53,7 +53,7 @@ func TestClientServer(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 100; i++ {
 		func() {
 			ri, db := getRedis(t, client)
 			defer func() {
@@ -63,6 +63,9 @@ func TestClientServer(t *testing.T) {
 			pi, pq := getPG(t, client)
 			defer func() {
 				client.PG().Return(pi)
+			}()
+			defer func() {
+				assert.NoError(t, pq.Close())
 			}()
 
 			for i := 0; i < 20; i++ {

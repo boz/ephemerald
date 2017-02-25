@@ -90,7 +90,7 @@ type pool struct {
 	childch chan *child
 	readych chan *child
 
-	cond *sync.Cond
+	mtx *sync.RWMutex
 
 	children map[string]*child
 	ready    map[string]*child
@@ -153,7 +153,7 @@ func NewPoolWithContext(
 		childch: make(chan *child, 1),
 		readych: make(chan *child, 1),
 
-		cond: sync.NewCond(&sync.Mutex{}),
+		mtx: new(sync.RWMutex),
 
 		children: make(map[string]*child),
 		ready:    make(map[string]*child),
@@ -184,8 +184,8 @@ func (p *pool) Stop() error {
 	p.setTerminalState(stateShutdown, nil)
 
 	check := func() (int, error) {
-		p.cond.L.Lock()
-		defer p.cond.L.Unlock()
+		p.mtx.RLock()
+		defer p.mtx.RUnlock()
 		return len(p.children), p.err
 	}
 
@@ -206,8 +206,8 @@ func (p *pool) Stop() error {
 func (p *pool) WaitReady() error {
 
 	check := func() (bool, error) {
-		p.cond.L.Lock()
-		defer p.cond.L.Unlock()
+		p.mtx.RLock()
+		defer p.mtx.RUnlock()
 		state, err := p.state, p.err
 		switch state {
 		case stateInitializing:
@@ -239,8 +239,8 @@ func (p *pool) Checkout() (StatusItem, error) {
 func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
 
 	check := func() (*child, error) {
-		p.cond.L.Lock()
-		defer p.cond.L.Unlock()
+		p.mtx.Lock()
+		defer p.mtx.Unlock()
 
 		if p.state == stateInitializing {
 			return nil, errNotInitialized
@@ -281,20 +281,24 @@ func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
 }
 
 func (p *pool) Return(i Item) {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	if rc, ok := p.taken[i.ID()]; ok {
 		delete(p.taken, i.ID())
-		p.sendEvent(eventReturned, rc)
+		go p.sendEvent(eventReturned, rc)
 	}
 }
 
 func (p *pool) run() {
 	p.runInitialize()
 
-	if p.getState() != stateRunning {
+	p.mtx.Lock()
+	if p.state != stateRunning {
+		p.mtx.Unlock()
 		return
 	}
+	p.primeBacklog()
+	p.mtx.Unlock()
 
 	p.runRunning()
 }
@@ -330,10 +334,6 @@ func (p *pool) runInitialize() error {
 func (p *pool) runRunning() {
 	for {
 
-		if p.getState() == stateRunning {
-			go p.primeBacklog()
-		}
-
 		select {
 
 		case <-p.ctx.Done():
@@ -353,8 +353,11 @@ func (p *pool) runRunning() {
 				p.log.Debugf("received event: %v", e.id)
 			}
 
-			switch p.getState() {
+			state := p.getState()
+
+			switch state {
 			case stateRunning:
+
 				// running; maintain child lifecycle
 				switch e.id {
 
@@ -368,7 +371,7 @@ func (p *pool) runRunning() {
 					go p.onChildLive(e.child)
 
 				case eventReady:
-					p.onChildReady(e.child)
+					go p.onChildReady(e.child)
 
 				case eventReturned:
 					go p.onChildReturned(e.child)
@@ -400,7 +403,7 @@ func (p *pool) runRunning() {
 			case eventExitError:
 				fallthrough
 			case eventExitSuccess:
-				p.purgeChild(e.child)
+				go p.purgeChild(e.child)
 			}
 		}
 	}
@@ -446,8 +449,8 @@ func (p *pool) onChildLive(c *child) {
 }
 
 func (p *pool) onChildReady(c *child) {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	if c, ok := p.children[c.id]; ok && p.state == stateRunning {
 		p.ready[c.id] = c
 		select {
@@ -455,6 +458,7 @@ func (p *pool) onChildReady(c *child) {
 		default:
 		}
 	}
+	p.primeBacklog()
 }
 
 func (p *pool) onChildReturned(c *child) {
@@ -472,19 +476,18 @@ func (p *pool) onChildReturned(c *child) {
 func (p *pool) purgeChild(c *child) {
 	c.cancel()
 	close(c.done)
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	delete(p.children, c.id)
 
 	select {
 	case p.childch <- c:
 	default:
 	}
+	p.primeBacklog()
 }
 
 func (p *pool) primeBacklog() {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
 
 	if p.state != stateRunning {
 		return
@@ -511,8 +514,8 @@ func (p *pool) primeBacklog() {
 }
 
 func (p *pool) setState(state poolState) {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	p.state = state
 	select {
 	case p.statech <- state:
@@ -521,14 +524,14 @@ func (p *pool) setState(state poolState) {
 }
 
 func (p *pool) getState() poolState {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
 	return p.state
 }
 
 func (p *pool) setTerminalState(state poolState, err error) {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 
 	if p.state == state {
 		return
