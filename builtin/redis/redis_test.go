@@ -27,7 +27,7 @@ func TestRedisPool(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Return(item)
 
-	db, err := rredis.DialURL(item.URL())
+	db, err := rredis.DialURL(item.URL)
 
 	require.NoError(t, err)
 

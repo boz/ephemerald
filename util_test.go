@@ -12,7 +12,7 @@ import (
 )
 
 func TestTCPPorts(t *testing.T) {
-	file, err := os.Open("testdata/inspect.postgres.json")
+	file, err := os.Open("_testdata/inspect.postgres.json")
 	require.NoError(t, err)
 	defer file.Close()
 
