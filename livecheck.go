@@ -12,7 +12,7 @@ const (
 	LiveCheckDefaultDelay   = time.Second / 2
 )
 
-var RetryCountExceeded = fmt.Errorf("retry count exceeded")
+var ErrRetryCountExceeded = fmt.Errorf("retry count exceeded")
 
 func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn ProvisionFn) ProvisionFn {
 	return LiveCheckRetry(tries, delay, LiveCheckTimeout(timeout, fn))
@@ -78,6 +78,6 @@ func LiveCheckRetry(tries int, delay time.Duration, fn ProvisionFn) ProvisionFn 
 			}
 		}
 
-		return RetryCountExceeded
+		return ErrRetryCountExceeded
 	}
 }

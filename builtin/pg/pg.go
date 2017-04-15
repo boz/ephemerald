@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	// needed for livecheck
 	_ "github.com/lib/pq"
 
 	"github.com/boz/ephemerald"

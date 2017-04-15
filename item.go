@@ -80,12 +80,12 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisi
 	return item, nil
 }
 
-func (c *poolItem) ID() string {
-	return c.container.ID()
+func (i *poolItem) ID() string {
+	return i.container.ID()
 }
 
-func (c *poolItem) Status() types.ContainerJSON {
-	return c.container.Status()
+func (i *poolItem) Status() types.ContainerJSON {
+	return i.container.Status()
 }
 
 func (i *poolItem) Join(ch chan<- poolEvent) {

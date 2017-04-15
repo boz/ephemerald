@@ -26,7 +26,7 @@ func TCPPortsFor(status types.ContainerJSON) map[string]string {
 		return ports
 	}
 
-	for port, _ := range status.Config.ExposedPorts {
+	for port := range status.Config.ExposedPorts {
 		if port.Proto() != "tcp" {
 			continue
 		}

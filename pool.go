@@ -44,12 +44,12 @@ type PoolItem interface {
 	Kill()
 }
 
-type poolEventId string
+type poolEventID string
 
 const (
-	eventItemReady    poolEventId = "ready"
-	eventItemReturned poolEventId = "returned"
-	eventItemExit     poolEventId = "exit"
+	eventItemReady    poolEventID = "ready"
+	eventItemReturned poolEventID = "returned"
+	eventItemExit     poolEventID = "exit"
 )
 
 type poolState string
@@ -61,7 +61,7 @@ const (
 )
 
 type poolEvent struct {
-	id   poolEventId
+	id   poolEventID
 	item Item
 }
 
