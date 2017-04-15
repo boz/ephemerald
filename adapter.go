@@ -91,6 +91,7 @@ func (a *adapter) EnsureImage() error {
 
 	if exists {
 		a.log.Info("found image")
+		return nil
 	}
 
 	a.log.Warn("image not present")
