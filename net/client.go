@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/koding/kite"
-	"github.com/ovrclk/cleanroom/builtin/pg"
-	"github.com/ovrclk/cleanroom/builtin/redis"
+	"github.com/boz/ephemerald/builtin/pg"
+	"github.com/boz/ephemerald/builtin/redis"
 )
 
 type ClientBuilder struct {

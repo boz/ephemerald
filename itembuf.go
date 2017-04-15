@@ -1,4 +1,4 @@
-package cleanroom
+package ephemerald
 
 type itembuf struct {
 	outch chan PoolItem

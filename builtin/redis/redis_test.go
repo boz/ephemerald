@@ -5,7 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	rredis "github.com/garyburd/redigo/redis"
-	"github.com/ovrclk/cleanroom/builtin/redis"
+	"github.com/boz/ephemerald/builtin/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

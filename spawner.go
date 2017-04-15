@@ -1,4 +1,4 @@
-package cleanroom
+package ephemerald
 
 import "github.com/Sirupsen/logrus"
 

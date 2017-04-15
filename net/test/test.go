@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	kiteName    = "cleanroom"
+	kiteName    = "ephemerald"
 	kiteVersion = "0.0.1"
 	kitePort    = 6000
 )

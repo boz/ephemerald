@@ -7,7 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
-	"github.com/ovrclk/cleanroom/builtin/pg"
+	"github.com/boz/ephemerald/builtin/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

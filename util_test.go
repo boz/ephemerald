@@ -1,4 +1,4 @@
-package cleanroom_test
+package ephemerald_test
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/ovrclk/cleanroom"
+	"github.com/boz/ephemerald"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestTCPPorts(t *testing.T) {
 
 	require.NoError(t, json.NewDecoder(file).Decode(&status))
 
-	ports := cleanroom.TCPPortsFor(status)
+	ports := ephemerald.TCPPortsFor(status)
 
 	assert.Equal(t, 1, len(ports))
 

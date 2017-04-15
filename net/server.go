@@ -4,12 +4,12 @@ import (
 	"sync"
 
 	"github.com/koding/kite"
-	"github.com/ovrclk/cleanroom/builtin/pg"
-	"github.com/ovrclk/cleanroom/builtin/redis"
+	"github.com/boz/ephemerald/builtin/pg"
+	"github.com/boz/ephemerald/builtin/redis"
 )
 
 const (
-	kiteName    = "cleanroom"
+	kiteName    = "ephemerald"
 	kiteVersion = "0.0.1"
 	kitePort    = 6000
 )

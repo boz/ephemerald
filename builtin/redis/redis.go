@@ -8,7 +8,7 @@ import (
 	"time"
 
 	rredis "github.com/garyburd/redigo/redis"
-	"github.com/ovrclk/cleanroom"
+	"github.com/boz/ephemerald"
 )
 
 const (
@@ -43,16 +43,16 @@ type Builder interface {
 
 type builder struct {
 	size     int
-	config   *cleanroom.Config
-	pbuilder cleanroom.ProvisionerBuilder
+	config   *ephemerald.Config
+	pbuilder ephemerald.ProvisionerBuilder
 }
 
-func DefaultConfig() *cleanroom.Config {
-	return applyDefaults(cleanroom.NewConfig())
+func DefaultConfig() *ephemerald.Config {
+	return applyDefaults(ephemerald.NewConfig())
 }
 
 func NewBuilder() Builder {
-	return &builder{1, cleanroom.NewConfig(), cleanroom.BuildProvisioner()}
+	return &builder{1, ephemerald.NewConfig(), ephemerald.BuildProvisioner()}
 }
 
 func DefaultBuilder() Builder {
@@ -66,15 +66,15 @@ func (b *builder) WithDefaults() Builder {
 
 	b.pbuilder.WithLiveCheck(
 		LiveCheck(
-			cleanroom.LiveCheckDefaultTimeout,
-			cleanroom.LiveCheckDefaultRetries,
-			cleanroom.LiveCheckDefaultDelay,
+			ephemerald.LiveCheckDefaultTimeout,
+			ephemerald.LiveCheckDefaultRetries,
+			ephemerald.LiveCheckDefaultDelay,
 			RediGoLiveCheck()))
 
 	return b
 }
 
-func applyDefaults(config *cleanroom.Config) *cleanroom.Config {
+func applyDefaults(config *ephemerald.Config) *ephemerald.Config {
 	return config.
 		WithImage(defaultImage).
 		ExposePort("tcp", defaultPort)
@@ -91,21 +91,21 @@ func (b *builder) WithImage(name string) Builder {
 }
 
 func (b *builder) WithLiveCheck(fn func(context.Context, *Item) error) Builder {
-	b.pbuilder.WithLiveCheck(func(ctx context.Context, si cleanroom.StatusItem) error {
+	b.pbuilder.WithLiveCheck(func(ctx context.Context, si ephemerald.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
 func (b *builder) WithInitialize(fn func(context.Context, *Item) error) Builder {
-	b.pbuilder.WithInitialize(func(ctx context.Context, si cleanroom.StatusItem) error {
+	b.pbuilder.WithInitialize(func(ctx context.Context, si ephemerald.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
 }
 
 func (b *builder) WithReset(fn func(context.Context, *Item) error) Builder {
-	b.pbuilder.WithReset(func(ctx context.Context, si cleanroom.StatusItem) error {
+	b.pbuilder.WithReset(func(ctx context.Context, si ephemerald.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	})
 	return b
@@ -115,8 +115,8 @@ func (b *builder) Create() (Pool, error) {
 	return NewPool(b.config, b.size, b.pbuilder.Create())
 }
 
-func NewPool(config *cleanroom.Config, size int, provisioner cleanroom.Provisioner) (Pool, error) {
-	parent, err := cleanroom.NewPool(config, size, provisioner)
+func NewPool(config *ephemerald.Config, size int, provisioner ephemerald.Provisioner) (Pool, error) {
+	parent, err := ephemerald.NewPool(config, size, provisioner)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func NewPool(config *cleanroom.Config, size int, provisioner cleanroom.Provision
 }
 
 type pool struct {
-	parent cleanroom.Pool
+	parent ephemerald.Pool
 }
 
 func (p *pool) Checkout() (*Item, error) {
@@ -145,12 +145,12 @@ func (p *pool) Stop() error {
 }
 
 type item struct {
-	parent cleanroom.StatusItem
+	parent ephemerald.StatusItem
 	port   string
 }
 
-func NewItem(parent cleanroom.StatusItem) *Item {
-	ports := cleanroom.TCPPortsFor(parent.Status())
+func NewItem(parent ephemerald.StatusItem) *Item {
+	ports := ephemerald.TCPPortsFor(parent.Status())
 	port := ports[strconv.Itoa(defaultPort)]
 
 	item := &Item{
@@ -175,9 +175,9 @@ func makeItemURL(i *Item) string {
 }
 
 func LiveCheck(timeout time.Duration, tries int, delay time.Duration,
-	fn func(context.Context, *Item) error) cleanroom.ProvisionFn {
-	return cleanroom.LiveCheck(timeout, tries, delay,
-		func(ctx context.Context, si cleanroom.StatusItem) error {
+	fn func(context.Context, *Item) error) ephemerald.ProvisionFn {
+	return ephemerald.LiveCheck(timeout, tries, delay,
+		func(ctx context.Context, si ephemerald.StatusItem) error {
 			return fn(ctx, NewItem(si))
 		})
 }

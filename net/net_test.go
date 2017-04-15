@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/ovrclk/cleanroom/builtin/pg"
-	"github.com/ovrclk/cleanroom/builtin/redis"
-	"github.com/ovrclk/cleanroom/net"
+	"github.com/boz/ephemerald/builtin/pg"
+	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/boz/ephemerald/net"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

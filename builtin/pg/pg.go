@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/ovrclk/cleanroom"
+	"github.com/boz/ephemerald"
 )
 
 const (
@@ -53,24 +53,24 @@ type Builder interface {
 
 type ProvisionFn func(context.Context, *Item) error
 
-func MakeProvisioner(fn ProvisionFn) cleanroom.ProvisionFn {
-	return func(ctx context.Context, si cleanroom.StatusItem) error {
+func MakeProvisioner(fn ProvisionFn) ephemerald.ProvisionFn {
+	return func(ctx context.Context, si ephemerald.StatusItem) error {
 		return fn(ctx, NewItem(si))
 	}
 }
 
 type builder struct {
 	size     int
-	config   *cleanroom.Config
-	pbuilder cleanroom.ProvisionerBuilder
+	config   *ephemerald.Config
+	pbuilder ephemerald.ProvisionerBuilder
 }
 
-func DefaultConfig() *cleanroom.Config {
-	return applyDefaults(cleanroom.NewConfig())
+func DefaultConfig() *ephemerald.Config {
+	return applyDefaults(ephemerald.NewConfig())
 }
 
 func NewBuilder() Builder {
-	return &builder{1, cleanroom.NewConfig(), cleanroom.BuildProvisioner()}
+	return &builder{1, ephemerald.NewConfig(), ephemerald.BuildProvisioner()}
 }
 
 func DefaultBuilder() Builder {
@@ -84,15 +84,15 @@ func (b *builder) WithDefaults() Builder {
 
 	b.pbuilder.WithLiveCheck(
 		LiveCheck(
-			cleanroom.LiveCheckDefaultTimeout,
-			cleanroom.LiveCheckDefaultRetries,
-			cleanroom.LiveCheckDefaultDelay,
+			ephemerald.LiveCheckDefaultTimeout,
+			ephemerald.LiveCheckDefaultRetries,
+			ephemerald.LiveCheckDefaultDelay,
 			PQPingLiveCheck()))
 
 	return b
 }
 
-func applyDefaults(config *cleanroom.Config) *cleanroom.Config {
+func applyDefaults(config *ephemerald.Config) *ephemerald.Config {
 	return config.
 		WithImage(defaultImage).
 		ExposePort("tcp", defaultPort)
@@ -127,8 +127,8 @@ func (b *builder) Create() (Pool, error) {
 	return NewPool(b.config, b.size, b.pbuilder.Create())
 }
 
-func NewPool(config *cleanroom.Config, size int, provisioner cleanroom.Provisioner) (Pool, error) {
-	parent, err := cleanroom.NewPool(config, size, provisioner)
+func NewPool(config *ephemerald.Config, size int, provisioner ephemerald.Provisioner) (Pool, error) {
+	parent, err := ephemerald.NewPool(config, size, provisioner)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func NewPool(config *cleanroom.Config, size int, provisioner cleanroom.Provision
 }
 
 type pool struct {
-	parent cleanroom.Pool
+	parent ephemerald.Pool
 }
 
 func (p *pool) Checkout() (*Item, error) {
@@ -156,8 +156,8 @@ func (p *pool) Stop() error {
 	return p.parent.Stop()
 }
 
-func NewItem(parent cleanroom.StatusItem) *Item {
-	port := cleanroom.TCPPortFor(parent.Status(), defaultPort)
+func NewItem(parent ephemerald.StatusItem) *Item {
+	port := ephemerald.TCPPortFor(parent.Status(), defaultPort)
 	item := &Item{
 		Cid:      parent.ID(),
 		Host:     defaultHost,
@@ -184,8 +184,8 @@ func genURL(item *Item) string {
 		url.QueryEscape(item.Database))
 }
 
-func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn ProvisionFn) cleanroom.ProvisionFn {
-	return cleanroom.LiveCheck(timeout, tries, delay, MakeProvisioner(fn))
+func LiveCheck(timeout time.Duration, tries int, delay time.Duration, fn ProvisionFn) ephemerald.ProvisionFn {
+	return ephemerald.LiveCheck(timeout, tries, delay, MakeProvisioner(fn))
 }
 
 func PQPingLiveCheck() ProvisionFn {
