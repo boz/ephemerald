@@ -93,28 +93,22 @@ func (i *poolItem) Join(ch chan<- poolEvent) {
 }
 
 func (i *poolItem) Start() {
-	select {
-	case <-i.exited:
-	case i.events <- eventPoolItemStart:
-	}
+	go i.sendEvent(eventPoolItemStart)
 }
 
 func (i *poolItem) Reset() {
-	go func() {
-		select {
-		case <-i.exited:
-		case i.events <- eventPoolItemReset:
-		}
-	}()
+	go i.sendEvent(eventPoolItemReset)
 }
 
 func (i *poolItem) Kill() {
-	go func() {
-		select {
-		case <-i.exited:
-		case i.events <- eventPoolItemKill:
-		}
-	}()
+	go i.sendEvent(eventPoolItemKill)
+}
+
+func (i *poolItem) sendEvent(e poolItemEvent) {
+	select {
+	case <-i.exited:
+	case i.events <- e:
+	}
 }
 
 func (i *poolItem) run() {
