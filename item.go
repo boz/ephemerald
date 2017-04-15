@@ -41,7 +41,8 @@ type poolItem struct {
 	// closed when exited
 	exited chan bool
 
-	ctx context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	wg  sync.WaitGroup
 	log logrus.FieldLogger
@@ -59,6 +60,8 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisi
 
 	log = lcid(log, container.ID())
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	item := &poolItem{
 		state:       poolItemStateRunning,
 		provisioner: provisioner,
@@ -67,7 +70,8 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisi
 		events:      make(chan poolItemEvent),
 		joinch:      make(chan (chan<- poolEvent)),
 		exited:      make(chan bool),
-		ctx:         context.Background(),
+		ctx:         ctx,
+		cancel:      cancel,
 		log:         log,
 	}
 
@@ -138,6 +142,7 @@ func (i *poolItem) runWaitJoin() chan<- poolEvent {
 
 func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
 	defer close(i.exited)
+	defer i.cancel()
 
 	log := i.log.WithField("method", "runMainLoop")
 

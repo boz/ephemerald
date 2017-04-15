@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/builtin/vault"
 	"github.com/stretchr/testify/require"
 )
@@ -30,11 +29,4 @@ func TestRedisPool(t *testing.T) {
 
 	err = vault.Ping(ctx, item.URL())
 	require.NoError(t, err)
-
-	pool.Return(item)
-}
-
-func TestMain(m *testing.M) {
-	logrus.SetLevel(logrus.DebugLevel)
-	m.Run()
 }

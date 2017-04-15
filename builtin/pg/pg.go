@@ -48,6 +48,7 @@ type Builder interface {
 	WithLiveCheck(ProvisionFn) Builder
 	WithInitialize(ProvisionFn) Builder
 	WithReset(ProvisionFn) Builder
+	WithLabel(string, string) Builder
 	Create() (Pool, error)
 }
 
@@ -105,6 +106,11 @@ func (b *builder) WithSize(size int) Builder {
 
 func (b *builder) WithImage(name string) Builder {
 	b.config.WithImage(name)
+	return b
+}
+
+func (b *builder) WithLabel(k, v string) Builder {
+	b.config.WithLabel(k, v)
 	return b
 }
 

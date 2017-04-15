@@ -116,7 +116,8 @@ func NewPool(
 func NewPoolWithContext(
 	ctx context.Context, config *Config, size int, provisioner Provisioner) (Pool, error) {
 
-	log := logrus.StandardLogger().WithField("component", "pool")
+	log := logrus.New().WithField("component", "pool")
+	log.Level = config.LogLevel
 
 	adapter, err := newAdapter(log, config)
 	if err != nil {

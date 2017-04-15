@@ -9,10 +9,10 @@ import (
 )
 
 func TestPool(t *testing.T) {
-
 	config := NewConfig().
 		WithImage("postgres").
-		ExposePort("tcp", 5432)
+		ExposePort("tcp", 5432).
+		WithLabel("test", t.Name())
 
 	prov := BuildProvisioner().
 		WithInitialize(func(_ context.Context, si StatusItem) error {
@@ -25,18 +25,15 @@ func TestPool(t *testing.T) {
 	pool, err := NewPool(config, 1, prov)
 	require.NoError(t, err)
 
+	defer func() {
+		assert.NoError(t, pool.Stop())
+	}()
+
 	require.NoError(t, pool.WaitReady())
 
 	item, err := pool.Checkout()
 	require.NoError(t, err)
 
 	assert.NotNil(t, item)
-
-	require.NoError(t, pool.Stop())
-
-}
-
-func TestMain(m *testing.M) {
-	//logrus.SetLevel(logrus.DebugLevel)
-	m.Run()
+	pool.Return(item)
 }

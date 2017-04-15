@@ -142,6 +142,7 @@ func (a *adapter) CreateContainer() (string, error) {
 		Cmd:          a.config.Cmd,
 		Env:          a.config.Env,
 		Volumes:      a.config.Volumes,
+		Labels:       a.config.Labels,
 		AttachStdin:  false,
 		AttachStdout: false,
 		AttachStderr: false,

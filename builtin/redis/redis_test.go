@@ -3,9 +3,8 @@ package redis_test
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
-	rredis "github.com/garyburd/redigo/redis"
 	"github.com/boz/ephemerald/builtin/redis"
+	rredis "github.com/garyburd/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,11 +32,4 @@ func TestRedisPool(t *testing.T) {
 
 	_, err = db.Do("PING")
 	assert.NoError(t, err)
-
-	pool.Return(item)
-}
-
-func TestMain(m *testing.M) {
-	logrus.SetLevel(logrus.DebugLevel)
-	m.Run()
 }

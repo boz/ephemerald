@@ -63,7 +63,7 @@ func createPoolContainer(log logrus.FieldLogger, adapter Adapter) (*poolContaine
 		events: make(chan containerEvent),
 
 		done: make(chan interface{}),
-		log:  log,
+		log:  lcid(log, cid),
 	}
 
 	go c.dumpLogs()
