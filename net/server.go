@@ -36,8 +36,6 @@ func NewServer() (*Server, error) {
 func NewServerWithPort(port int) (*Server, error) {
 	k := kite.New(kiteName, kiteVersion)
 
-	k.SetLogLevel(kite.DEBUG)
-
 	k.Config.Port = port
 	k.Config.DisableAuthentication = true
 
