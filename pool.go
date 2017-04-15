@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	checkoutTimeout = LiveCheckDefaultDelay * LiveCheckDefaultRetries
+	checkoutTimeout = LiveCheckDefaultDelay * LiveCheckDefaultRetries * 5
 )
 
 var (

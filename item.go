@@ -100,17 +100,21 @@ func (i *poolItem) Start() {
 }
 
 func (i *poolItem) Reset() {
-	select {
-	case <-i.exited:
-	case i.events <- eventPoolItemReset:
-	}
+	go func() {
+		select {
+		case <-i.exited:
+		case i.events <- eventPoolItemReset:
+		}
+	}()
 }
 
 func (i *poolItem) Kill() {
-	select {
-	case <-i.exited:
-	case i.events <- eventPoolItemKill:
-	}
+	go func() {
+		select {
+		case <-i.exited:
+		case i.events <- eventPoolItemKill:
+		}
+	}()
 }
 
 func (i *poolItem) run() {

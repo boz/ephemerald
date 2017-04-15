@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"testing"
 
-	redigo "github.com/garyburd/redigo/redis"
 	"github.com/boz/ephemerald/builtin/pg"
 	"github.com/boz/ephemerald/builtin/redis"
 	"github.com/boz/ephemerald/net"
+	redigo "github.com/garyburd/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
