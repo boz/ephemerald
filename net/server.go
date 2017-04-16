@@ -11,7 +11,7 @@ import (
 const (
 	kiteName    = "ephemerald"
 	kiteVersion = "0.0.1"
-	kitePort    = 6000
+	DefaultPort = 6000
 )
 
 type PoolServer interface {
@@ -38,7 +38,7 @@ type ServerBuilder struct {
 
 func NewServerBuilder() *ServerBuilder {
 	return &ServerBuilder{
-		port: kitePort,
+		port: DefaultPort,
 	}
 }
 

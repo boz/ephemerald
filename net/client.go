@@ -3,9 +3,9 @@ package net
 import (
 	"fmt"
 
-	"github.com/koding/kite"
 	"github.com/boz/ephemerald/builtin/pg"
 	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/koding/kite"
 )
 
 type ClientBuilder struct {
@@ -33,7 +33,7 @@ func NewClientBuilder() *ClientBuilder {
 
 	pgb := pg.NewClientBuilder().WithClient(c)
 
-	return &ClientBuilder{c, k, "localhost", kitePort, pgb}
+	return &ClientBuilder{c, k, "localhost", DefaultPort, pgb}
 }
 
 func (b *ClientBuilder) WithHost(host string) *ClientBuilder {

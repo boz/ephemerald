@@ -8,6 +8,7 @@ import (
 	"time"
 
 	// needed for livecheck
+	"github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 
 	"github.com/boz/ephemerald"
@@ -50,6 +51,7 @@ type Builder interface {
 	WithInitialize(ProvisionFn) Builder
 	WithReset(ProvisionFn) Builder
 	WithLabel(string, string) Builder
+	WithLogLevel(logrus.Level) Builder
 	Clone() Builder
 	Create() (Pool, error)
 }
@@ -113,6 +115,11 @@ func (b *builder) WithImage(name string) Builder {
 
 func (b *builder) WithLabel(k, v string) Builder {
 	b.config.WithLabel(k, v)
+	return b
+}
+
+func (b *builder) WithLogLevel(level logrus.Level) Builder {
+	b.config.LogLevel = level
 	return b
 }
 
