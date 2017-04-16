@@ -9,15 +9,17 @@ import (
 )
 
 type Server struct {
-	kite  *kite.Kite
+	kite    *kite.Kite
+	builder Builder
+
 	pools map[string]Pool
 
 	mtx sync.Mutex
 }
 
-func BuildServer(k *kite.Kite) (*Server, error) {
+func BuildServer(k *kite.Kite, builder Builder) (*Server, error) {
 
-	s := &Server{k, make(map[string]Pool), sync.Mutex{}}
+	s := &Server{k, builder, make(map[string]Pool), sync.Mutex{}}
 
 	k.HandleFunc(rpcCheckoutName, s.handleCheckout)
 	k.HandleFunc(rpcReturnName, s.handleReturn)
@@ -49,9 +51,7 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) startSession(c *kite.Client) {
-	pool, err := DefaultBuilder().
-		WithSize(5).
-		WithLabel("test", "net").
+	pool, err := s.builder.Clone().
 		WithInitialize(func(ctx context.Context, i *Item) error {
 			return RemoteDo(ctx, c, rpcInitializeName, i)
 		}).

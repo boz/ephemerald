@@ -12,8 +12,9 @@ type Server struct {
 	kite *kite.Kite
 }
 
-func BuildServer(kite *kite.Kite) (*Server, error) {
-	pool, err := DefaultBuilder().WithSize(10).Create()
+func BuildServer(kite *kite.Kite, builder Builder) (*Server, error) {
+
+	pool, err := builder.Create()
 
 	if err != nil {
 		return nil, err

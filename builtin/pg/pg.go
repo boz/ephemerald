@@ -50,6 +50,7 @@ type Builder interface {
 	WithInitialize(ProvisionFn) Builder
 	WithReset(ProvisionFn) Builder
 	WithLabel(string, string) Builder
+	Clone() Builder
 	Create() (Pool, error)
 }
 
@@ -128,6 +129,14 @@ func (b *builder) WithInitialize(fn ProvisionFn) Builder {
 func (b *builder) WithReset(fn ProvisionFn) Builder {
 	b.pbuilder.WithReset(MakeProvisioner(fn))
 	return b
+}
+
+func (b *builder) Clone() Builder {
+	return &builder{
+		size:     b.size,
+		config:   &(*b.config),
+		pbuilder: b.pbuilder.Clone(),
+	}
 }
 
 func (b *builder) Create() (Pool, error) {

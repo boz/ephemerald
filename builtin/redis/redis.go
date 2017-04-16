@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	rredis "github.com/garyburd/redigo/redis"
 	"github.com/boz/ephemerald"
+	rredis "github.com/garyburd/redigo/redis"
 )
 
 const (
@@ -35,6 +35,7 @@ type Builder interface {
 	WithDefaults() Builder
 	WithImage(string) Builder
 	WithSize(int) Builder
+	WithLabel(string, string) Builder
 	WithLiveCheck(func(context.Context, *Item) error) Builder
 	WithInitialize(func(context.Context, *Item) error) Builder
 	WithReset(func(context.Context, *Item) error) Builder
@@ -87,6 +88,11 @@ func (b *builder) WithSize(size int) Builder {
 
 func (b *builder) WithImage(name string) Builder {
 	b.config.WithImage(name)
+	return b
+}
+
+func (b *builder) WithLabel(k, v string) Builder {
+	b.config.WithLabel(k, v)
 	return b
 }
 

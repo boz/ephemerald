@@ -13,7 +13,12 @@ import (
 )
 
 func TestClientServer(t *testing.T) {
-	server, err := net.NewServerWithPort(0)
+
+	builder := net.NewServerBuilder().WithPort(0)
+	builder.PG().WithSize(2).WithLabel("test", t.Name())
+	builder.Redis().WithSize(2).WithLabel("test", t.Name())
+
+	server, err := builder.Create()
 
 	require.NoError(t, err)
 
@@ -53,7 +58,7 @@ func TestClientServer(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 2; i++ {
 		func() {
 			ri, db := getRedis(t, client)
 			defer func() {
@@ -68,7 +73,7 @@ func TestClientServer(t *testing.T) {
 				assert.NoError(t, pq.Close())
 			}()
 
-			for i := 0; i < 20; i++ {
+			for i := 0; i < 2; i++ {
 				{
 					_, err := db.Do("PING")
 					assert.NoError(t, err)

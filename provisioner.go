@@ -55,6 +55,7 @@ type ProvisionerBuilder interface {
 	WithLiveCheck(ProvisionFn) ProvisionerBuilder
 	WithInitialize(ProvisionFn) ProvisionerBuilder
 	WithReset(ProvisionFn) ProvisionerBuilder
+	Clone() ProvisionerBuilder
 	Create() Provisioner
 }
 
@@ -81,6 +82,10 @@ func (pb *provisionerBuilder) WithInitialize(fn ProvisionFn) ProvisionerBuilder 
 func (pb *provisionerBuilder) WithReset(fn ProvisionFn) ProvisionerBuilder {
 	pb.reset = fn
 	return pb
+}
+
+func (pb *provisionerBuilder) Clone() ProvisionerBuilder {
+	return &(*pb)
 }
 
 func (pb *provisionerBuilder) Create() Provisioner {

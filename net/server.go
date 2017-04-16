@@ -3,9 +3,9 @@ package net
 import (
 	"sync"
 
-	"github.com/koding/kite"
 	"github.com/boz/ephemerald/builtin/pg"
 	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/koding/kite"
 )
 
 const (
@@ -29,33 +29,67 @@ type Server struct {
 	closech chan bool
 }
 
-func NewServer() (*Server, error) {
-	return NewServerWithPort(kitePort)
+type ServerBuilder struct {
+	port int
+
+	pgBuilder    pg.Builder
+	redisBuilder redis.Builder
 }
 
-func NewServerWithPort(port int) (*Server, error) {
+func NewServerBuilder() *ServerBuilder {
+	return &ServerBuilder{
+		port: kitePort,
+	}
+}
+
+func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
+	sb.port = port
+	return sb
+}
+
+func (sb *ServerBuilder) PG() pg.Builder {
+	if sb.pgBuilder == nil {
+		sb.pgBuilder = pg.NewBuilder().WithDefaults()
+	}
+	return sb.pgBuilder
+}
+
+func (sb *ServerBuilder) Redis() redis.Builder {
+	if sb.redisBuilder == nil {
+		sb.redisBuilder = redis.NewBuilder().WithDefaults()
+	}
+	return sb.redisBuilder
+}
+
+func (sb *ServerBuilder) Create() (*Server, error) {
 	k := kite.New(kiteName, kiteVersion)
 
-	k.Config.Port = port
+	k.Config.Port = sb.port
 	k.Config.DisableAuthentication = true
 
-	redis, err := redis.BuildServer(k)
-	if err != nil {
-		return nil, err
-	}
-
-	pg, err := pg.BuildServer(k)
-	if err != nil {
-		redis.Stop()
-		return nil, err
-	}
-
-	return &Server{
+	s := &Server{
 		kite:    k,
-		redis:   redis,
-		pg:      pg,
 		closech: make(chan bool),
-	}, nil
+	}
+
+	if sb.pgBuilder != nil {
+		server, err := pg.BuildServer(k, sb.pgBuilder)
+		if err != nil {
+			return nil, err
+		}
+		s.pg = server
+	}
+
+	if sb.redisBuilder != nil {
+		server, err := redis.BuildServer(k, sb.redisBuilder)
+		if err != nil {
+			s.pg.Stop()
+			return nil, err
+		}
+		s.redis = server
+	}
+
+	return s, nil
 }
 
 func (s *Server) Run() {
@@ -84,15 +118,21 @@ func (s *Server) Port() int {
 
 func (s *Server) stopPools() {
 	var wg sync.WaitGroup
-	wg.Add(2)
 
 	fn := func(p PoolServer) {
 		defer wg.Done()
 		p.Stop()
 	}
 
-	go fn(s.redis)
-	go fn(s.pg)
+	if s.redis != nil {
+		wg.Add(1)
+		go fn(s.redis)
+	}
+
+	if s.pg != nil {
+		wg.Add(1)
+		go fn(s.pg)
+	}
 
 	wg.Wait()
 }
