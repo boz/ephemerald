@@ -15,8 +15,8 @@ import (
 func TestClientServer(t *testing.T) {
 
 	builder := net.NewServerBuilder().WithPort(0)
-	builder.PG().WithSize(2).WithLabel("test", t.Name())
-	builder.Redis().WithSize(2).WithLabel("test", t.Name())
+	builder.PG().WithSize(2).WithLabel("test", "net.TestClientServer")
+	builder.Redis().WithSize(2).WithLabel("test", "net.TestClientServer")
 
 	server, err := builder.Create()
 

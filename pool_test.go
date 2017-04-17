@@ -12,7 +12,7 @@ func TestPool(t *testing.T) {
 	config := NewConfig().
 		WithImage("postgres").
 		ExposePort("tcp", 5432).
-		WithLabel("test", t.Name())
+		WithLabel("test", "ephemerald.TestPool")
 
 	prov := BuildProvisioner().
 		WithInitialize(func(_ context.Context, si StatusItem) error {
