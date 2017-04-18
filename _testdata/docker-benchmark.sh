@@ -4,6 +4,7 @@
 if [ -z "$1" ]; then
   runit() {
     export TIME="$2 $3 %e"
+    echo "$2 $3:"
     time "$1" "$2" "$3"
   }
   runit "$0" 01 01
@@ -60,3 +61,30 @@ echo "$args" | xargs -P "$parallel" -I{} -- docker run --rm busybox
 # 10 10 3.02
 # 20 10 5.64
 # 20 20 5.32
+
+## OSX 10.12.4 Core i7 @ 2.6 GHz
+
+## Client:
+##  Version:      17.03.1-ce
+##  API version:  1.27
+##  Go version:   go1.7.5
+##  Git commit:   c6d412e
+##  Built:        Tue Mar 28 00:40:02 2017
+##  OS/Arch:      darwin/amd64
+## 
+## Server:
+##  Version:      17.03.1-ce
+##  API version:  1.27 (minimum version 1.12)
+##  Go version:   go1.7.5
+##  Git commit:   c6d412e
+##  Built:        Fri Mar 24 00:00:50 2017
+##  OS/Arch:      linux/amd64
+##  Experimental: true
+
+## 01 01  1.23
+## 05 01  9.06
+## 10 01 18.48
+## 10 05  5.76
+## 10 10  6.85
+## 20 10 17.92
+## 20 20 26.77
