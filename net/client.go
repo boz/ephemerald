@@ -46,9 +46,8 @@ func (b *ClientBuilder) WithPort(port int) *ClientBuilder {
 	return b
 }
 
-func (b *ClientBuilder) PG(fn func(*pg.ClientBuilder)) *ClientBuilder {
-	fn(b.pgb)
-	return b
+func (b *ClientBuilder) PG() *pg.ClientBuilder {
+	return b.pgb
 }
 
 func (b *ClientBuilder) Create() (*Client, error) {

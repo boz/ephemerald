@@ -19,10 +19,9 @@ func main() {
 	log := logrus.New()
 
 	builder := net.NewClientBuilder()
-	builder.PG(func(b *pg.ClientBuilder) {
-		b.WithInitialize(pgRunMigrations)
-		b.WithReset(pgTruncateTables)
-	})
+	builder.PG().
+		WithInitialize(pgRunMigrations).
+		WithReset(pgTruncateTables)
 
 	client, err := builder.Create()
 	if err != nil {
@@ -44,6 +43,7 @@ func main() {
 			if err != nil {
 				return
 			}
+			// return to pool when done
 			defer client.Redis().Return(ritem)
 
 			// connect to redis instance
@@ -58,6 +58,7 @@ func main() {
 			if err != nil {
 				return
 			}
+			// return to pool when done
 			defer client.PG().Return(pitem)
 
 			// connect to pg
