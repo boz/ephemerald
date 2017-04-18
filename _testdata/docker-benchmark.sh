@@ -1,3 +1,4 @@
+#!/usr/bin/zsh
 #!/bin/sh
 
 # no arguments: tests various parameters
@@ -30,6 +31,7 @@ for i in $(seq "$count"); do
 done
 
 echo "$args" | xargs -P "$parallel" -I{} -- docker run --rm busybox
+#echo "$args" | xargs -P "$parallel" -I{} -- /bin/echo "hi"
 
 ###
 ### RESULTS
@@ -54,15 +56,15 @@ echo "$args" | xargs -P "$parallel" -I{} -- docker run --rm busybox
 ##  OS/Arch:      linux/amd64
 ##  Experimental: false
 
-# 01 01 0.76
-# 05 01 4.29
-# 10 01 8.41
-# 10 05 3.48
-# 10 10 3.02
-# 20 10 5.64
-# 20 20 5.32
+## 01 01 0.76
+## 05 01 4.29
+## 10 01 8.41
+## 10 05 3.48
+## 10 10 3.02
+## 20 10 5.64
+## 20 20 5.32
 
-## OSX 10.12.4 Core i7 @ 2.6 GHz
+## OSX 10.12.4 Core i7-4960HQ @ 2.60GHz
 
 ## Client:
 ##  Version:      17.03.1-ce
@@ -88,3 +90,30 @@ echo "$args" | xargs -P "$parallel" -I{} -- docker run --rm busybox
 ## 10 10  6.85
 ## 20 10 17.92
 ## 20 20 26.77
+
+## Arch Core i7-4960HQ @ 2.60GHz
+
+## Client:
+##  Version:      17.04.0-ce
+##  API version:  1.28
+##  Go version:   go1.8
+##  Git commit:   4845c567eb
+##  Built:        Sat Apr  8 18:55:45 2017
+##  OS/Arch:      linux/amd64
+## 
+## Server:
+##  Version:      17.04.0-ce
+##  API version:  1.28 (minimum version 1.12)
+##  Go version:   go1.8
+##  Git commit:   4845c567eb
+##  Built:        Sat Apr  8 18:55:45 2017
+##  OS/Arch:      linux/amd64
+##  Experimental: false
+
+## 01 01  0.76
+## 05 01  4.65
+## 10 01  8.74
+## 10 05 50.29
+## 10 10 27.21
+## 20 10 65.05
+## 20 20 44.40
