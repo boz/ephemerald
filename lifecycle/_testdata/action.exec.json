@@ -1,0 +1,11 @@
+{
+  "type": "exec",
+  "path": "echo",
+  "args": [
+    "a","b","c"
+  ],
+  "env": [
+    "FOO=BAR"
+  ],
+  "dir": "/"
+}

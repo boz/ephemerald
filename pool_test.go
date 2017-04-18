@@ -1,39 +1,11 @@
-package ephemerald
+package ephemerald_test
 
 import (
-	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/boz/ephemerald/testutil"
 )
 
 func TestPool(t *testing.T) {
-	config := NewConfig().
-		WithImage("postgres").
-		ExposePort("tcp", 5432).
-		WithLabel("test", "ephemerald.TestPool")
-
-	prov := BuildProvisioner().
-		WithInitialize(func(_ context.Context, si StatusItem) error {
-			return nil
-		}).
-		WithReset(func(_ context.Context, si StatusItem) error {
-			return nil
-		}).Create()
-
-	pool, err := NewPool(config, 1, prov)
-	require.NoError(t, err)
-
-	defer func() {
-		assert.NoError(t, pool.Stop())
-	}()
-
-	require.NoError(t, pool.WaitReady())
-
-	item, err := pool.Checkout()
-	require.NoError(t, err)
-
-	assert.NotNil(t, item)
-	pool.Return(item)
+	testutil.RunPoolFromFile(t, "pool.redis.json", nil)
 }

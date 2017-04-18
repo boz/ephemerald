@@ -1,0 +1,78 @@
+{
+  "pools": {
+    "postgres": {
+      "size": 10,
+
+      "image": "postgres",
+      "port":  5432,
+
+      "params": {
+        "username": "postgres",
+        "password": "",
+        "database": "postgres",
+        "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
+      },
+
+      "actions": {
+
+        "initialize": {
+          "type": "exec",
+          "retries": 0,
+          "timeout": 10,
+          "command": "rake db:migrate",
+          "env": [
+            "DATABASE_URL={{.Url}}"
+          ]
+        },
+
+        "healthcheck": {
+          "type": "postgres.ping",
+          "retries": 3,
+          "timeout": 1
+        },
+
+        "reset": {
+          "type": "postgres.truncate",
+          "retries": 3,
+          "timeout": 1,
+          "exclude": ["migrations"]
+        }
+      }
+    },
+
+    "redis": {
+      "size": 5,
+      "image": "redis",
+      "port": 6379,
+
+      "params": {
+        "database": "0",
+        "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
+      },
+
+      "actions": {
+        "healthcheck": {
+          "type": "redis.ping"
+        },
+        "reset": {
+          "type": "redis.delete"
+        }
+      }
+    },
+
+    "vault": {
+      "size": 5,
+      "image": "vault",
+      "port": 8200,
+      "params": {
+        "url": "http://{{.Hostname}}:{{.Port}}"
+      },
+      "actions": {
+        "healthcheck": {
+          "type": "http.get",
+          "url": "{{.Url}}"
+        }
+      }
+    }
+  }
+}

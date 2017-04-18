@@ -1,0 +1,4 @@
+{
+  "type": "http.get",
+  "url": "http://www.google.com"
+}

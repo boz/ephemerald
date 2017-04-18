@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald"
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
+
+	_ "github.com/boz/ephemerald/builtin/postgres"
+	_ "github.com/boz/ephemerald/builtin/redis"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
@@ -17,21 +23,9 @@ var (
 			Default(strconv.Itoa(net.DefaultPort)).
 			Int()
 
-	pgEnable = kingpin.Flag("pg", "Enable postgres").
-			Default("true").
-			Bool()
-
-	pgBacklog = kingpin.Flag("pg-backlog", "Postgres backlog size").
-			Default("5").
-			Int()
-
-	redisEnable = kingpin.Flag("redis", "Enable redis").
-			Default("true").
-			Bool()
-
-	redisBacklog = kingpin.Flag("redis-backlog", "Redis backlog size").
-			Default("5").
-			Int()
+	configFile = kingpin.Flag("config", "config file").Short('f').
+			Required().
+			File()
 
 	logLevel = kingpin.Flag("log-level", "Log level").
 			Default("info").
@@ -41,25 +35,31 @@ var (
 func main() {
 	kingpin.Parse()
 
-	builder := net.NewServerBuilder()
-
-	builder.WithPort(*listenPort)
-
 	level, err := logrus.ParseLevel(*logLevel)
 	kingpin.FatalIfError(err, "invalid log level")
 
-	if *pgEnable {
-		builder.PG().
-			WithSize(*pgBacklog).WithLogLevel(level)
-	}
+	log := logrus.New()
+	log.Level = level
 
-	if *redisEnable {
-		builder.Redis().
-			WithSize(*redisBacklog).WithLogLevel(level)
-	}
+	ctx := context.Background()
+
+	configs, err := config.Read(log, *configFile)
+	(*configFile).Close()
+	kingpin.FatalIfError(err, "invalid config file")
+
+	pools, err := ephemerald.NewPoolSet(log, ctx, configs)
+	kingpin.FatalIfError(err, "creating pools")
+
+	builder := net.NewServerBuilder()
+
+	builder.WithPort(*listenPort)
+	builder.WithPoolSet(pools)
 
 	server, err := builder.Create()
-	kingpin.FatalIfError(err, "can't create server")
+	if err != nil {
+		pools.Stop()
+		kingpin.FatalIfError(err, "can't create server")
+	}
 
 	donech := server.ServerCloseNotify()
 

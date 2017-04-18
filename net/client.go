@@ -3,8 +3,7 @@ package net
 import (
 	"fmt"
 
-	"github.com/boz/ephemerald/builtin/pg"
-	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/boz/ephemerald/params"
 	"github.com/koding/kite"
 )
 
@@ -14,26 +13,20 @@ type ClientBuilder struct {
 
 	host string
 	port int
-
-	pgb *pg.ClientBuilder
 }
 
 type Client struct {
 	kclient *kite.Client
-
-	redis *redis.Client
-	pg    *pg.Client
 }
 
 func NewClientBuilder() *ClientBuilder {
 	k := kite.New(kiteName+"-client", kiteVersion)
 	c := k.NewClient("")
+	// XXX: race condition
+	//k.SetLogLevel(kite.DEBUG)
 	c.Concurrent = true
 	c.ConcurrentCallbacks = true
-
-	pgb := pg.NewClientBuilder().WithClient(c)
-
-	return &ClientBuilder{c, k, "localhost", DefaultPort, pgb}
+	return &ClientBuilder{c, k, "localhost", DefaultPort}
 }
 
 func (b *ClientBuilder) WithHost(host string) *ClientBuilder {
@@ -46,27 +39,27 @@ func (b *ClientBuilder) WithPort(port int) *ClientBuilder {
 	return b
 }
 
-func (b *ClientBuilder) PG() *pg.ClientBuilder {
-	return b.pgb
-}
-
 func (b *ClientBuilder) Create() (*Client, error) {
 	b.kclient.URL = fmt.Sprintf("http://%v:%v/kite", b.host, b.port)
 	b.kite.Config.Environment = b.host
 
-	pg, _ := b.pgb.Create()
-	redis := redis.BuildClient(b.kclient)
-
 	if err := b.kclient.Dial(); err != nil {
 		return nil, err
 	}
-	return &Client{b.kclient, redis, pg}, nil
+	return &Client{b.kclient}, nil
 }
 
-func (c *Client) Redis() *redis.Client {
-	return c.redis
+func (c *Client) Checkout(names ...string) (params.ParamSet, error) {
+	ps := params.ParamSet{}
+	response, err := c.kclient.Tell(rpcCheckoutName, names)
+	if err != nil {
+		return ps, err
+	}
+	response.MustUnmarshal(&ps)
+	return ps, nil
 }
 
-func (c *Client) PG() *pg.Client {
-	return c.pg
+func (c *Client) Return(ps params.ParamSet) error {
+	_, err := c.kclient.Tell(rpcReturnName, ps)
+	return err
 }

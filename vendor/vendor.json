@@ -55,6 +55,12 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "LBSBvc68H0Za9OSZ0gli7Hf/tVM=",
+			"path": "github.com/buger/jsonparser",
+			"revision": "016ea00d7ed52c8acc470d90b03d2e6c13516814",
+			"revisionTime": "2017-03-25T17:55:28Z"
+		},
+		{
 			"checksumSHA1": "SPQcWDUN+wcTThipcR9EzX4t3E8=",
 			"path": "github.com/cenkalti/backoff",
 			"revision": "b02f2bbce11d7ea6b97f282ef1771b0fe2f65ef3",

@@ -1,0 +1,23 @@
+{
+  "size": 1,
+  "image": "postgres",
+  "port": 5432,
+  "params": {
+    "username": "postgres",
+    "password": "",
+    "database": "postgres",
+    "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
+  },
+  "actions": {
+    "initialize": {
+      "type": "postgres.exec",
+      "query": "create table users (id serial primary key, name varchar(255), unique(name))"
+    },
+    "healthcheck": {
+      "type": "postgres.ping"
+    },
+    "reset": {
+      "type": "postgres.truncate"
+    }
+  }
+}

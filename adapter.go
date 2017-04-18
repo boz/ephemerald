@@ -4,8 +4,11 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/params"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -26,10 +29,14 @@ type Adapter interface {
 	ContainerKill(id string, signal string) error
 	Events(options types.EventsOptions) (<-chan events.Message, <-chan error)
 	ContainerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error)
+
+	MakeParams(StatusItem) (params.Params, error)
+
+	Log() logrus.FieldLogger
 }
 
 type adapter struct {
-	config *Config
+	config *config.Config
 
 	// docker image reference
 	ref  reference.Named
@@ -43,9 +50,9 @@ type adapter struct {
 	log logrus.FieldLogger
 }
 
-func newAdapter(log logrus.FieldLogger, config *Config) (Adapter, error) {
+func newAdapter(config *config.Config) (Adapter, error) {
 
-	log = log.WithField("component", "adapter")
+	log := config.Log().WithField("component", "adapter")
 
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 
@@ -139,18 +146,16 @@ func (a *adapter) CreateContainer() (string, error) {
 
 	dconfig := &container.Config{
 		Image:        a.ref.Name(),
-		Cmd:          a.config.Cmd,
-		Env:          a.config.Env,
-		Volumes:      a.config.Volumes,
-		Labels:       a.config.Labels,
+		Cmd:          a.config.Container.Cmd,
+		Env:          a.config.Container.Env,
+		Volumes:      a.config.Container.Volumes,
+		Labels:       a.config.Container.Labels,
 		AttachStdin:  false,
 		AttachStdout: false,
 		AttachStderr: false,
-		ExposedPorts: make(nat.PortSet),
-	}
-
-	for p := range a.config.Ports {
-		dconfig.ExposedPorts[p] = struct{}{}
+		ExposedPorts: nat.PortSet{
+			nat.Port(strconv.Itoa(a.config.Port)): struct{}{},
+		},
 	}
 
 	hconfig := &container.HostConfig{
@@ -195,4 +200,12 @@ func (a *adapter) Events(options types.EventsOptions) (<-chan events.Message, <-
 
 func (a *adapter) ContainerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
 	return a.client.ContainerLogs(a.ctx, id, options)
+}
+
+func (a *adapter) MakeParams(c StatusItem) (params.Params, error) {
+	return a.config.Params.ParamsFor(c.ID(), c.Status(), a.config.Port)
+}
+
+func (a *adapter) Log() logrus.FieldLogger {
+	return a.log
 }

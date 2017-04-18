@@ -1,10 +1,13 @@
 package ephemerald
 
-import "github.com/Sirupsen/logrus"
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/lifecycle"
+)
 
 type spawner struct {
-	adapter     Adapter
-	provisioner Provisioner
+	adapter   Adapter
+	lifecycle lifecycle.Manager
 
 	pending int
 	needed  int
@@ -29,14 +32,14 @@ type spawnresult struct {
 	err  error
 }
 
-func newSpawner(log logrus.FieldLogger, adapter Adapter, provisioner Provisioner) *spawner {
+func newSpawner(adapter Adapter, lifecycle lifecycle.Manager) *spawner {
 	s := &spawner{
-		adapter:     adapter,
-		provisioner: provisioner,
-		requestch:   make(chan int, 5),
-		resultch:    make(chan spawnresult),
-		nextch:      make(chan PoolItem),
-		log:         log.WithField("component", "spawner"),
+		adapter:   adapter,
+		lifecycle: lifecycle,
+		requestch: make(chan int, 5),
+		resultch:  make(chan spawnresult),
+		nextch:    make(chan PoolItem),
+		log:       adapter.Log().WithField("component", "spawner"),
 	}
 
 	go s.run()
@@ -109,7 +112,7 @@ func (s *spawner) drain() {
 func (s *spawner) fill() {
 	for ; s.pending < s.needed; s.pending++ {
 		go func() {
-			item, err := createPoolItem(s.log, s.adapter, s.provisioner)
+			item, err := createPoolItem(s.log, s.adapter, s.lifecycle)
 			s.resultch <- spawnresult{item, err}
 		}()
 	}

@@ -1,0 +1,20 @@
+{
+  "size": 1,
+  "image": "redis"
+  "port": 6379,
+  "params": {
+    "database": "0",
+    "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
+  },
+  "actions": {
+    "initialize": {
+      "type": "redis.exec"
+    },
+    "healthcheck": {
+      "type": "redis.ping"
+    },
+    "reset": {
+      "type": "redis.truncate"
+    }
+  }
+}

@@ -1,12 +1,20 @@
 package net_test
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
-	"github.com/boz/ephemerald/builtin/pg"
-	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald"
+
+	_ "github.com/boz/ephemerald/builtin/postgres"
+	_ "github.com/boz/ephemerald/builtin/redis"
+
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
+	"github.com/boz/ephemerald/params"
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,13 +22,25 @@ import (
 
 func TestClientServer(t *testing.T) {
 
-	builder := net.NewServerBuilder().WithPort(0)
-	builder.PG().WithSize(2).WithLabel("test", "net.TestClientServer")
-	builder.Redis().WithSize(2).WithLabel("test", "net.TestClientServer")
+	log := logrus.New()
+	log.Level = logrus.DebugLevel
 
-	server, err := builder.Create()
+	ctx := context.Background()
 
+	configs, err := config.ReadPath(log, "_testdata/config.json")
 	require.NoError(t, err)
+
+	pools, err := ephemerald.NewPoolSet(log, ctx, configs)
+	require.NoError(t, err)
+
+	server, err := net.NewServerBuilder().
+		WithPort(0).
+		WithPoolSet(pools).
+		Create()
+	if err != nil {
+		pools.Stop()
+		require.NoError(t, err)
+	}
 
 	readych := server.ServerReadyNotify()
 	donech := server.ServerCloseNotify()
@@ -37,72 +57,48 @@ func TestClientServer(t *testing.T) {
 		Create()
 	require.NoError(t, err)
 
-	{
-		item, err := client.Redis().Checkout()
-		require.NoError(t, err)
-		defer func() {
-			assert.NoError(t, client.Redis().Return(item))
-		}()
+	pset, err := client.Checkout()
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, client.Return(pset))
+	}()
 
-		db, err := redigo.DialURL(item.URL)
-		require.NoError(t, err)
+	doTestOperation(t, pset, "main")
 
-		_, err = db.Do("PING")
-		require.NoError(t, err)
-	}
-	{
-		item, err := client.PG().Checkout()
-		require.NoError(t, err)
-		defer func() {
-			assert.NoError(t, client.PG().Return(item))
-		}()
-	}
-
-	for i := 0; i < 2; i++ {
-		func() {
-			ri, db := getRedis(t, client)
+	for i := 0; i < 1; i++ {
+		func(count int) {
+			pset, err := client.Checkout()
+			require.NoError(t, err)
 			defer func() {
-				client.Redis().Return(ri)
+				assert.NoError(t, client.Return(pset))
 			}()
-
-			pi, pq := getPG(t, client)
-			defer func() {
-				client.PG().Return(pi)
-			}()
-			defer func() {
-				assert.NoError(t, pq.Close())
-			}()
-
-			for i := 0; i < 2; i++ {
-				{
-					_, err := db.Do("PING")
-					assert.NoError(t, err)
-				}
-				{
-					assert.NoError(t, pq.Ping())
-				}
-			}
-
-		}()
+			doTestOperation(t, pset, fmt.Sprintf("child %v", count))
+		}(i)
 	}
 }
 
-func getRedis(t *testing.T, c *net.Client) (*redis.Item, redigo.Conn) {
-	i, err := c.Redis().Checkout()
-	require.NoError(t, err)
+func doTestOperation(t *testing.T, pset params.ParamSet, message string) {
+	rparam, ok := pset["redis"]
+	require.True(t, ok, message)
+	require.NotNil(t, rparam, message)
+	require.NotEmpty(t, rparam.Url, message)
 
-	db, err := redigo.DialURL(i.URL)
-	require.NoError(t, err)
+	pgparam, ok := pset["postgres"]
+	require.True(t, ok, message)
+	require.NotNil(t, pgparam, message)
+	require.NotEmpty(t, pgparam.Url, message)
 
-	return i, db
-}
+	rdb, err := redigo.DialURL(rparam.Url)
+	require.NoError(t, err, message)
+	defer rdb.Close()
 
-func getPG(t *testing.T, c *net.Client) (*pg.Item, *sql.DB) {
-	i, err := c.PG().Checkout()
-	require.NoError(t, err)
+	pg, err := sql.Open("postgres", pgparam.Url)
+	require.NoError(t, err, message)
+	defer pg.Close()
 
-	db, err := sql.Open("postgres", i.URL)
-	require.NoError(t, err)
+	_, err = rdb.Do("PING")
+	require.NoError(t, err, message)
 
-	return i, db
+	err = pg.Ping()
+	require.NoError(t, err, message)
 }

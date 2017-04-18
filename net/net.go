@@ -2,6 +2,11 @@ package net
 
 import "os"
 
+const (
+	rpcCheckoutName = "checkout"
+	rpcReturnName   = "return"
+)
+
 // XXX: prevent koding/logging race condition
 
 func init() {

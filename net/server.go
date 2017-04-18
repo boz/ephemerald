@@ -1,10 +1,8 @@
 package net
 
 import (
-	"sync"
-
-	"github.com/boz/ephemerald/builtin/pg"
-	"github.com/boz/ephemerald/builtin/redis"
+	"github.com/boz/ephemerald"
+	"github.com/boz/ephemerald/params"
 	"github.com/koding/kite"
 )
 
@@ -14,26 +12,17 @@ const (
 	DefaultPort = 6000
 )
 
-type PoolServer interface {
-	WaitReady() error
-	Stop() error
-}
-
 type Server struct {
 	kite *kite.Kite
 
-	redis PoolServer
-	pg    PoolServer
-	vault PoolServer
+	pools ephemerald.PoolSet
 
 	closech chan bool
 }
 
 type ServerBuilder struct {
-	port int
-
-	pgBuilder    pg.Builder
-	redisBuilder redis.Builder
+	port  int
+	pools ephemerald.PoolSet
 }
 
 func NewServerBuilder() *ServerBuilder {
@@ -42,23 +31,14 @@ func NewServerBuilder() *ServerBuilder {
 	}
 }
 
-func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
-	sb.port = port
+func (sb *ServerBuilder) WithPoolSet(pools ephemerald.PoolSet) *ServerBuilder {
+	sb.pools = pools
 	return sb
 }
 
-func (sb *ServerBuilder) PG() pg.Builder {
-	if sb.pgBuilder == nil {
-		sb.pgBuilder = pg.NewBuilder().WithDefaults()
-	}
-	return sb.pgBuilder
-}
-
-func (sb *ServerBuilder) Redis() redis.Builder {
-	if sb.redisBuilder == nil {
-		sb.redisBuilder = redis.NewBuilder().WithDefaults()
-	}
-	return sb.redisBuilder
+func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
+	sb.port = port
+	return sb
 }
 
 func (sb *ServerBuilder) Create() (*Server, error) {
@@ -70,24 +50,11 @@ func (sb *ServerBuilder) Create() (*Server, error) {
 	s := &Server{
 		kite:    k,
 		closech: make(chan bool),
+		pools:   sb.pools,
 	}
 
-	if sb.pgBuilder != nil {
-		server, err := pg.BuildServer(k, sb.pgBuilder)
-		if err != nil {
-			return nil, err
-		}
-		s.pg = server
-	}
-
-	if sb.redisBuilder != nil {
-		server, err := redis.BuildServer(k, sb.redisBuilder)
-		if err != nil {
-			s.pg.Stop()
-			return nil, err
-		}
-		s.redis = server
-	}
+	s.kite.HandleFunc(rpcCheckoutName, s.handleCheckout)
+	s.kite.HandleFunc(rpcReturnName, s.handleReturn)
 
 	return s, nil
 }
@@ -117,22 +84,36 @@ func (s *Server) Port() int {
 }
 
 func (s *Server) stopPools() {
-	var wg sync.WaitGroup
+	s.pools.Stop()
+}
 
-	fn := func(p PoolServer) {
-		defer wg.Done()
-		p.Stop()
+func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
+	var names []string
+	r.Args.MustUnmarshal(names)
+	ps, err := s.pools.Checkout(names...)
+	if err != nil {
+		return ps, err
 	}
 
-	if s.redis != nil {
-		wg.Add(1)
-		go fn(s.redis)
-	}
+	host := r.Client.Environment
 
-	if s.pg != nil {
-		wg.Add(1)
-		go fn(s.pg)
+	for name, p := range ps {
+		p2, e := p.ForHost(host)
+		if e != nil {
+			err = e
+			break
+		}
+		ps[name] = p2
 	}
+	if err != nil {
+		s.pools.ReturnAll(ps)
+	}
+	return ps, err
+}
 
-	wg.Wait()
+func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
+	ps := params.ParamSet{}
+	r.Args.One().MustUnmarshal(&ps)
+	s.pools.ReturnAll(ps)
+	return nil, nil
 }

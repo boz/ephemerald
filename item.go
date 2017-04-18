@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/lifecycle"
+	"github.com/boz/ephemerald/params"
 	"github.com/docker/docker/api/types"
 )
 
@@ -23,9 +25,9 @@ const (
 )
 
 type poolItem struct {
-	provisioner Provisioner
-	adapter     Adapter
-	container   PoolContainer
+	lifecycle lifecycle.Manager
+	adapter   Adapter
+	container PoolContainer
 
 	events chan poolItemEvent
 	joinch chan (chan<- poolEvent)
@@ -40,7 +42,7 @@ type poolItem struct {
 	log logrus.FieldLogger
 }
 
-func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisioner) (PoolItem, error) {
+func createPoolItem(log logrus.FieldLogger, adapter Adapter, lifecycle lifecycle.Manager) (PoolItem, error) {
 	log = log.WithField("component", "pool-item")
 
 	container, err := createPoolContainer(log, adapter)
@@ -55,15 +57,15 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisi
 	ctx, cancel := context.WithCancel(context.Background())
 
 	item := &poolItem{
-		provisioner: provisioner,
-		adapter:     adapter,
-		container:   container,
-		events:      make(chan poolItemEvent),
-		joinch:      make(chan (chan<- poolEvent)),
-		exited:      make(chan bool),
-		ctx:         ctx,
-		cancel:      cancel,
-		log:         log,
+		lifecycle: lifecycle.ForContainer(container.ID()),
+		adapter:   adapter,
+		container: container,
+		events:    make(chan poolItemEvent),
+		joinch:    make(chan (chan<- poolEvent)),
+		exited:    make(chan bool),
+		ctx:       ctx,
+		cancel:    cancel,
+		log:       log,
 	}
 
 	go item.run()
@@ -146,6 +148,7 @@ func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
 			case containerEventExitError:
 				fallthrough
 			case containerEventStartFailed:
+				i.log.Info("container exited")
 				ch <- poolEvent{eventItemExit, i}
 				return
 			case containerEventStarted:
@@ -199,8 +202,13 @@ func (i *poolItem) drain() {
 }
 
 func (i *poolItem) onChildStarted() {
-	if prov, ok := isLiveCheckProvisioner(i.provisioner); ok {
-		if err := prov.LiveCheck(i.ctx, i.container); err != nil {
+	if i.lifecycle.HasHealthcheck() {
+		params, err := i.currentParams()
+		if err != nil {
+			i.events <- eventPoolItemLiveError
+			return
+		}
+		if err := i.lifecycle.DoHealthcheck(i.ctx, params); err != nil {
 			i.log.WithError(err).Error("error checking liveliness")
 			i.events <- eventPoolItemLiveError
 			return
@@ -210,26 +218,46 @@ func (i *poolItem) onChildStarted() {
 }
 
 func (i *poolItem) onChildLive() {
-	if prov, ok := isInitializeProvisioner(i.provisioner); ok {
-		if err := prov.Initialize(i.ctx, i.container); err != nil {
+	if i.lifecycle.HasInitialize() {
+		params, err := i.currentParams()
+		if err != nil {
+			i.events <- eventPoolItemReadyError
+			return
+		}
+		if err := i.lifecycle.DoInitialize(i.ctx, params); err != nil {
 			i.log.WithError(err).Error("error initializing")
 			i.events <- eventPoolItemReadyError
 			return
 		}
 	}
+	i.log.Info("container ready")
 	i.events <- eventPoolItemReady
 }
 
 func (i *poolItem) onChildReset() {
-	if prov, ok := isResetProvisioner(i.provisioner); ok {
-		if err := prov.Reset(i.ctx, i.container); err != nil {
+	if i.lifecycle.HasReset() {
+		params, err := i.currentParams()
+		if err != nil {
+			i.events <- eventPoolItemResetError
+			return
+		}
+		if err := i.lifecycle.DoReset(i.ctx, params); err != nil {
 			i.log.WithError(err).Error("error provisioning")
 			i.events <- eventPoolItemResetError
+			return
 		}
 		i.events <- eventPoolItemReady
 		return
 	}
 	i.container.Stop()
+}
+
+func (i *poolItem) currentParams() (params.Params, error) {
+	params, err := i.adapter.MakeParams(i.container)
+	if err != nil {
+		i.log.WithError(err).Warn("error making params")
+	}
+	return params, err
 }
 
 func (i *poolItem) do(fn func()) {

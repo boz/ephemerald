@@ -1,39 +1,47 @@
-package redis_test
+package postgres_test
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/testutil"
-	rredis "github.com/garyburd/redigo/redis"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestActionExec(t *testing.T) {
+func TestActionsPingExec(t *testing.T) {
 	testutil.RunPoolFromFile(t, "pool.json", func(p params.Params) {
-		db, err := rredis.DialURL(p.Url)
+		db, err := sql.Open("postgres", p.Url)
 		require.NoError(t, err)
 		defer db.Close()
 
-		_, err = db.Do("PING")
+		rows, err := db.Query("SELECT COUNT(*) FROM users")
 		require.NoError(t, err)
+		defer rows.Close()
+
+		require.True(t, rows.Next())
+
+		var count int
+		require.NoError(t, rows.Scan(&count))
+		require.Equal(t, 0, count)
 	})
 }
 
 func TestActionTruncate(t *testing.T) {
 	testutil.WithPoolFromFile(t, "pool.json", func(pool ephemerald.Pool) {
+		username := "testuser"
+
 		func() {
 			p, err := pool.Checkout()
 			require.NoError(t, err)
 			defer pool.Return(p)
 
-			db, err := rredis.DialURL(p.Url)
+			db, err := sql.Open("postgres", p.Url)
 			require.NoError(t, err)
 			defer db.Close()
 
-			_, err = db.Do("SET", "testkey", "true")
+			_, err = db.Exec("INSERT INTO users (name) VALUES ($1)", username)
 			require.NoError(t, err)
 		}()
 
@@ -42,13 +50,19 @@ func TestActionTruncate(t *testing.T) {
 			require.NoError(t, err)
 			defer pool.Return(p)
 
-			db, err := rredis.DialURL(p.Url)
+			db, err := sql.Open("postgres", p.Url)
 			require.NoError(t, err)
 			defer db.Close()
 
-			result, err := db.Do("GET", "testkey")
+			rows, err := db.Query("SELECT COUNT(*) FROM users WHERE name = $1", username)
 			require.NoError(t, err)
-			assert.Empty(t, result)
+			defer rows.Close()
+
+			require.True(t, rows.Next())
+
+			var count int
+			require.NoError(t, rows.Scan(&count))
+			require.Equal(t, 0, count)
 		}()
 	})
 }

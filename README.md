@@ -2,75 +2,241 @@
 
 Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests which make use of (postgres, redis, vault) databases.
 
-## Example
+* [Building](#building)
+* [Running](#building)
+* [Configuration](#building)
+  * [Params](#params)
+  * [Lifecycle Actions](#lifecycle-actions)
+    * [noop](#noop)
+    * [exec](#exec)
+    * [http.get](#httpget)
+    * [tcp.connect](#tcpconnect)
+    * [postgres.exec](#postgresexec)
+    * [postgres.ping](#postgresping)
+    * [postgres.truncate](#postgrestruncate)
+    * [redis.exec](#redisexec)
+    * [redis.ping](#redisping)
+    * [redis.truncate](#redistruncate)
 
-See [example/main.go](example/main.go) for a full working client example.
-
-Start ephemerald server with postgres, redis enabled with a pool size of 5 for each:
+## Building
 
 ```sh
-$ ephemerald --pg --pg-backlog 5 --redis --redis-backlog 5
+$ govendor get -d github.com/boz/ephemerald/...
+$ cd $GOPATH/src/github.com/boz/ephemerald
+$ make server example
 ```
 
-On the client side, configure how postgres should be initialized and reset, then open an ephemerald session:
+## Running
 
-```go
-builder := net.NewClientBuilder()
+To run the server, supply a configuration file:
 
-builder.PG().
-	WithInitialize(pgRunMigrations).
-	WithReset(pgTruncateTables)
-
-client, err := builder.Create()
+```sh
+$ ./ephemerald/ephemerald -f ./example/config.json --log-level debug
 ```
 
-Checkout a redis instance then open a connection to it:
+Run the example client in another terminal
 
-```go
-// checkout redis instance
-ritem, err := client.Redis().Checkout()
-if err != nil {
-	return
+```sh
+$ ./example/example
+```
+
+Press Ctrl-C to quit the server.
+
+## Configuration
+
+Container pools are configured in a json file.  Each pool has options for the container parameters and
+for lifecycle actions.
+
+The following configuration creates a single pool called "pg" which maintains five containers from the "postgres" image and
+exposes port 5432 to clients.  See the [`params`](#params) and [`actions`](#lifecycle-actions) below for documentation on those fields.
+
+```json
+{
+  "pools": {
+    "pg": {
+      "image": "postgres",
+      "size": 5,
+      "port": 5432,
+      "params": {
+        "username": "postgres",
+        "password": "",
+        "database": "postgres",
+        "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
+      },
+      "actions": {
+        "healthcheck": {
+          "type": "postgres.ping",
+          "retries": 10,
+          "delay":   "50ms"
+        },
+        "initialize": {
+          "type":    "exec",
+          "path":    "make",
+          "args":    ["db:migrate"],
+          "env":     ["DATABASE_URL={{.Url}}"],
+          "timeout": "10s",
+        },
+        "reset": {
+          "type": "postgres.truncate"
+        }
+      }
+    }
+  }
 }
-
-// return to pool when done
-defer client.Redis().Return(ritem)
-
-// connect to redis instance
-rconn, err := redis.DialURL(ritem.URL)
-if err != nil {
-	return
-}
-defer rconn.Close()
 ```
 
-Do the same with postgres:
+See [example/config.json](example/config.json) for a full working configuration.
 
-```go
-// checkout pg instance
-pitem, err := client.PG().Checkout()
-if err != nil {
-	return
+### Params
+
+The `params` entry allows for declaring parameters needed for connecting to the service.  There are three fields
+with arbitrary values: `username`, `password`, `database`.
+
+The `url` can be a golang template and will be executed with access to the following fields:
+
+Name | Value
+--- | ---
+Hostname | The hostname that the container can be connected at
+Port | The (automatically-generated) port number that is mapped to the exposed container port
+Username | The `username` field declared in `params`
+Password | The `password` field declared in `params`
+Database | The `database` field declared in `params`
+
+A `params` section for postgres may look like this:
+
+```json
+{
+  "username": "postgres",
+  "password": "",
+  "database": "postgres",
+  "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
 }
-// return to pool when done
-defer client.PG().Return(pitem)
-
-// connect to pg
-pconn, err := sql.Open("postgres", pitem.URL)
-defer pconn.Close()
 ```
 
-## Status
+### Lifecycle Actions
 
-Early days; nowhere near ready for a versioned release.
+There are three lifecycle actions: `healthcheck`, `initialize`, and `reset`.
+
+ * `healthcheck` is used to determine when the container is ready to be used.
+ * `initialize` is used to initialize the container (run migrations, etc...)
+ * `reset` may be used to revert the container to a state where it can be used again.
+
+All of them are optional (though `healthcheck` should be used).  If `reset` is not given,
+the container will be killed and a new one will be created to replace it.
+
+Each action has, at a minimum, the following three parameters:
+
+Name | Default | Description
+---  | --- | ---
+retries | 3 | number of times to retry the action
+timeout | 1s | amount of time to allow for the action
+delay | 500ms | amount of time to delay before retrying
+
+`timeout` and `delay` are durations; they must have a unit suffix as described [here](https://golang.org/pkg/time/#ParseDuration).
+
+Note: actions may have different defaults for these fields.
+
+#### noop
+
+Does nothing.  Useful as the `reset` action so that a container is always reused.
+
+#### exec
+
+Execute a command on the host operating system.  Useful for running migrations to initialize a database.
+
+Extra Parameters:
+
+Name | Default | Description
+--- | --- | ---
+command| `""` | command to execute
+args | `[]` | command-line arguments
+env | `[]` | environment variables
+dir | `""` | directory to execute in.
+
+The `env` entries may be templates with access to the same fields as the [`params`](#params) url template.
+
+If `dir` is not set, the working directory of the server isused.
+
+#### http.get
+
+Run a HTTP GET request.
+
+Extra Parameters:
+
+Name | Default | Description
+--- | --- | ---
+url | `""` | url to request
+
+If `url` is blank, the `url` from the [`params`](#params) is used.
+
+If `url` is not blank, it may be a template which has access to the same fields that [`params`](#params) url template does.
+
+#### tcp.connect
+
+Connect to the exposed container port over TCP.
+
+#### postgres.exec
+
+Executes a query on the database.
+
+Extra Parameters:
+
+Name | Default | Description
+--- | --- | ---
+command | `"SELECT 1=1"` | query to execute
+args | `[]` | values to be escaped with positional arguments in `command`.
+
+Example:
+
+```json
+{
+  "type": "postgres.exec",
+  "command": "INSERT INTO users (name) VALUES ($1)",
+  "args": "Robert'); DROP TABLE STUDENTS;--"
+}
+```
+
+#### postgres.ping
+
+Pings the database.  Useful for healthcheck.
+
+#### postgres.truncate
+
+Runs `TRUNCATE TABLE x CASCADE` for all tables `x`.
+
+Extra Parameters:
+
+Name | Default | Description
+--- | --- | ---
+exclude | `[]` | an array of table names to not truncate (eg migration versions)
+
+#### redis.exec
+
+Execute a redis command.
+
+Extra Parameters:
+
+Name | Default | Description
+--- | --- | ---
+command | `"PING"` | redis command to execute
+
+#### redis.ping
+
+This is an alias for `redis.exec`.
+
+#### redis.truncate
+
+This is an alias for `redis.exec` with a default command of `"FLUSHALL"`.
 
 ### TODO
- * Improve configuration
-   * More control over container parameters
-   * server-side resets (`truncate table ...`, `delete keys`, ...) and healthchecks.
-   * configurable docker server connection parameters.
- * Arbitrary images (currently restricted to `postgres`, `redis`, and `vault`)
+
+ * Configuration
+   * Current parsing is a disaster
+   * Allow yaml
+   * Allow built-in defaults (postgres, redis, etc...)
+ * Use simple JSON API instead of [koding/kite](https://github.com/koding/kite).
+ * Re-add remote actions
+   * Use websockets instead of [koding/kite](https://github.com/koding/kite)
  * Nodejs client example
  * Documentation
  * Tests
- * Look into using something more portable than [koding/kite](https://github.com/koding/kite) for API.

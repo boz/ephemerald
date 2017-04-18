@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/params"
 	"github.com/docker/docker/api/types"
-)
-
-const (
-	checkoutTimeout = LiveCheckDefaultDelay * LiveCheckDefaultRetries * 5
 )
 
 var (
@@ -20,8 +19,8 @@ var (
 )
 
 type Pool interface {
-	Checkout() (StatusItem, error)
-	CheckoutWith(context.Context) (StatusItem, error)
+	Checkout() (params.Params, error)
+	CheckoutWith(context.Context) (params.Params, error)
 	Return(Item)
 	Stop() error
 	WaitReady() error
@@ -68,8 +67,7 @@ type poolEvent struct {
 type pool struct {
 	state poolState
 
-	config      *Config
-	provisioner Provisioner
+	config *config.Config
 
 	// number of items to maintain
 	size int
@@ -108,34 +106,28 @@ type pool struct {
 	stopped int32
 }
 
-func NewPool(
-	config *Config, size int, provisioner Provisioner) (Pool, error) {
-	return NewPoolWithContext(context.Background(), config, size, provisioner)
+func NewPool(config *config.Config) (Pool, error) {
+	return NewPoolWithContext(context.Background(), config)
 }
 
-func NewPoolWithContext(
-	ctx context.Context, config *Config, size int, provisioner Provisioner) (Pool, error) {
+func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error) {
 
-	log := logrus.New().WithField("component", "pool")
-	log.Level = config.LogLevel
-
-	adapter, err := newAdapter(log, config)
+	adapter, err := newAdapter(config)
 	if err != nil {
-		log.WithError(err).Error("pool creation failed")
+		adapter.Log().WithError(err).Error("pool creation failed")
 		return nil, err
 	}
 
-	log = log.WithField("image", adapter.Ref().String())
+	log := adapter.Log().WithField("component", "Pool")
 
 	p := &pool{
-		state:       stateInitializing,
-		config:      config,
-		provisioner: provisioner,
-		size:        size,
-		adapter:     adapter,
+		state:   stateInitializing,
+		config:  config,
+		size:    config.Size,
+		adapter: adapter,
 
 		readybuf: newItemBuffer(),
-		spawner:  newSpawner(log, adapter, provisioner),
+		spawner:  newSpawner(adapter, config.Lifecycle),
 
 		events: make(chan poolEvent),
 
@@ -157,20 +149,15 @@ func NewPoolWithContext(
 }
 
 func (p *pool) Stop() error {
-
 	if !atomic.CompareAndSwapInt32(&p.stopped, 0, 1) {
 		p.log.Warning("double stop")
-		return errNotRunning
+		<-p.donech
+		return nil
 	}
 
 	close(p.shutdownch)
-
-	select {
-	case <-p.ctx.Done():
-		return p.ctx.Err()
-	case <-p.donech:
-		return nil
-	}
+	<-p.donech
+	return nil
 }
 
 func (p *pool) WaitReady() error {
@@ -182,26 +169,36 @@ func (p *pool) WaitReady() error {
 	}
 }
 
-func (p *pool) Checkout() (StatusItem, error) {
-	ctx, cancel := context.WithTimeout(p.ctx, checkoutTimeout)
+func (p *pool) Checkout() (params.Params, error) {
+	ctx, cancel := context.WithTimeout(p.ctx, p.defaultCheckoutTimeout())
 	defer cancel()
 	return p.CheckoutWith(ctx)
 }
 
-func (p *pool) CheckoutWith(ctx context.Context) (StatusItem, error) {
+func (p *pool) CheckoutWith(ctx context.Context) (params.Params, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return params.Params{}, ctx.Err()
 	case item, ok := <-p.readybuf.Get():
 		if !ok {
-			return nil, errNotRunning
+			return params.Params{}, errNotRunning
 		}
-		return item, nil
+		result, err := p.adapter.MakeParams(item)
+		if err != nil {
+			p.Return(item)
+			return params.Params{}, err
+		}
+		lcid(p.log, item.ID()).Info("checked out")
+		return result, nil
 	}
 }
 
 func (p *pool) Return(i Item) {
 	p.events <- poolEvent{eventItemReturned, i}
+}
+
+func (p *pool) defaultCheckoutTimeout() time.Duration {
+	return p.config.Lifecycle.MaxDelay() + (500 * time.Millisecond)
 }
 
 func (p *pool) monitorCtx() {
@@ -277,6 +274,7 @@ func (p *pool) runRunning() {
 
 			case eventItemReturned:
 				if i, ok := p.items[e.item.ID()]; ok {
+					lcid(p.log, e.item.ID()).Info("returned")
 					i.Reset()
 				}
 

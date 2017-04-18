@@ -1,16 +1,16 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
+	_ "github.com/boz/ephemerald/builtin/postgres"
+	_ "github.com/boz/ephemerald/builtin/redis"
 	_ "github.com/lib/pq"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/boz/ephemerald/builtin/pg"
 	"github.com/boz/ephemerald/net"
 	"github.com/garyburd/redigo/redis"
 )
@@ -19,9 +19,6 @@ func main() {
 	log := logrus.New()
 
 	builder := net.NewClientBuilder()
-	builder.PG().
-		WithInitialize(pgRunMigrations).
-		WithReset(pgTruncateTables)
 
 	client, err := builder.Create()
 	if err != nil {
@@ -38,31 +35,27 @@ func main() {
 		go func() {
 			defer wg.Done()
 
-			// checkout redis instance
-			ritem, err := client.Redis().Checkout()
+			items, err := client.Checkout()
 			if err != nil {
+				log.WithError(err).Error("checkout")
 				return
 			}
-			// return to pool when done
-			defer client.Redis().Return(ritem)
+			defer client.Return(items)
 
 			// connect to redis instance
-			rconn, err := redis.DialURL(ritem.URL)
+			rconn, err := redis.DialURL(items["redis"].Url)
 			if err != nil {
+				log.WithError(err).Error("dialing redis")
 				return
 			}
 			defer rconn.Close()
 
-			// checkout pg instance
-			pitem, err := client.PG().Checkout()
+			// connect to pg
+			pconn, err := sql.Open("postgres", items["postgres"].Url)
 			if err != nil {
+				log.WithError(err).Error("dialing postgres")
 				return
 			}
-			// return to pool when done
-			defer client.PG().Return(pitem)
-
-			// connect to pg
-			pconn, err := sql.Open("postgres", pitem.URL)
 			defer pconn.Close()
 
 			// run tests
@@ -99,32 +92,4 @@ func runTests(rconn redis.Conn, pconn *sql.DB) error {
 		return fmt.Errorf("invalid rows affected: %v != %v", 1, count)
 	}
 	return nil
-}
-
-func pgRunMigrations(_ context.Context, item *pg.Item) error {
-	db, err := sql.Open("postgres", item.URL)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	_, err = db.Exec(`
-		CREATE TABLE users (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			UNIQUE(name)
-		);
-		`)
-
-	return err
-}
-
-func pgTruncateTables(_ context.Context, item *pg.Item) error {
-	db, err := sql.Open("postgres", item.URL)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	_, err = db.Exec("TRUNCATE TABLE users;")
-	return err
 }
