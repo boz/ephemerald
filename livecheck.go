@@ -25,10 +25,11 @@ func LiveCheckTimeout(timeout time.Duration, fn ProvisionFn) ProvisionFn {
 		defer cancel()
 
 		errch := make(chan error)
+		defer close(errch)
 
 		go func() {
-			defer close(errch)
 			select {
+			case <-checkctx.Done():
 			case errch <- fn(checkctx, si):
 			}
 		}()
@@ -37,7 +38,6 @@ func LiveCheckTimeout(timeout time.Duration, fn ProvisionFn) ProvisionFn {
 		case <-checkctx.Done():
 			return checkctx.Err()
 		case err := <-errch:
-
 			return err
 		}
 	}
@@ -57,6 +57,7 @@ func LiveCheckRetry(tries int, delay time.Duration, fn ProvisionFn) ProvisionFn 
 			go func() {
 				defer close(errch)
 				select {
+				case <-ctx.Done():
 				case errch <- fn(ctx, si):
 				}
 			}()
@@ -64,8 +65,9 @@ func LiveCheckRetry(tries int, delay time.Duration, fn ProvisionFn) ProvisionFn 
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case err := <-errch:
-				if err == nil {
+			case err, ok := <-errch:
+				// we might see errch closed before ctx.Done() closed.
+				if err == nil && ok {
 					return nil
 				}
 			}

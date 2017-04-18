@@ -22,15 +22,7 @@ const (
 	eventPoolItemReadyError poolItemEvent = "ready-error"
 )
 
-type poolItemState string
-
-const (
-	poolItemStateRunning poolItemState = "running"
-	poolItemStateExited  poolItemState = "exited"
-)
-
 type poolItem struct {
-	state       poolItemState
 	provisioner Provisioner
 	adapter     Adapter
 	container   PoolContainer
@@ -63,7 +55,6 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, provisioner Provisi
 	ctx, cancel := context.WithCancel(context.Background())
 
 	item := &poolItem{
-		state:       poolItemStateRunning,
 		provisioner: provisioner,
 		adapter:     adapter,
 		container:   container,
