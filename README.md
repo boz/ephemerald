@@ -153,7 +153,16 @@ args | `[]` | command-line arguments
 env | `[]` | environment variables
 dir | `""` | directory to execute in.
 
-The `env` entries may be templates with access to the same fields as the [`params`](#params) url template.
+The `env` entries may be templates with access to the same fields as the [`params`](#params) url template.  Additionally,
+the following environment variables are always set:
+
+ * `EPHEMERALD_ID`
+ * `EPHEMERALD_HOSTNAME`
+ * `EPHEMERALD_PORT`
+ * `EPHEMERALD_USERNAME`
+ * `EPHEMERALD_PASSWORD`
+ * `EPHEMERALD_DATABASE`
+ * `EPHEMERALD_URL`
 
 If `dir` is not set, the working directory of the server isused.
 
