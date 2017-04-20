@@ -34,7 +34,7 @@ To run the server, supply a configuration file:
 $ ./ephemerald/ephemerald -f ./example/config.json --log-level debug
 ```
 
-Run the example client in another terminal
+Run the [example client](example/main.go) in another terminal
 
 ```sh
 $ ./example/example
