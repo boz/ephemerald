@@ -19,23 +19,23 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-type Adapter interface {
-	Ref() reference.Named
-	EnsureImage() error
-	CreateContainer() (string, error)
-	ContainerStart(id string, options types.ContainerStartOptions) error
+type dockerAdapter interface {
+	imageReference() reference.Named
+	ensureImage() error
+	createContainer() (string, error)
+	containerStart(id string, options types.ContainerStartOptions) error
 
-	ContainerInspect(id string) (types.ContainerJSON, error)
-	ContainerKill(id string, signal string) error
-	Events(options types.EventsOptions) (<-chan events.Message, <-chan error)
-	ContainerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error)
+	containerInspect(id string) (types.ContainerJSON, error)
+	containerKill(id string, signal string) error
+	containerEvents(options types.EventsOptions) (<-chan events.Message, <-chan error)
+	containerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error)
 
-	MakeParams(StatusItem) (params.Params, error)
+	makeParams(StatusItem) (params.Params, error)
 
-	Log() logrus.FieldLogger
+	logger() logrus.FieldLogger
 }
 
-type adapter struct {
+type dadapter struct {
 	config *config.Config
 
 	// docker image reference
@@ -50,7 +50,7 @@ type adapter struct {
 	log logrus.FieldLogger
 }
 
-func newAdapter(config *config.Config) (Adapter, error) {
+func newDockerAdapter(config *config.Config) (dockerAdapter, error) {
 
 	log := config.Log().WithField("component", "adapter")
 
@@ -76,7 +76,7 @@ func newAdapter(config *config.Config) (Adapter, error) {
 		return nil, err
 	}
 
-	return &adapter{
+	return &dadapter{
 		config: config,
 		ref:    ref,
 		info:   info,
@@ -86,12 +86,12 @@ func newAdapter(config *config.Config) (Adapter, error) {
 	}, nil
 }
 
-func (a *adapter) Ref() reference.Named {
+func (a *dadapter) imageReference() reference.Named {
 	return a.ref
 }
 
-func (a *adapter) EnsureImage() error {
-	exists, err := a.ImageExists()
+func (a *dadapter) ensureImage() error {
+	exists, err := a.imageExists()
 	if err != nil {
 		return err
 	}
@@ -102,10 +102,10 @@ func (a *adapter) EnsureImage() error {
 	}
 
 	a.log.Warn("image not present")
-	return a.PullImage()
+	return a.imagePull()
 }
 
-func (a *adapter) ImageExists() (bool, error) {
+func (a *dadapter) imageExists() (bool, error) {
 	_, _, err := a.client.ImageInspectWithRaw(a.ctx, a.ref.Name())
 	switch {
 	case err == nil:
@@ -119,7 +119,7 @@ func (a *adapter) ImageExists() (bool, error) {
 	}
 }
 
-func (a *adapter) PullImage() error {
+func (a *dadapter) imagePull() error {
 	a.log.Infof("pulling image...")
 
 	body, err := a.client.ImageCreate(a.ctx, a.ref.String(), types.ImageCreateOptions{})
@@ -142,7 +142,7 @@ func (a *adapter) PullImage() error {
 	return nil
 }
 
-func (a *adapter) CreateContainer() (string, error) {
+func (a *dadapter) createContainer() (string, error) {
 
 	dconfig := &container.Config{
 		Image:        a.ref.Name(),
@@ -182,30 +182,30 @@ func (a *adapter) CreateContainer() (string, error) {
 	return container.ID, nil
 }
 
-func (a *adapter) ContainerStart(id string, options types.ContainerStartOptions) error {
+func (a *dadapter) containerStart(id string, options types.ContainerStartOptions) error {
 	return a.client.ContainerStart(a.ctx, id, options)
 }
 
-func (a *adapter) ContainerInspect(id string) (types.ContainerJSON, error) {
+func (a *dadapter) containerInspect(id string) (types.ContainerJSON, error) {
 	return a.client.ContainerInspect(a.ctx, id)
 }
 
-func (a *adapter) ContainerKill(id string, signal string) error {
+func (a *dadapter) containerKill(id string, signal string) error {
 	return a.client.ContainerKill(a.ctx, id, signal)
 }
 
-func (a *adapter) Events(options types.EventsOptions) (<-chan events.Message, <-chan error) {
+func (a *dadapter) containerEvents(options types.EventsOptions) (<-chan events.Message, <-chan error) {
 	return a.client.Events(a.ctx, options)
 }
 
-func (a *adapter) ContainerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
+func (a *dadapter) containerLogs(id string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
 	return a.client.ContainerLogs(a.ctx, id, options)
 }
 
-func (a *adapter) MakeParams(c StatusItem) (params.Params, error) {
+func (a *dadapter) makeParams(c StatusItem) (params.Params, error) {
 	return a.config.Params.ParamsFor(c.ID(), c.Status(), a.config.Port)
 }
 
-func (a *adapter) Log() logrus.FieldLogger {
+func (a *dadapter) logger() logrus.FieldLogger {
 	return a.log
 }

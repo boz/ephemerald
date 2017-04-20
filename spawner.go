@@ -5,8 +5,14 @@ import (
 	"github.com/boz/ephemerald/lifecycle"
 )
 
-type spawner struct {
-	adapter   Adapter
+type poolItemSpawner interface {
+	stop()
+	next() <-chan poolItem
+	request(int)
+}
+
+type pispawner struct {
+	adapter   dockerAdapter
 	lifecycle lifecycle.Manager
 
 	pending int
@@ -22,24 +28,24 @@ type spawner struct {
 	resultch chan spawnresult
 
 	// where to send new children
-	nextch chan PoolItem
+	nextch chan poolItem
 
 	log logrus.FieldLogger
 }
 
 type spawnresult struct {
-	item PoolItem
+	item poolItem
 	err  error
 }
 
-func newSpawner(adapter Adapter, lifecycle lifecycle.Manager) *spawner {
-	s := &spawner{
+func newPoolItemSpawner(adapter dockerAdapter, lifecycle lifecycle.Manager) poolItemSpawner {
+	s := &pispawner{
 		adapter:   adapter,
 		lifecycle: lifecycle,
 		requestch: make(chan int, 5),
 		resultch:  make(chan spawnresult),
-		nextch:    make(chan PoolItem),
-		log:       adapter.Log().WithField("component", "spawner"),
+		nextch:    make(chan poolItem),
+		log:       adapter.logger().WithField("component", "spawner"),
 	}
 
 	go s.run()
@@ -47,24 +53,24 @@ func newSpawner(adapter Adapter, lifecycle lifecycle.Manager) *spawner {
 	return s
 }
 
-func (s *spawner) Stop() {
+func (s *pispawner) stop() {
 	close(s.requestch)
 }
 
-func (s *spawner) Next() <-chan PoolItem {
+func (s *pispawner) next() <-chan poolItem {
 	return s.nextch
 }
 
-func (s *spawner) Request(count int) {
+func (s *pispawner) request(count int) {
 	s.requestch <- count
 }
 
-func (s *spawner) run() {
+func (s *pispawner) run() {
 	s.fillRequests()
 	s.drain()
 }
 
-func (s *spawner) fillRequests() {
+func (s *pispawner) fillRequests() {
 	for {
 		s.fill()
 		select {
@@ -92,7 +98,7 @@ func (s *spawner) fillRequests() {
 	}
 }
 
-func (s *spawner) drain() {
+func (s *pispawner) drain() {
 	defer close(s.nextch)
 
 	for s.pending > 0 {
@@ -109,7 +115,7 @@ func (s *spawner) drain() {
 	}
 }
 
-func (s *spawner) fill() {
+func (s *pispawner) fill() {
 	for ; s.pending < s.needed; s.pending++ {
 		go func() {
 			item, err := createPoolItem(s.log, s.adapter, s.lifecycle)

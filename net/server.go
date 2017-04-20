@@ -112,7 +112,7 @@ func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
 }
 
 func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
-	ps := params.ParamSet{}
+	ps := params.Set{}
 	r.Args.One().MustUnmarshal(&ps)
 	s.pools.ReturnAll(ps)
 	return nil, nil

@@ -79,7 +79,7 @@ func (m *manager) parseAction(buf []byte, key string) (Action, error) {
 	case jsonparser.Object:
 		return ParseAction(vbuf)
 	default:
-		return nil, fmt.Errorf("lifecycle manager: invalid config at %v: ", key, vt)
+		return nil, fmt.Errorf("lifecycle manager: invalid config at %v: ", key)
 	}
 }
 

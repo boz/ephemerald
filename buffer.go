@@ -1,33 +1,39 @@
 package ephemerald
 
-type itembuf struct {
-	outch chan PoolItem
-	inch  chan PoolItem
-	buf   []PoolItem
+type poolItemBuffer interface {
+	get() <-chan poolItem
+	put(c poolItem)
+	stop()
 }
 
-func newItemBuffer() *itembuf {
-	b := &itembuf{
-		outch: make(chan PoolItem),
-		inch:  make(chan PoolItem),
+type pibuffer struct {
+	outch chan poolItem
+	inch  chan poolItem
+	buf   []poolItem
+}
+
+func newPoolItemBuffer() poolItemBuffer {
+	b := &pibuffer{
+		outch: make(chan poolItem),
+		inch:  make(chan poolItem),
 	}
 	go b.run()
 	return b
 }
 
-func (b *itembuf) Get() <-chan PoolItem {
+func (b *pibuffer) get() <-chan poolItem {
 	return b.outch
 }
 
-func (b *itembuf) Put(c PoolItem) {
+func (b *pibuffer) put(c poolItem) {
 	b.inch <- c
 }
 
-func (b *itembuf) Stop() {
+func (b *pibuffer) stop() {
 	close(b.inch)
 }
 
-func (b *itembuf) run() {
+func (b *pibuffer) run() {
 	defer close(b.outch)
 	for {
 

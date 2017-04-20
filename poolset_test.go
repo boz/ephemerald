@@ -18,7 +18,7 @@ func TestPoolSet(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	configs, err := config.ReadPath(log, "_testdata/pools.json")
+	configs, err := config.ReadFile(log, "_testdata/pools.json")
 	require.NoError(t, err)
 
 	set, err := ephemerald.NewPoolSet(log, ctx, configs)

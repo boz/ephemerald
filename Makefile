@@ -7,6 +7,9 @@ test:
 vet:
 	govendor vet +local
 
+lint:
+	govendor list +local | awk '{ print $$2 }' | xargs golint
+
 server:
 	(cd ephemerald && go build)
 

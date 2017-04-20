@@ -2,6 +2,7 @@ package params
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -11,16 +12,10 @@ import (
 )
 
 func TestParseConfig(t *testing.T) {
-	js := []byte(`
-		{
-			"username": "postgres",
-			"password": "",
-			"database": "postgres",
-			"url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
-		}
-	`)
+	buf, err := ioutil.ReadFile("_testdata/config.params.json")
+	require.NoError(t, err)
 
-	cfg, err := ParseConfig(js)
+	cfg, err := ParseConfig(buf)
 	require.NoError(t, err)
 
 	assert.Equal(t, "postgres", cfg.Username)

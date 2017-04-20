@@ -27,7 +27,7 @@ func TestClientServer(t *testing.T) {
 
 	ctx := context.Background()
 
-	configs, err := config.ReadPath(log, "_testdata/config.json")
+	configs, err := config.ReadFile(log, "_testdata/config.json")
 	require.NoError(t, err)
 
 	pools, err := ephemerald.NewPoolSet(log, ctx, configs)
@@ -77,7 +77,7 @@ func TestClientServer(t *testing.T) {
 	}
 }
 
-func doTestOperation(t *testing.T, pset params.ParamSet, message string) {
+func doTestOperation(t *testing.T, pset params.Set, message string) {
 	rparam, ok := pset["redis"]
 	require.True(t, ok, message)
 	require.NotNil(t, rparam, message)

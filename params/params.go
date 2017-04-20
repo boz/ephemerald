@@ -60,6 +60,8 @@ type Params struct {
 	Config
 }
 
+type Set map[string]Params
+
 func (p Params) ID() string {
 	return p.Id
 }

@@ -12,11 +12,11 @@ import (
 	"github.com/docker/docker/api/types/filters"
 )
 
-type PoolContainer interface {
+type poolContainer interface {
 	StatusItem
-	Start()
-	Stop()
-	Events() <-chan containerEvent
+	start()
+	stop()
+	events() <-chan containerEvent
 }
 
 type containerEvent string
@@ -28,14 +28,14 @@ const (
 	containerEventExitError   containerEvent = "exit-error"
 )
 
-type poolContainer struct {
-	adapter Adapter
+type pcontainer struct {
+	adapter dockerAdapter
 
 	id string
 
 	status types.ContainerJSON
 
-	events chan containerEvent
+	eventch chan containerEvent
 
 	done chan interface{}
 
@@ -45,22 +45,22 @@ type poolContainer struct {
 	log logrus.FieldLogger
 }
 
-func createPoolContainer(log logrus.FieldLogger, adapter Adapter) (*poolContainer, error) {
+func createPoolContainer(log logrus.FieldLogger, adapter dockerAdapter) (poolContainer, error) {
 	log = log.WithField("component", "pool-container")
 
-	cid, err := adapter.CreateContainer()
+	cid, err := adapter.createContainer()
 	if err != nil {
 		log.WithError(err).
 			Error("can't create container")
 		return nil, err
 	}
 
-	c := &poolContainer{
+	c := &pcontainer{
 		adapter: adapter,
 
 		id: cid,
 
-		events: make(chan containerEvent),
+		eventch: make(chan containerEvent),
 
 		done: make(chan interface{}),
 		log:  lcid(log, cid),
@@ -73,72 +73,72 @@ func createPoolContainer(log logrus.FieldLogger, adapter Adapter) (*poolContaine
 	return c, nil
 }
 
-func (c *poolContainer) ID() string {
+func (c *pcontainer) ID() string {
 	return c.id
 }
 
-func (c *poolContainer) Status() types.ContainerJSON {
+func (c *pcontainer) Status() types.ContainerJSON {
 	return c.status
 }
 
-func (c *poolContainer) Events() <-chan containerEvent {
-	return c.events
+func (c *pcontainer) events() <-chan containerEvent {
+	return c.eventch
 }
 
-func (c *poolContainer) Start() {
+func (c *pcontainer) start() {
 	c.startOnce.Do(func() {
 		go c.doStart()
 	})
 }
 
-func (c *poolContainer) Stop() {
+func (c *pcontainer) stop() {
 	c.stopOnce.Do(func() {
 		go c.doStop()
 	})
 }
 
-func (c *poolContainer) doStart() {
-	if err := c.start(); err != nil {
-		c.events <- containerEventStartFailed
+func (c *pcontainer) doStart() {
+	if err := c.startContainer(); err != nil {
+		c.eventch <- containerEventStartFailed
 		return
 	}
 
 	status, err := c.getStatus()
 	if err != nil {
-		c.events <- containerEventStartFailed
+		c.eventch <- containerEventStartFailed
 		return
 	}
 
 	c.status = status
 
-	c.events <- containerEventStarted
+	c.eventch <- containerEventStarted
 }
 
-func (c *poolContainer) doStop() {
-	err := c.adapter.ContainerKill(c.id, "KILL")
+func (c *pcontainer) doStop() {
+	err := c.adapter.containerKill(c.id, "KILL")
 	if err != nil {
 		c.log.WithError(err).Error("error killing container")
 	}
 }
 
-func (c *poolContainer) start() error {
+func (c *pcontainer) startContainer() error {
 	options := types.ContainerStartOptions{}
-	if err := c.adapter.ContainerStart(c.id, options); err != nil {
+	if err := c.adapter.containerStart(c.id, options); err != nil {
 		c.log.WithError(err).Error("error starting container")
 		return err
 	}
 	return nil
 }
 
-func (c *poolContainer) getStatus() (types.ContainerJSON, error) {
-	status, err := c.adapter.ContainerInspect(c.id)
+func (c *pcontainer) getStatus() (types.ContainerJSON, error) {
+	status, err := c.adapter.containerInspect(c.id)
 	if err != nil {
 		c.log.WithError(err).Error("error inspecting container")
 	}
 	return status, err
 }
 
-func (c *poolContainer) monitor() {
+func (c *pcontainer) monitor() {
 	err := c.doMonitor()
 	for err != nil {
 		c.log.WithError(err).Errorf("error reading events")
@@ -147,7 +147,7 @@ func (c *poolContainer) monitor() {
 	c.log.Debugf("done monitoring")
 }
 
-func (c *poolContainer) doMonitor() error {
+func (c *pcontainer) doMonitor() error {
 	f := filters.NewArgs()
 	f.Add("type", "container")
 	f.Add("container", c.id)
@@ -156,7 +156,7 @@ func (c *poolContainer) doMonitor() error {
 		Filters: f,
 	}
 
-	eventq, errq := c.adapter.Events(options)
+	eventq, errq := c.adapter.containerEvents(options)
 
 	status := syscall.WaitStatus(0)
 
@@ -176,9 +176,9 @@ func (c *poolContainer) doMonitor() error {
 			case "detach", "destroy":
 				c.log.Debugf("container exited")
 				if status == 0 {
-					c.events <- containerEventExitSuccess
+					c.eventch <- containerEventExitSuccess
 				} else {
-					c.events <- containerEventExitError
+					c.eventch <- containerEventExitError
 				}
 			}
 		case err := <-errq:
@@ -191,7 +191,7 @@ func (c *poolContainer) doMonitor() error {
 	}
 }
 
-func (c *poolContainer) dumpLogs() {
+func (c *pcontainer) dumpLogs() {
 
 	c.log.Debug("dumping logs")
 
@@ -202,7 +202,7 @@ func (c *poolContainer) dumpLogs() {
 		Tail:       "1",
 	}
 
-	body, err := c.adapter.ContainerLogs(c.id, options)
+	body, err := c.adapter.containerLogs(c.id, options)
 	if err != nil {
 		c.log.WithError(err).Error("error getting logs")
 	}

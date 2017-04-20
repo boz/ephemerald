@@ -10,8 +10,8 @@ import (
 )
 
 type PoolSet interface {
-	Checkout(name ...string) (params.ParamSet, error)
-	ReturnAll(params.ParamSet)
+	Checkout(name ...string) (params.Set, error)
+	ReturnAll(params.Set)
 	Return(name string, item Item)
 	WaitReady() error
 	Stop() error
@@ -56,7 +56,7 @@ func NewPoolSet(log logrus.FieldLogger, ctx context.Context, configs []*config.C
 	}, nil
 }
 
-func (ps *poolSet) Checkout(names ...string) (params.ParamSet, error) {
+func (ps *poolSet) Checkout(names ...string) (params.Set, error) {
 	type pentry struct {
 		name string
 		p    params.Params
@@ -94,7 +94,7 @@ func (ps *poolSet) Checkout(names ...string) (params.ParamSet, error) {
 		close(ch)
 	}()
 
-	set := params.ParamSet{}
+	set := params.Set{}
 
 	var cerr error
 	for entry := range ch {
@@ -120,7 +120,7 @@ func (ps *poolSet) Checkout(names ...string) (params.ParamSet, error) {
 	return set, nil
 }
 
-func (ps *poolSet) ReturnAll(set params.ParamSet) {
+func (ps *poolSet) ReturnAll(set params.Set) {
 	var wg sync.WaitGroup
 	wg.Add(len(set))
 

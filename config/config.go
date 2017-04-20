@@ -28,7 +28,7 @@ type Config struct {
 	log logrus.FieldLogger
 }
 
-func ReadPath(log logrus.FieldLogger, path string) ([]*Config, error) {
+func ReadFile(log logrus.FieldLogger, path string) ([]*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return []*Config{}, err

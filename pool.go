@@ -35,14 +35,6 @@ type StatusItem interface {
 	Status() types.ContainerJSON
 }
 
-type PoolItem interface {
-	StatusItem
-	Join(ch chan<- poolEvent)
-	Start()
-	Reset()
-	Kill()
-}
-
 type poolEventID string
 
 const (
@@ -73,16 +65,16 @@ type pool struct {
 	size int
 
 	// docker client
-	adapter Adapter
+	adapter dockerAdapter
 
 	// mainloop events
 	events chan poolEvent
 
 	// manages creating new items
-	spawner *spawner
+	spawner poolItemSpawner
 
 	// buffer of ready items
-	readybuf *itembuf
+	readybuf poolItemBuffer
 
 	// closed when initialization complete
 	initch chan bool
@@ -97,7 +89,7 @@ type pool struct {
 	donech chan bool
 
 	// "alive" items
-	items map[string]PoolItem
+	items map[string]poolItem
 
 	ctx context.Context
 
@@ -112,13 +104,13 @@ func NewPool(config *config.Config) (Pool, error) {
 
 func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error) {
 
-	adapter, err := newAdapter(config)
+	adapter, err := newDockerAdapter(config)
 	if err != nil {
-		adapter.Log().WithError(err).Error("pool creation failed")
+		adapter.logger().WithError(err).Error("pool creation failed")
 		return nil, err
 	}
 
-	log := adapter.Log().WithField("component", "Pool")
+	log := adapter.logger().WithField("component", "Pool")
 
 	p := &pool{
 		state:   stateInitializing,
@@ -126,8 +118,8 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 		size:    config.Size,
 		adapter: adapter,
 
-		readybuf: newItemBuffer(),
-		spawner:  newSpawner(adapter, config.Lifecycle),
+		readybuf: newPoolItemBuffer(),
+		spawner:  newPoolItemSpawner(adapter, config.Lifecycle),
 
 		events: make(chan poolEvent),
 
@@ -135,7 +127,7 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 		shutdownch: make(chan bool),
 		donech:     make(chan bool),
 
-		items: make(map[string]PoolItem),
+		items: make(map[string]poolItem),
 
 		ctx: ctx,
 
@@ -179,11 +171,11 @@ func (p *pool) CheckoutWith(ctx context.Context) (params.Params, error) {
 	select {
 	case <-ctx.Done():
 		return params.Params{}, ctx.Err()
-	case item, ok := <-p.readybuf.Get():
+	case item, ok := <-p.readybuf.get():
 		if !ok {
 			return params.Params{}, errNotRunning
 		}
-		result, err := p.adapter.MakeParams(item)
+		result, err := p.adapter.makeParams(item)
 		if err != nil {
 			p.Return(item)
 			return params.Params{}, err
@@ -226,7 +218,7 @@ func (p *pool) run() {
 func (p *pool) runInitialize() error {
 	defer close(p.initch)
 
-	err := p.adapter.EnsureImage()
+	err := p.adapter.ensureImage()
 
 	if err != nil {
 		p.state = stateShutdown
@@ -248,17 +240,17 @@ func (p *pool) runRunning() {
 
 			p.state = stateShutdown
 
-			p.readybuf.Stop()
-			p.spawner.Stop()
+			p.readybuf.stop()
+			p.spawner.stop()
 
 			p.killItems()
 
 			return
 
-		case item := <-p.spawner.Next():
+		case item := <-p.spawner.next():
 			p.items[item.ID()] = item
-			item.Join(p.events)
-			item.Start()
+			item.join(p.events)
+			item.start()
 
 		case e := <-p.events:
 
@@ -269,13 +261,13 @@ func (p *pool) runRunning() {
 
 			case eventItemReady:
 				if i, ok := p.items[e.item.ID()]; ok {
-					p.readybuf.Put(i)
+					p.readybuf.put(i)
 				}
 
 			case eventItemReturned:
 				if i, ok := p.items[e.item.ID()]; ok {
 					lcid(p.log, e.item.ID()).Info("returned")
-					i.Reset()
+					i.reset()
 				}
 
 			case eventItemExit:
@@ -292,12 +284,12 @@ func (p *pool) runDrainSpawner() {
 	for {
 		p.killItems()
 		select {
-		case item, ok := <-p.spawner.Next():
+		case item, ok := <-p.spawner.next():
 			if !ok {
 				p.log.Debugf("spawner drained.")
 				return
 			}
-			item.Kill()
+			item.kill()
 		case e := <-p.events:
 			p.handleDrainingEvent(e, "drain-spawn")
 		}
@@ -328,7 +320,7 @@ func (p *pool) handleDrainingEvent(e poolEvent, msg string) {
 		fallthrough
 	case eventItemReturned:
 		if i, ok := p.items[e.item.ID()]; ok {
-			i.Kill()
+			i.kill()
 		}
 	case eventItemExit:
 		delete(p.items, e.item.ID())
@@ -337,13 +329,13 @@ func (p *pool) handleDrainingEvent(e poolEvent, msg string) {
 
 func (p *pool) primeBacklog() {
 	if current := len(p.items); current < p.size {
-		p.spawner.Request(p.size - current)
+		p.spawner.request(p.size - current)
 	}
 }
 
 func (p *pool) killItems() {
 	for _, c := range p.items {
-		c.Kill()
+		c.kill()
 	}
 }
 

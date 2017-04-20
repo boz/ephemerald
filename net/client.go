@@ -49,8 +49,8 @@ func (b *ClientBuilder) Create() (*Client, error) {
 	return &Client{b.kclient}, nil
 }
 
-func (c *Client) Checkout(names ...string) (params.ParamSet, error) {
-	ps := params.ParamSet{}
+func (c *Client) Checkout(names ...string) (params.Set, error) {
+	ps := params.Set{}
 	response, err := c.kclient.Tell(rpcCheckoutName, names)
 	if err != nil {
 		return ps, err
@@ -59,7 +59,7 @@ func (c *Client) Checkout(names ...string) (params.ParamSet, error) {
 	return ps, nil
 }
 
-func (c *Client) Return(ps params.ParamSet) error {
+func (c *Client) Return(ps params.Set) error {
 	_, err := c.kclient.Tell(rpcReturnName, ps)
 	return err
 }

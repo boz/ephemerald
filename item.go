@@ -24,10 +24,18 @@ const (
 	eventPoolItemReadyError poolItemEvent = "ready-error"
 )
 
-type poolItem struct {
+type poolItem interface {
+	StatusItem
+	join(ch chan<- poolEvent)
+	start()
+	reset()
+	kill()
+}
+
+type pitem struct {
 	lifecycle lifecycle.Manager
-	adapter   Adapter
-	container PoolContainer
+	adapter   dockerAdapter
+	container poolContainer
 
 	events chan poolItemEvent
 	joinch chan (chan<- poolEvent)
@@ -42,7 +50,7 @@ type poolItem struct {
 	log logrus.FieldLogger
 }
 
-func createPoolItem(log logrus.FieldLogger, adapter Adapter, lifecycle lifecycle.Manager) (PoolItem, error) {
+func createPoolItem(log logrus.FieldLogger, adapter dockerAdapter, lifecycle lifecycle.Manager) (poolItem, error) {
 	log = log.WithField("component", "pool-item")
 
 	container, err := createPoolContainer(log, adapter)
@@ -56,7 +64,7 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, lifecycle lifecycle
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	item := &poolItem{
+	item := &pitem{
 		lifecycle: lifecycle.ForContainer(container.ID()),
 		adapter:   adapter,
 		container: container,
@@ -73,45 +81,45 @@ func createPoolItem(log logrus.FieldLogger, adapter Adapter, lifecycle lifecycle
 	return item, nil
 }
 
-func (i *poolItem) ID() string {
+func (i *pitem) ID() string {
 	return i.container.ID()
 }
 
-func (i *poolItem) Status() types.ContainerJSON {
+func (i *pitem) Status() types.ContainerJSON {
 	return i.container.Status()
 }
 
-func (i *poolItem) Join(ch chan<- poolEvent) {
+func (i *pitem) join(ch chan<- poolEvent) {
 	i.joinch <- ch
 }
 
-func (i *poolItem) Start() {
+func (i *pitem) start() {
 	go i.sendEvent(eventPoolItemStart)
 }
 
-func (i *poolItem) Reset() {
+func (i *pitem) reset() {
 	go i.sendEvent(eventPoolItemReset)
 }
 
-func (i *poolItem) Kill() {
+func (i *pitem) kill() {
 	go i.sendEvent(eventPoolItemKill)
 }
 
-func (i *poolItem) sendEvent(e poolItemEvent) {
+func (i *pitem) sendEvent(e poolItemEvent) {
 	select {
 	case <-i.exited:
 	case i.events <- e:
 	}
 }
 
-func (i *poolItem) run() {
+func (i *pitem) run() {
 	ch := i.runWaitJoin()
 	i.runMainLoop(ch)
 
 	i.drain()
 }
 
-func (i *poolItem) runWaitJoin() chan<- poolEvent {
+func (i *pitem) runWaitJoin() chan<- poolEvent {
 	defer close(i.joinch)
 
 	log := i.log.WithField("method", "runWaitJoin")
@@ -125,13 +133,13 @@ func (i *poolItem) runWaitJoin() chan<- poolEvent {
 			log.WithField("event", e).Debug("item-event")
 			switch e {
 			case eventPoolItemKill:
-				i.container.Stop()
+				i.container.stop()
 			}
 		}
 	}
 }
 
-func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
+func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 	defer close(i.exited)
 	defer i.cancel()
 
@@ -139,7 +147,7 @@ func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
 
 	for {
 		select {
-		case e := <-i.container.Events():
+		case e := <-i.container.events():
 			log.WithField("event", e).Debug("container-event")
 
 			switch e {
@@ -160,17 +168,17 @@ func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
 
 			switch e {
 			case eventPoolItemKill:
-				i.container.Stop()
+				i.container.stop()
 			case eventPoolItemStart:
-				i.container.Start()
+				i.container.start()
 			case eventPoolItemLive:
 				i.do(i.onChildLive)
 			case eventPoolItemLiveError:
-				i.container.Stop()
+				i.container.stop()
 			case eventPoolItemReady:
 				ch <- poolEvent{eventItemReady, i}
 			case eventPoolItemReadyError:
-				i.container.Stop()
+				i.container.stop()
 			case eventPoolItemReset:
 				i.do(i.onChildReset)
 			}
@@ -179,7 +187,7 @@ func (i *poolItem) runMainLoop(ch chan<- poolEvent) {
 	}
 }
 
-func (i *poolItem) drain() {
+func (i *pitem) drain() {
 	log := i.log.WithField("method", "drain")
 
 	defer close(i.events)
@@ -201,7 +209,7 @@ func (i *poolItem) drain() {
 	}
 }
 
-func (i *poolItem) onChildStarted() {
+func (i *pitem) onChildStarted() {
 	if i.lifecycle.HasHealthcheck() {
 		params, err := i.currentParams()
 		if err != nil {
@@ -217,7 +225,7 @@ func (i *poolItem) onChildStarted() {
 	i.events <- eventPoolItemLive
 }
 
-func (i *poolItem) onChildLive() {
+func (i *pitem) onChildLive() {
 	if i.lifecycle.HasInitialize() {
 		params, err := i.currentParams()
 		if err != nil {
@@ -234,7 +242,7 @@ func (i *poolItem) onChildLive() {
 	i.events <- eventPoolItemReady
 }
 
-func (i *poolItem) onChildReset() {
+func (i *pitem) onChildReset() {
 	if i.lifecycle.HasReset() {
 		params, err := i.currentParams()
 		if err != nil {
@@ -249,18 +257,18 @@ func (i *poolItem) onChildReset() {
 		i.events <- eventPoolItemReady
 		return
 	}
-	i.container.Stop()
+	i.container.stop()
 }
 
-func (i *poolItem) currentParams() (params.Params, error) {
-	params, err := i.adapter.MakeParams(i.container)
+func (i *pitem) currentParams() (params.Params, error) {
+	params, err := i.adapter.makeParams(i.container)
 	if err != nil {
 		i.log.WithError(err).Warn("error making params")
 	}
 	return params, err
 }
 
-func (i *poolItem) do(fn func()) {
+func (i *pitem) do(fn func()) {
 	i.wg.Add(1)
 	go func() {
 		defer i.wg.Done()

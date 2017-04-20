@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
@@ -35,9 +34,7 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(ephemerald.Pool)) {
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
 
-	file, err := os.Open(path)
-	require.NoError(t, err)
-	buf, err := ioutil.ReadAll(file)
+	buf, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
 
 	config, err := config.Parse(log, t.Name(), buf)

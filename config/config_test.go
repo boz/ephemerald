@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -9,34 +10,11 @@ import (
 )
 
 func TestParseAll(t *testing.T) {
-	js := []byte(`
-		{
-			"pools": {
-				"redis": {
-					"size": 10,
-					"image": "redis",
-					"port": 6379,
-
-					"params": {
-						"database": "0",
-						"url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
-					},
-
-					"actions": {
-						"healthcheck": {
-							"type": "noop"
-						},
-						"reset": {
-							"type": "noop"
-						}
-					}
-				}
-			}
-		}
-	`)
+	buf, err := ioutil.ReadFile("_testdata/config.json")
+	require.NoError(t, err)
 
 	log := logrus.New()
-	configs, err := ParseAll(log, js)
+	configs, err := ParseAll(log, buf)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(configs))
 
@@ -50,5 +28,4 @@ func TestParseAll(t *testing.T) {
 	assert.False(t, cfg.Lifecycle.HasInitialize())
 	assert.True(t, cfg.Lifecycle.HasHealthcheck())
 	assert.True(t, cfg.Lifecycle.HasReset())
-
 }
