@@ -50,10 +50,10 @@ type pitem struct {
 	wg  sync.WaitGroup
 	log logrus.FieldLogger
 
-	emitter ui.ContainerEmitter
+	uie ui.ContainerEmitter
 }
 
-func createPoolItem(emitter ui.PoolEmitter, log logrus.FieldLogger, adapter dockerAdapter, lifecycle lifecycle.Manager) (poolItem, error) {
+func createPoolItem(uie ui.PoolEmitter, log logrus.FieldLogger, adapter dockerAdapter, lifecycle lifecycle.Manager) (poolItem, error) {
 	log = log.WithField("component", "pool-item")
 
 	container, err := createPoolContainer(log, adapter)
@@ -67,12 +67,12 @@ func createPoolItem(emitter ui.PoolEmitter, log logrus.FieldLogger, adapter dock
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cemitter := emitter.ForContainer(container.ID())
+	cuie := uie.ForContainer(container.ID())
 
-	cemitter.EmitCreated()
+	cuie.EmitCreated()
 
 	item := &pitem{
-		lifecycle: lifecycle.ForContainer(cemitter, container.ID()),
+		lifecycle: lifecycle.ForContainer(cuie, container.ID()),
 		adapter:   adapter,
 		container: container,
 		events:    make(chan poolItemEvent),
@@ -81,7 +81,7 @@ func createPoolItem(emitter ui.PoolEmitter, log logrus.FieldLogger, adapter dock
 		ctx:       ctx,
 		cancel:    cancel,
 		log:       log,
-		emitter:   cemitter,
+		uie:       cuie,
 	}
 
 	go item.run()
@@ -141,7 +141,7 @@ func (i *pitem) runWaitJoin() chan<- poolEvent {
 			log.WithField("event", e).Debug("item-event")
 			switch e {
 			case eventPoolItemKill:
-				i.emitter.EmitExiting()
+				i.uie.EmitExiting()
 				i.container.stop()
 			}
 		}
@@ -166,11 +166,11 @@ func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 				fallthrough
 			case containerEventStartFailed:
 				i.log.Info("container exited")
-				i.emitter.EmitExited()
+				i.uie.EmitExited()
 				ch <- poolEvent{eventItemExit, i}
 				return
 			case containerEventStarted:
-				i.emitter.EmitStarted()
+				i.uie.EmitStarted()
 				i.do(i.onChildStarted)
 			}
 
@@ -179,24 +179,24 @@ func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 
 			switch e {
 			case eventPoolItemKill:
-				i.emitter.EmitExiting()
+				i.uie.EmitExiting()
 				i.container.stop()
 			case eventPoolItemStart:
 				i.container.start()
 			case eventPoolItemLive:
-				i.emitter.EmitLive()
+				i.uie.EmitLive()
 				i.do(i.onChildLive)
 			case eventPoolItemLiveError:
-				i.emitter.EmitExiting()
+				i.uie.EmitExiting()
 				i.container.stop()
 			case eventPoolItemReady:
-				i.emitter.EmitReady()
+				i.uie.EmitReady()
 				ch <- poolEvent{eventItemReady, i}
 			case eventPoolItemReadyError:
-				i.emitter.EmitExiting()
+				i.uie.EmitExiting()
 				i.container.stop()
 			case eventPoolItemReset:
-				i.emitter.EmitResetting()
+				i.uie.EmitResetting()
 				i.do(i.onChildReset)
 			}
 

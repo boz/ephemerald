@@ -42,17 +42,17 @@ type manager struct {
 
 type containerManager struct {
 	manager
-	emitter ui.ContainerEmitter
+	ui ui.ContainerEmitter
 }
 
 func NewManager(log logrus.FieldLogger) Manager {
 	return &manager{log: log.WithField("component", "lifecycle.Manager")}
 }
 
-func (m *manager) ForContainer(emitter ui.ContainerEmitter, id string) ContainerManager {
+func (m *manager) ForContainer(uie ui.ContainerEmitter, id string) ContainerManager {
 	next := &containerManager{
 		manager: *m,
-		emitter: emitter,
+		ui:      uie,
 	}
 	next.log = m.log.WithField("container", id[0:12])
 	return next
@@ -159,5 +159,5 @@ func (m *containerManager) DoReset(ctx context.Context, p params.Params) error {
 }
 
 func (m *containerManager) runAction(ctx context.Context, action Action, p params.Params, name string) error {
-	return newActionRunner(ctx, m.emitter, m.log, action, p, name).Run()
+	return newActionRunner(ctx, m.ui, m.log, action, p, name).Run()
 }

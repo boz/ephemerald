@@ -33,7 +33,7 @@ type pispawner struct {
 
 	log logrus.FieldLogger
 
-	emitter ui.PoolEmitter
+	uie ui.PoolEmitter
 }
 
 type spawnresult struct {
@@ -41,7 +41,7 @@ type spawnresult struct {
 	err  error
 }
 
-func newPoolItemSpawner(emitter ui.PoolEmitter, adapter dockerAdapter, lifecycle lifecycle.Manager) poolItemSpawner {
+func newPoolItemSpawner(uie ui.PoolEmitter, adapter dockerAdapter, lifecycle lifecycle.Manager) poolItemSpawner {
 	s := &pispawner{
 		adapter:   adapter,
 		lifecycle: lifecycle,
@@ -49,7 +49,7 @@ func newPoolItemSpawner(emitter ui.PoolEmitter, adapter dockerAdapter, lifecycle
 		resultch:  make(chan spawnresult),
 		nextch:    make(chan poolItem),
 		log:       adapter.logger().WithField("component", "spawner"),
-		emitter:   emitter,
+		uie:       uie,
 	}
 
 	go s.run()
@@ -78,7 +78,7 @@ func (s *pispawner) fillRequests() {
 	for {
 		s.fill()
 
-		s.emitter.EmitNumPending(s.pending)
+		s.uie.EmitNumPending(s.pending)
 
 		select {
 		case request, ok := <-s.requestch:
@@ -108,7 +108,7 @@ func (s *pispawner) drain() {
 	defer close(s.nextch)
 
 	for {
-		s.emitter.EmitNumPending(s.pending)
+		s.uie.EmitNumPending(s.pending)
 
 		if s.pending <= 0 {
 			return
@@ -130,7 +130,7 @@ func (s *pispawner) drain() {
 func (s *pispawner) fill() {
 	for ; s.pending < s.needed; s.pending++ {
 		go func() {
-			item, err := createPoolItem(s.emitter, s.log, s.adapter, s.lifecycle)
+			item, err := createPoolItem(s.uie, s.log, s.adapter, s.lifecycle)
 			s.resultch <- spawnresult{item, err}
 		}()
 	}

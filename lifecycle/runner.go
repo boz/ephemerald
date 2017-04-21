@@ -21,10 +21,10 @@ type actionRunner struct {
 	p          params.Params
 	ctx        context.Context
 	log        logrus.FieldLogger
-	emitter    ui.ContainerEmitter
+	uie        ui.ContainerEmitter
 }
 
-func newActionRunner(ctx context.Context, emitter ui.ContainerEmitter, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
+func newActionRunner(ctx context.Context, uie ui.ContainerEmitter, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
 
 	actionType := action.Config().Type
 
@@ -38,7 +38,7 @@ func newActionRunner(ctx context.Context, emitter ui.ContainerEmitter, log logru
 		p:          p,
 		ctx:        ctx,
 		log:        log,
-		emitter:    emitter,
+		uie:        uie,
 	}
 }
 
@@ -54,15 +54,15 @@ func (ar *actionRunner) Run() error {
 	for {
 
 		if ar.ctx.Err() != nil {
-			ar.emitter.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
+			ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
 			return ar.ctx.Err()
 		}
 
-		ar.emitter.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
+		ar.uie.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
 
 		err, ok := ar.doAttempt(attempt, timeout)
 
-		ar.emitter.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
+		ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
 
 		if !ok {
 			return err

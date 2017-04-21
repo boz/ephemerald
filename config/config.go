@@ -29,31 +29,31 @@ type Config struct {
 
 	log logrus.FieldLogger
 
-	emitter ui.PoolEmitter
+	uie ui.PoolEmitter
 }
 
-func ReadFile(log logrus.FieldLogger, emitter ui.Emitter, path string) ([]*Config, error) {
+func ReadFile(log logrus.FieldLogger, uie ui.Emitter, path string) ([]*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return []*Config{}, err
 	}
 	defer file.Close()
-	return Read(log, emitter, file)
+	return Read(log, uie, file)
 }
 
-func Read(log logrus.FieldLogger, emitter ui.Emitter, r io.Reader) ([]*Config, error) {
+func Read(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, error) {
 	var configs []*Config
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return configs, err
 	}
-	return ParseAll(log, emitter, buf)
+	return ParseAll(log, uie, buf)
 }
 
-func ParseAll(log logrus.FieldLogger, emitter ui.Emitter, buf []byte) ([]*Config, error) {
+func ParseAll(log logrus.FieldLogger, uie ui.Emitter, buf []byte) ([]*Config, error) {
 	var configs []*Config
 	err := jsonparser.ObjectEach(buf, func(key []byte, buf []byte, dt jsonparser.ValueType, _ int) error {
-		config, err := Parse(log, emitter, string(key), buf)
+		config, err := Parse(log, uie, string(key), buf)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func ParseAll(log logrus.FieldLogger, emitter ui.Emitter, buf []byte) ([]*Config
 	return configs, err
 }
 
-func Parse(log logrus.FieldLogger, emitter ui.Emitter, name string, buf []byte) (*Config, error) {
+func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Config, error) {
 
 	log = log.WithField("pool", name).WithField("component", "config.Parse")
 
@@ -141,7 +141,7 @@ func Parse(log logrus.FieldLogger, emitter ui.Emitter, name string, buf []byte) 
 		Params:    params,
 		Lifecycle: lifecycle,
 		log:       log,
-		emitter:   emitter.ForPool(name),
+		uie:       uie.ForPool(name),
 	}, nil
 }
 
@@ -150,5 +150,5 @@ func (c Config) Log() logrus.FieldLogger {
 }
 
 func (c Config) Emitter() ui.PoolEmitter {
-	return c.emitter
+	return c.uie
 }

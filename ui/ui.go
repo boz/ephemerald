@@ -10,24 +10,24 @@ type UI interface {
 func NewIOUI(w io.Writer) UI {
 	writer := newIOWriter(w)
 	processor := newProcessor(writer)
-	emitter := newEmitter(processor)
-	return &processedUI{processor, emitter}
+	uie := newEmitter(processor)
+	return &processedUI{processor, uie}
 }
 
 func NewGUI() UI {
 	writer := newGUIWriter()
 	processor := newProcessor(writer)
-	emitter := newEmitter(processor)
-	return &processedUI{processor, emitter}
+	uie := newEmitter(processor)
+	return &processedUI{processor, uie}
 }
 
 type processedUI struct {
 	processor *processor
-	emitter   Emitter
+	uie       Emitter
 }
 
 func (pui *processedUI) Emitter() Emitter {
-	return pui.emitter
+	return pui.uie
 }
 
 func (pui *processedUI) Stop() {

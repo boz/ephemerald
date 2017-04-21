@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
-	"github.com/boz/ephemerald/ui"
+	"github.com/boz/ephemerald/testutil"
 
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
@@ -26,11 +26,11 @@ func TestClientServer(t *testing.T) {
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
 
-	emitter := ui.NewNoopEmitter()
+	uie := testutil.Emitter()
 
 	ctx := context.Background()
 
-	configs, err := config.ReadFile(log, emitter, "_testdata/config.json")
+	configs, err := config.ReadFile(log, uie, "_testdata/config.json")
 	require.NoError(t, err)
 
 	pools, err := ephemerald.NewPoolSet(log, ctx, configs)

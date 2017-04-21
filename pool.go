@@ -96,7 +96,7 @@ type pool struct {
 
 	log logrus.FieldLogger
 
-	emitter ui.PoolEmitter
+	uie ui.PoolEmitter
 
 	stopped int32
 }
@@ -115,7 +115,7 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 
 	log := adapter.logger().WithField("component", "Pool")
 
-	emitter := config.Emitter()
+	uie := config.Emitter()
 
 	p := &pool{
 		state:   stateInitializing,
@@ -123,8 +123,8 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 		size:    config.Size,
 		adapter: adapter,
 
-		readybuf: newPoolItemBuffer(emitter),
-		spawner:  newPoolItemSpawner(emitter, adapter, config.Lifecycle),
+		readybuf: newPoolItemBuffer(uie),
+		spawner:  newPoolItemSpawner(uie, adapter, config.Lifecycle),
 
 		events: make(chan poolEvent),
 
@@ -136,11 +136,11 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 
 		ctx: ctx,
 
-		log:     log,
-		emitter: emitter,
+		log: log,
+		uie: uie,
 	}
 
-	p.emitter.EmitInitializing()
+	p.uie.EmitInitializing()
 
 	go p.run()
 	go p.monitorCtx()
@@ -215,20 +215,20 @@ func (p *pool) run() {
 	err := p.runInitialize()
 
 	if err != nil {
-		p.emitter.EmitInitializeError(err)
+		p.uie.EmitInitializeError(err)
 		p.Stop()
 	} else {
-		p.emitter.EmitRunning()
+		p.uie.EmitRunning()
 	}
 
 	p.runRunning()
 
-	p.emitter.EmitDraining()
+	p.uie.EmitDraining()
 
 	p.runDrainSpawner()
 	p.runDrainItems()
 
-	p.emitter.EmitDone()
+	p.uie.EmitDone()
 }
 
 func (p *pool) runInitialize() error {
@@ -267,7 +267,7 @@ func (p *pool) runRunning() {
 			p.items[item.ID()] = item
 			item.join(p.events)
 			item.start()
-			p.emitter.EmitNumItems(len(p.items))
+			p.uie.EmitNumItems(len(p.items))
 
 		case e := <-p.events:
 
@@ -289,7 +289,7 @@ func (p *pool) runRunning() {
 
 			case eventItemExit:
 				delete(p.items, e.item.ID())
-				p.emitter.EmitNumItems(len(p.items))
+				p.uie.EmitNumItems(len(p.items))
 				p.primeBacklog()
 			}
 		}
@@ -342,7 +342,7 @@ func (p *pool) handleDrainingEvent(e poolEvent, msg string) {
 		}
 	case eventItemExit:
 		delete(p.items, e.item.ID())
-		p.emitter.EmitNumItems(len(p.items))
+		p.uie.EmitNumItems(len(p.items))
 	}
 }
 

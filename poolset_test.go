@@ -16,11 +16,11 @@ import (
 func TestPoolSet(t *testing.T) {
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
-	emitter := ui.NewNoopEmitter()
+	uie := ui.NewNoopEmitter()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	configs, err := config.ReadFile(log, emitter, "_testdata/pools.json")
+	configs, err := config.ReadFile(log, uie, "_testdata/pools.json")
 	require.NoError(t, err)
 
 	set, err := ephemerald.NewPoolSet(log, ctx, configs)
