@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	throttle "github.com/boz/go-throttle"
@@ -39,8 +38,7 @@ type guiWriter struct {
 
 	throttle throttle.ThrottleDriver
 
-	donech  chan bool
-	stopped int32
+	donech chan bool
 }
 
 func newGUIWriter() writer {
@@ -107,12 +105,8 @@ func (w *guiWriter) deleteContainer(c container) {
 }
 
 func (w *guiWriter) stop() {
-	if !atomic.CompareAndSwapInt32(&w.stopped, 0, 1) {
-		return
-	}
 	w.throttle.Stop()
 	close(w.donech)
-	close(w.drawch)
 }
 
 func (w *guiWriter) run() {

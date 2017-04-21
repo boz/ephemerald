@@ -44,19 +44,14 @@ func (b *pibuffer) run() {
 
 		b.uie.EmitNumReady(len(b.buf))
 
-		if len(b.buf) == 0 {
-			select {
-			case c, ok := <-b.inch:
-				if !ok {
-					b.uie.EmitNumReady(0)
-					return
-				}
-				b.buf = append(b.buf, c)
-			}
-			continue
+		var next poolItem
+		var out chan poolItem
+
+		if len(b.buf) > 0 {
+			next = b.buf[0]
+			out = b.outch
 		}
 
-		next := b.buf[0]
 		select {
 		case c, ok := <-b.inch:
 			if !ok {
@@ -64,7 +59,7 @@ func (b *pibuffer) run() {
 				return
 			}
 			b.buf = append(b.buf, c)
-		case b.outch <- next:
+		case out <- next:
 			b.buf = b.buf[1:]
 		}
 	}

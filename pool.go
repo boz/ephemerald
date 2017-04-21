@@ -3,7 +3,6 @@ package ephemerald
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -97,8 +96,6 @@ type pool struct {
 	log logrus.FieldLogger
 
 	uie ui.PoolEmitter
-
-	stopped int32
 }
 
 func NewPool(config *config.Config) (Pool, error) {
@@ -149,14 +146,11 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 }
 
 func (p *pool) Stop() error {
-	if !atomic.CompareAndSwapInt32(&p.stopped, 0, 1) {
-		p.log.Warning("double stop")
+	select {
+	case p.shutdownch <- true:
 		<-p.donech
-		return nil
+	case <-p.donech:
 	}
-
-	close(p.shutdownch)
-	<-p.donech
 	return nil
 }
 
@@ -194,7 +188,10 @@ func (p *pool) CheckoutWith(ctx context.Context) (params.Params, error) {
 }
 
 func (p *pool) Return(i Item) {
-	p.events <- poolEvent{eventItemReturned, i}
+	select {
+	case <-p.donech:
+	case p.events <- poolEvent{eventItemReturned, i}:
+	}
 }
 
 func (p *pool) defaultCheckoutTimeout() time.Duration {
@@ -205,7 +202,7 @@ func (p *pool) monitorCtx() {
 	select {
 	case <-p.ctx.Done():
 		p.Stop()
-	case <-p.shutdownch:
+	case <-p.donech:
 	}
 }
 

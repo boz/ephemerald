@@ -83,7 +83,6 @@ func main() {
 
 	go func() {
 		sigch := make(chan os.Signal, 1)
-		defer close(sigch)
 
 		signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT)
 		defer signal.Stop(sigch)

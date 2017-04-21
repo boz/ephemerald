@@ -1,9 +1,5 @@
 package ui
 
-import (
-	"sync/atomic"
-)
-
 type peventId string
 
 const (
@@ -60,8 +56,7 @@ type processor struct {
 	pools      map[string]*pool
 	containers map[string]*container
 
-	stopped int32
-	donech  chan bool
+	donech chan bool
 }
 
 func newProcessor(w writer) *processor {
@@ -83,50 +78,51 @@ func newProcessor(w writer) *processor {
 }
 
 func (p *processor) stop() {
-	if !atomic.CompareAndSwapInt32(&p.stopped, 0, 1) {
-		return
-	}
 	close(p.donech)
-	close(p.poolch)
-	close(p.containerch)
 	p.writer.stop()
 }
 
 func (p *processor) sendPoolEvent(e pevent) {
-	if atomic.LoadInt32(&p.stopped) == 0 {
-		select {
-		case p.poolch <- e:
-		case <-p.donech:
-		}
+	select {
+	case p.poolch <- e:
+	case <-p.donech:
 	}
 }
 
 func (p *processor) sendContainerEvent(e cevent) {
-	if atomic.LoadInt32(&p.stopped) == 0 {
-		select {
-		case p.containerch <- e:
-		case <-p.donech:
-		}
+	select {
+	case p.containerch <- e:
+	case <-p.donech:
 	}
 }
 
 func (p *processor) handlePoolEvents() {
-	for e := range p.poolch {
-		if pool, ok := p.pools[e.poolName]; ok {
-			p.handlePoolUpdate(pool, e)
-			continue
+	for {
+		select {
+		case <-p.donech:
+			return
+		case e := <-p.poolch:
+			if pool, ok := p.pools[e.poolName]; ok {
+				p.handlePoolUpdate(pool, e)
+				continue
+			}
+			p.handlePoolCreate(e)
 		}
-		p.handlePoolCreate(e)
 	}
 }
 
 func (p *processor) handleContainerEvents() {
-	for e := range p.containerch {
-		if c, ok := p.containers[e.containerId]; ok {
-			p.handleContainerUpdate(c, e)
-			continue
+	for {
+		select {
+		case <-p.donech:
+			return
+		case e := <-p.containerch:
+			if c, ok := p.containers[e.containerId]; ok {
+				p.handleContainerUpdate(c, e)
+				continue
+			}
+			p.handleContainerCreate(e)
 		}
-		p.handleContainerCreate(e)
 	}
 }
 

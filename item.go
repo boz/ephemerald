@@ -207,8 +207,6 @@ func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 func (i *pitem) drain() {
 	log := i.log.WithField("method", "drain")
 
-	defer close(i.events)
-
 	ch := make(chan bool)
 	go func() {
 		i.wg.Wait()

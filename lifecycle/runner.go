@@ -90,7 +90,6 @@ func (ar *actionRunner) Run() error {
 
 func (ar *actionRunner) doAttempt(attempt int, timeout time.Duration) (error, bool) {
 	ch := make(chan error)
-	defer close(ch)
 
 	ctx, cancel := context.WithTimeout(ar.ctx, timeout)
 	defer cancel()
@@ -99,11 +98,9 @@ func (ar *actionRunner) doAttempt(attempt int, timeout time.Duration) (error, bo
 
 	go func() {
 		err := ar.action.Do(env, ar.p)
-		if ctx.Err() == nil {
-			select {
-			case <-ctx.Done():
-			case ch <- err:
-			}
+		select {
+		case <-ctx.Done():
+		case ch <- err:
 		}
 	}()
 
