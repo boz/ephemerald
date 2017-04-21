@@ -55,6 +55,12 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "qY0RJ8BbYGzOix+592CetkyH94c=",
+			"path": "github.com/boz/go-throttle",
+			"revision": "fdc4eab740c14b7be4fcbcb300a9aaebf716fde5",
+			"revisionTime": "2016-09-22T05:46:36Z"
+		},
+		{
 			"checksumSHA1": "2I0XSS9nSH++ycsqGt2TDS5kPbA=",
 			"path": "github.com/buger/goterm",
 			"revision": "bc6c333206f446a53cac4db5d2e6a4316139d737",
