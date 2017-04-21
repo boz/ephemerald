@@ -2,10 +2,13 @@
 
 Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests which make use of (postgres, redis, vault) databases.
 
+[![asciicast](https://asciinema.org/a/4gicxubpag6ltqkafvznmcdu3.png)](https://asciinema.org/a/4gicxubpag6ltqkafvznmcdu3)
+
 * [Building](#building)
 * [Running](#building)
 * [Configuration](#building)
   * [Params](#params)
+  * [Container](#container)
   * [Lifecycle Actions](#lifecycle-actions)
     * [noop](#noop)
     * [exec](#exec)
@@ -17,6 +20,7 @@ Ephemerald manages pools of short-lived servers to be used for testing purposes.
     * [redis.exec](#redisexec)
     * [redis.ping](#redisping)
     * [redis.truncate](#redistruncate)
+* [TODO](#todo)
 
 ## Building
 
@@ -31,7 +35,7 @@ $ make server example
 To run the server, supply a configuration file:
 
 ```sh
-$ ./ephemerald/ephemerald -f ./example/config.json --log-level debug
+$ ./ephemerald/ephemerald -f ./example/config.json
 ```
 
 Run the [example client](example/main.go) in another terminal
@@ -112,6 +116,20 @@ A `params` section for postgres may look like this:
   "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
 }
 ```
+
+### Container
+
+The `container` section is passed-through to docker when creating the container.  The available
+options are:
+
+ * labels
+ * env
+ * cmd
+ * volumes
+ * entrypoint
+ * user
+ * capadd
+ * capdrop
 
 ### Lifecycle Actions
 
@@ -243,6 +261,7 @@ This is an alias for `redis.exec` with a default command of `"FLUSHALL"`.
    * Current parsing is a disaster
    * Allow yaml
    * Allow built-in defaults (postgres, redis, etc...)
+ * Polish/Optimize/Cleanup UI.
  * Use simple JSON API instead of [koding/kite](https://github.com/koding/kite).
  * Re-add remote actions
    * Use websockets instead of [koding/kite](https://github.com/koding/kite)

@@ -3,6 +3,7 @@ package ephemerald
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
+	"github.com/boz/ephemerald/ui"
 )
 
 type poolItemSpawner interface {
@@ -31,6 +32,8 @@ type pispawner struct {
 	nextch chan poolItem
 
 	log logrus.FieldLogger
+
+	emitter ui.PoolEmitter
 }
 
 type spawnresult struct {
@@ -38,7 +41,7 @@ type spawnresult struct {
 	err  error
 }
 
-func newPoolItemSpawner(adapter dockerAdapter, lifecycle lifecycle.Manager) poolItemSpawner {
+func newPoolItemSpawner(emitter ui.PoolEmitter, adapter dockerAdapter, lifecycle lifecycle.Manager) poolItemSpawner {
 	s := &pispawner{
 		adapter:   adapter,
 		lifecycle: lifecycle,
@@ -46,6 +49,7 @@ func newPoolItemSpawner(adapter dockerAdapter, lifecycle lifecycle.Manager) pool
 		resultch:  make(chan spawnresult),
 		nextch:    make(chan poolItem),
 		log:       adapter.logger().WithField("component", "spawner"),
+		emitter:   emitter,
 	}
 
 	go s.run()
@@ -73,8 +77,10 @@ func (s *pispawner) run() {
 func (s *pispawner) fillRequests() {
 	for {
 		s.fill()
-		select {
 
+		s.emitter.EmitNumPending(s.pending)
+
+		select {
 		case request, ok := <-s.requestch:
 			if !ok {
 				return
@@ -101,7 +107,13 @@ func (s *pispawner) fillRequests() {
 func (s *pispawner) drain() {
 	defer close(s.nextch)
 
-	for s.pending > 0 {
+	for {
+		s.emitter.EmitNumPending(s.pending)
+
+		if s.pending <= 0 {
+			return
+		}
+
 		select {
 		case result := <-s.resultch:
 			s.pending--
@@ -118,7 +130,7 @@ func (s *pispawner) drain() {
 func (s *pispawner) fill() {
 	for ; s.pending < s.needed; s.pending++ {
 		go func() {
-			item, err := createPoolItem(s.log, s.adapter, s.lifecycle)
+			item, err := createPoolItem(s.emitter, s.log, s.adapter, s.lifecycle)
 			s.resultch <- spawnresult{item, err}
 		}()
 	}

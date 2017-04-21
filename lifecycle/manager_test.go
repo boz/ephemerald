@@ -1,50 +1,46 @@
-package lifecycle
+package lifecycle_test
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/lifecycle"
+	"github.com/boz/ephemerald/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParseManager_full(t *testing.T) {
-	js := []byte(`{
-		"initialize": {
-			"type": "noop"
-		},
-		"healthcheck": {
-			"type": "noop"
-		},
-		"reset": {
-			"type": "noop"
-		}
-	}`)
+
+	buf, err := ioutil.ReadFile("_testdata/manager.full.json")
+	require.NoError(t, err)
 
 	log := logrus.New()
+	m := lifecycle.NewManager(log)
 
-	m := NewManager(log)
+	require.NoError(t, m.ParseConfig(buf))
 
-	require.NoError(t, m.ParseConfig(js))
+	cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
 
-	assert.True(t, m.HasInitialize())
-	assert.True(t, m.HasHealthcheck())
-	assert.True(t, m.HasReset())
+	assert.True(t, cm.HasInitialize())
+	assert.True(t, cm.HasHealthcheck())
+	assert.True(t, cm.HasReset())
 }
 
 func TestParseManager_partial(t *testing.T) {
-	js := []byte(`{
-		"initialize": {
-			"type": "noop"
-		}
-	}`)
+	buf, err := ioutil.ReadFile("_testdata/manager.partial.json")
+	require.NoError(t, err)
 
 	log := logrus.New()
-	m := NewManager(log)
 
-	require.NoError(t, m.ParseConfig(js))
+	m := lifecycle.NewManager(log)
 
-	assert.True(t, m.HasInitialize())
-	assert.False(t, m.HasHealthcheck())
-	assert.False(t, m.HasReset())
+	require.NoError(t, m.ParseConfig(buf))
+
+	cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
+
+	assert.True(t, cm.HasInitialize())
+	assert.False(t, cm.HasHealthcheck())
+	assert.False(t, cm.HasReset())
 }

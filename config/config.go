@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
 )
 
@@ -26,30 +28,32 @@ type Config struct {
 	Lifecycle lifecycle.Manager
 
 	log logrus.FieldLogger
+
+	emitter ui.PoolEmitter
 }
 
-func ReadFile(log logrus.FieldLogger, path string) ([]*Config, error) {
+func ReadFile(log logrus.FieldLogger, emitter ui.Emitter, path string) ([]*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return []*Config{}, err
 	}
 	defer file.Close()
-	return Read(log, file)
+	return Read(log, emitter, file)
 }
 
-func Read(log logrus.FieldLogger, r io.Reader) ([]*Config, error) {
+func Read(log logrus.FieldLogger, emitter ui.Emitter, r io.Reader) ([]*Config, error) {
 	var configs []*Config
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return configs, err
 	}
-	return ParseAll(log, buf)
+	return ParseAll(log, emitter, buf)
 }
 
-func ParseAll(log logrus.FieldLogger, buf []byte) ([]*Config, error) {
+func ParseAll(log logrus.FieldLogger, emitter ui.Emitter, buf []byte) ([]*Config, error) {
 	var configs []*Config
 	err := jsonparser.ObjectEach(buf, func(key []byte, buf []byte, dt jsonparser.ValueType, _ int) error {
-		config, err := Parse(log, string(key), buf)
+		config, err := Parse(log, emitter, string(key), buf)
 		if err != nil {
 			return err
 		}
@@ -59,7 +63,7 @@ func ParseAll(log logrus.FieldLogger, buf []byte) ([]*Config, error) {
 	return configs, err
 }
 
-func Parse(log logrus.FieldLogger, name string, buf []byte) (*Config, error) {
+func Parse(log logrus.FieldLogger, emitter ui.Emitter, name string, buf []byte) (*Config, error) {
 
 	log = log.WithField("pool", name).WithField("component", "config.Parse")
 
@@ -100,6 +104,20 @@ func Parse(log logrus.FieldLogger, name string, buf []byte) (*Config, error) {
 		return nil, err
 	}
 
+	contBuf, vt, _, err := jsonparser.Get(buf, "container")
+	if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
+		contBuf = []byte("{}")
+	} else if err != nil {
+		log.WithError(err).Error("invalid params type")
+		return nil, err
+	}
+
+	cont := NewContainer()
+	err = json.Unmarshal(contBuf, cont)
+	if err != nil {
+		return nil, err
+	}
+
 	actionBuf, vt, _, err := jsonparser.Get(buf, "actions")
 	if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
 		actionBuf = []byte("{}")
@@ -119,13 +137,18 @@ func Parse(log logrus.FieldLogger, name string, buf []byte) (*Config, error) {
 		Size:      int(size),
 		Image:     image,
 		Port:      int(port),
-		Container: NewContainer(),
+		Container: cont,
 		Params:    params,
 		Lifecycle: lifecycle,
 		log:       log,
+		emitter:   emitter.ForPool(name),
 	}, nil
 }
 
 func (c Config) Log() logrus.FieldLogger {
 	return c.log
+}
+
+func (c Config) Emitter() ui.PoolEmitter {
+	return c.emitter
 }

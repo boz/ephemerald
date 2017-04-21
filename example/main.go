@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
@@ -30,10 +32,13 @@ func main() {
 	passed := uint32(0)
 	failed := uint32(0)
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			secs := time.Duration(rand.Intn(5)) * time.Second
+			time.Sleep(secs)
 
 			items, err := client.Checkout()
 			if err != nil {
@@ -91,5 +96,9 @@ func runTests(rconn redis.Conn, pconn *sql.DB) error {
 	if count != 1 {
 		return fmt.Errorf("invalid rows affected: %v != %v", 1, count)
 	}
+
+	secs := time.Duration(rand.Intn(5)*500) * time.Millisecond
+	time.Sleep(secs)
+
 	return nil
 }

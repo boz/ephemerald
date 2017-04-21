@@ -55,6 +55,12 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "2I0XSS9nSH++ycsqGt2TDS5kPbA=",
+			"path": "github.com/buger/goterm",
+			"revision": "bc6c333206f446a53cac4db5d2e6a4316139d737",
+			"revisionTime": "2017-03-17T13:31:16Z"
+		},
+		{
 			"checksumSHA1": "LBSBvc68H0Za9OSZ0gli7Hf/tVM=",
 			"path": "github.com/buger/jsonparser",
 			"revision": "016ea00d7ed52c8acc470d90b03d2e6c13516814",

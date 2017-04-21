@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/ui"
 	"github.com/docker/docker/api/types"
 )
 
@@ -33,7 +34,7 @@ type poolItem interface {
 }
 
 type pitem struct {
-	lifecycle lifecycle.Manager
+	lifecycle lifecycle.ContainerManager
 	adapter   dockerAdapter
 	container poolContainer
 
@@ -48,9 +49,11 @@ type pitem struct {
 
 	wg  sync.WaitGroup
 	log logrus.FieldLogger
+
+	emitter ui.ContainerEmitter
 }
 
-func createPoolItem(log logrus.FieldLogger, adapter dockerAdapter, lifecycle lifecycle.Manager) (poolItem, error) {
+func createPoolItem(emitter ui.PoolEmitter, log logrus.FieldLogger, adapter dockerAdapter, lifecycle lifecycle.Manager) (poolItem, error) {
 	log = log.WithField("component", "pool-item")
 
 	container, err := createPoolContainer(log, adapter)
@@ -64,8 +67,12 @@ func createPoolItem(log logrus.FieldLogger, adapter dockerAdapter, lifecycle lif
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	cemitter := emitter.ForContainer(container.ID())
+
+	cemitter.EmitCreated()
+
 	item := &pitem{
-		lifecycle: lifecycle.ForContainer(container.ID()),
+		lifecycle: lifecycle.ForContainer(cemitter, container.ID()),
 		adapter:   adapter,
 		container: container,
 		events:    make(chan poolItemEvent),
@@ -74,6 +81,7 @@ func createPoolItem(log logrus.FieldLogger, adapter dockerAdapter, lifecycle lif
 		ctx:       ctx,
 		cancel:    cancel,
 		log:       log,
+		emitter:   cemitter,
 	}
 
 	go item.run()
@@ -133,6 +141,7 @@ func (i *pitem) runWaitJoin() chan<- poolEvent {
 			log.WithField("event", e).Debug("item-event")
 			switch e {
 			case eventPoolItemKill:
+				i.emitter.EmitExiting()
 				i.container.stop()
 			}
 		}
@@ -157,9 +166,11 @@ func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 				fallthrough
 			case containerEventStartFailed:
 				i.log.Info("container exited")
+				i.emitter.EmitExited()
 				ch <- poolEvent{eventItemExit, i}
 				return
 			case containerEventStarted:
+				i.emitter.EmitStarted()
 				i.do(i.onChildStarted)
 			}
 
@@ -168,18 +179,24 @@ func (i *pitem) runMainLoop(ch chan<- poolEvent) {
 
 			switch e {
 			case eventPoolItemKill:
+				i.emitter.EmitExiting()
 				i.container.stop()
 			case eventPoolItemStart:
 				i.container.start()
 			case eventPoolItemLive:
+				i.emitter.EmitLive()
 				i.do(i.onChildLive)
 			case eventPoolItemLiveError:
+				i.emitter.EmitExiting()
 				i.container.stop()
 			case eventPoolItemReady:
+				i.emitter.EmitReady()
 				ch <- poolEvent{eventItemReady, i}
 			case eventPoolItemReadyError:
+				i.emitter.EmitExiting()
 				i.container.stop()
 			case eventPoolItemReset:
+				i.emitter.EmitResetting()
 				i.do(i.onChildReset)
 			}
 

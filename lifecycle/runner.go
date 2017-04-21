@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/ui"
 )
 
 var (
@@ -14,39 +15,55 @@ var (
 )
 
 type actionRunner struct {
-	action  Action
-	p       params.Params
-	ctx     context.Context
-	log     logrus.FieldLogger
-	attempt int
+	action     Action
+	actionType string
+	actionName string
+	p          params.Params
+	ctx        context.Context
+	log        logrus.FieldLogger
+	emitter    ui.ContainerEmitter
 }
 
-func newActionRunner(ctx context.Context, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
+func newActionRunner(ctx context.Context, emitter ui.ContainerEmitter, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
+
+	actionType := action.Config().Type
+
 	log = log.WithField("action", actionName).
-		WithField("type", action.Config().Type)
+		WithField("type", actionType)
 
 	return &actionRunner{
-		action: action,
-		p:      p,
-		ctx:    ctx,
-		log:    log,
+		action:     action,
+		actionType: actionType,
+		actionName: actionName,
+		p:          p,
+		ctx:        ctx,
+		log:        log,
+		emitter:    emitter,
 	}
 }
 
 func (ar *actionRunner) Run() error {
 
-	attempt := 0
+	attempt := 1
 	retries := ar.action.Config().Retries
 	timeout := ar.action.Config().Timeout
 	delay := ar.action.Config().Delay
 
+	maxAttempts := retries + 1
+
 	for {
 
 		if ar.ctx.Err() != nil {
+			ar.emitter.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
 			return ar.ctx.Err()
 		}
 
+		ar.emitter.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
+
 		err, ok := ar.doAttempt(attempt, timeout)
+
+		ar.emitter.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
+
 		if !ok {
 			return err
 		}
@@ -55,12 +72,12 @@ func (ar *actionRunner) Run() error {
 			return nil
 		}
 
-		attempt++
-
-		if attempt >= retries {
+		if attempt > retries {
 			ar.log.WithError(err).Warn("retry count exceeded")
 			return ErrRetryCountExceeded
 		}
+
+		attempt++
 
 		select {
 		case <-ar.ctx.Done():

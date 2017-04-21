@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
 )
 
@@ -15,6 +16,12 @@ var (
 )
 
 type Manager interface {
+	ParseConfig([]byte) error
+	MaxDelay() time.Duration
+	ForContainer(ui.ContainerEmitter, string) ContainerManager
+}
+
+type ContainerManager interface {
 	HasInitialize() bool
 	DoInitialize(context.Context, params.Params) error
 
@@ -23,11 +30,6 @@ type Manager interface {
 
 	HasReset() bool
 	DoReset(context.Context, params.Params) error
-
-	ParseConfig([]byte) error
-
-	MaxDelay() time.Duration
-	ForContainer(string) Manager
 }
 
 type manager struct {
@@ -38,8 +40,22 @@ type manager struct {
 	log logrus.FieldLogger
 }
 
+type containerManager struct {
+	manager
+	emitter ui.ContainerEmitter
+}
+
 func NewManager(log logrus.FieldLogger) Manager {
 	return &manager{log: log.WithField("component", "lifecycle.Manager")}
+}
+
+func (m *manager) ForContainer(emitter ui.ContainerEmitter, id string) ContainerManager {
+	next := &containerManager{
+		manager: *m,
+		emitter: emitter,
+	}
+	next.log = m.log.WithField("container", id[0:12])
+	return next
 }
 
 func (m *manager) ParseConfig(buf []byte) error {
@@ -109,41 +125,39 @@ func (m *manager) actions() []Action {
 	return actions
 }
 
-func (m *manager) HasInitialize() bool {
+func (m *containerManager) HasInitialize() bool {
 	return m.initializeAction != nil
 }
 
-func (m *manager) DoInitialize(ctx context.Context, p params.Params) error {
+func (m *containerManager) DoInitialize(ctx context.Context, p params.Params) error {
 	if !m.HasInitialize() {
 		return ErrActionNotConfigured
 	}
-	return newActionRunner(ctx, m.log, m.initializeAction, p, "initialize").Run()
+	return m.runAction(ctx, m.initializeAction, p, "initialize")
 }
 
-func (m *manager) HasHealthcheck() bool {
+func (m *containerManager) HasHealthcheck() bool {
 	return m.healthcheckAction != nil
 }
 
-func (m *manager) DoHealthcheck(ctx context.Context, p params.Params) error {
+func (m *containerManager) DoHealthcheck(ctx context.Context, p params.Params) error {
 	if !m.HasHealthcheck() {
 		return ErrActionNotConfigured
 	}
-	return newActionRunner(ctx, m.log, m.healthcheckAction, p, "healthcheck").Run()
+	return m.runAction(ctx, m.healthcheckAction, p, "healthcheck")
 }
 
-func (m *manager) HasReset() bool {
+func (m *containerManager) HasReset() bool {
 	return m.resetAction != nil
 }
 
-func (m *manager) DoReset(ctx context.Context, p params.Params) error {
+func (m *containerManager) DoReset(ctx context.Context, p params.Params) error {
 	if !m.HasReset() {
 		return ErrActionNotConfigured
 	}
-	return newActionRunner(ctx, m.log, m.resetAction, p, "reset").Run()
+	return m.runAction(ctx, m.resetAction, p, "reset")
 }
 
-func (m *manager) ForContainer(id string) Manager {
-	next := &(*m)
-	next.log = m.log.WithField("container", id[0:12])
-	return next
+func (m *containerManager) runAction(ctx context.Context, action Action, p params.Params, name string) error {
+	return newActionRunner(ctx, m.emitter, m.log, action, p, name).Run()
 }

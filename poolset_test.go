@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/ui"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,10 +16,11 @@ import (
 func TestPoolSet(t *testing.T) {
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
+	emitter := ui.NewNoopEmitter()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	configs, err := config.ReadFile(log, "_testdata/pools.json")
+	configs, err := config.ReadFile(log, emitter, "_testdata/pools.json")
 	require.NoError(t, err)
 
 	set, err := ephemerald.NewPoolSet(log, ctx, configs)

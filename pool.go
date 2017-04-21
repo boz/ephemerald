@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/ui"
 	"github.com/docker/docker/api/types"
 )
 
@@ -95,6 +96,8 @@ type pool struct {
 
 	log logrus.FieldLogger
 
+	emitter ui.PoolEmitter
+
 	stopped int32
 }
 
@@ -112,14 +115,16 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 
 	log := adapter.logger().WithField("component", "Pool")
 
+	emitter := config.Emitter()
+
 	p := &pool{
 		state:   stateInitializing,
 		config:  config,
 		size:    config.Size,
 		adapter: adapter,
 
-		readybuf: newPoolItemBuffer(),
-		spawner:  newPoolItemSpawner(adapter, config.Lifecycle),
+		readybuf: newPoolItemBuffer(emitter),
+		spawner:  newPoolItemSpawner(emitter, adapter, config.Lifecycle),
 
 		events: make(chan poolEvent),
 
@@ -131,8 +136,11 @@ func NewPoolWithContext(ctx context.Context, config *config.Config) (Pool, error
 
 		ctx: ctx,
 
-		log: log,
+		log:     log,
+		emitter: emitter,
 	}
+
+	p.emitter.EmitInitializing()
 
 	go p.run()
 	go p.monitorCtx()
@@ -207,12 +215,20 @@ func (p *pool) run() {
 	err := p.runInitialize()
 
 	if err != nil {
+		p.emitter.EmitInitializeError(err)
 		p.Stop()
+	} else {
+		p.emitter.EmitRunning()
 	}
 
 	p.runRunning()
+
+	p.emitter.EmitDraining()
+
 	p.runDrainSpawner()
 	p.runDrainItems()
+
+	p.emitter.EmitDone()
 }
 
 func (p *pool) runInitialize() error {
@@ -251,6 +267,7 @@ func (p *pool) runRunning() {
 			p.items[item.ID()] = item
 			item.join(p.events)
 			item.start()
+			p.emitter.EmitNumItems(len(p.items))
 
 		case e := <-p.events:
 
@@ -272,6 +289,7 @@ func (p *pool) runRunning() {
 
 			case eventItemExit:
 				delete(p.items, e.item.ID())
+				p.emitter.EmitNumItems(len(p.items))
 				p.primeBacklog()
 			}
 		}
@@ -324,6 +342,7 @@ func (p *pool) handleDrainingEvent(e poolEvent, msg string) {
 		}
 	case eventItemExit:
 		delete(p.items, e.item.ID())
+		p.emitter.EmitNumItems(len(p.items))
 	}
 }
 

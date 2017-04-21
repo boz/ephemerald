@@ -11,6 +11,7 @@ import (
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
+	"github.com/boz/ephemerald/ui"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
@@ -30,6 +31,14 @@ var (
 	logLevel = kingpin.Flag("log-level", "Log level").
 			Default("info").
 			Enum("debug", "info", "error", "warn")
+
+	logFile = kingpin.Flag("log-file", "Log file").
+		Default("/dev/null").
+		OpenFile(os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+
+	useGUI = kingpin.Flag("gui", "terminal gui output").
+		Default("true").
+		Bool()
 )
 
 func main() {
@@ -40,10 +49,19 @@ func main() {
 
 	log := logrus.New()
 	log.Level = level
+	log.Out = *logFile
 
 	ctx := context.Background()
 
-	configs, err := config.Read(log, *configFile)
+	var appui ui.UI
+
+	if *useGUI {
+		appui = ui.NewGUI()
+	} else {
+		appui = ui.NewIOUI(os.Stdout)
+	}
+
+	configs, err := config.Read(log, appui.Emitter(), *configFile)
 	(*configFile).Close()
 	kingpin.FatalIfError(err, "invalid config file")
 
@@ -82,4 +100,5 @@ func main() {
 	go server.Run()
 
 	<-donech
+	appui.Stop()
 }
