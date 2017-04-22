@@ -1,73 +1,208 @@
 package ui
 
 import (
-	"bytes"
+	"container/list"
 	"strings"
 
-	"github.com/buger/goterm"
+	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/views"
 )
 
-// FFS.
+var (
+	styleTH = tcell.StyleDefault.Foreground(tcell.ColorWhite)
+)
 
-type table struct {
-	header []cell
-	rows   [][]cell
-}
-
-type cell struct {
+type tuiTH struct {
 	value    string
-	color    int
 	minwidth int
 }
 
-func (c *cell) String() string {
-	if c.color == 0 {
-		return string(c.value)
-	} else {
-		return goterm.Color(string(c.value), c.color)
+type tuiTD struct {
+	value string
+	style tcell.Style
+}
+
+type tuiTR interface {
+	id() string
+	cols() []tuiTD
+}
+
+type tuiRow struct {
+	values []string
+	styles []tcell.Style
+	views.BoxLayout
+}
+
+type tuiTable struct {
+	headers []tuiTH
+	widths  []int
+
+	wlist *list.List
+	wmap  map[string]*list.Element
+
+	content *views.BoxLayout
+
+	views.Panel
+}
+
+func newTUITable(headers []tuiTH) *tuiTable {
+	t := &tuiTable{
+		headers: nil,
+		widths:  nil,
+		wlist:   list.New(),
+		wmap:    make(map[string]*list.Element),
+		content: views.NewBoxLayout(views.Vertical),
+		Panel:   *views.NewPanel(),
+	}
+
+	t.SetContent(t.content)
+
+	t.setHeaders(headers)
+	t.insertHeaders()
+
+	return t
+}
+
+func (t *tuiTable) setHeaders(headers []tuiTH) {
+	t.widths = make([]int, len(headers))
+	t.headers = headers
+
+	for idx, header := range t.headers {
+		if hl := len(header.value); hl > t.widths[idx] {
+			t.widths[idx] = hl
+		}
+		if header.minwidth > t.widths[idx] {
+			t.widths[idx] = header.minwidth
+		}
 	}
 }
 
-func (t *table) String() string {
+func (t *tuiTable) insertHeaders() {
+	row := views.NewBoxLayout(views.Horizontal)
+	for idx, header := range t.headers {
+		value := t.renderCol(header.value, t.widths[idx], false)
 
-	widths := make([]int, len(t.header))
+		th := views.NewText()
+		th.SetText(value)
+		th.SetStyle(styleTH)
 
-	for i, cell := range t.header {
-		widths[i] = len(cell.value)
-		if widths[i] < cell.minwidth {
-			widths[i] = cell.minwidth
-		}
+		row.AddWidget(th, 0.0)
 	}
 
-	for _, row := range t.rows {
-		for i, cell := range row {
-			if widths[i] < len(cell.value) {
-				widths[i] = len(cell.value)
-			}
-		}
+	t.Panel.SetTitle(row)
+	t.Resize()
+}
+
+func (t *tuiTable) renderCol(value string, width int, preserve bool) string {
+	padlen := 1
+	vl := len(value)
+
+	if preserve {
+		return value
 	}
 
-	buf := new(bytes.Buffer)
-
-	padding := 3
-
-	for i, cell := range t.header {
-		buf.WriteString(cell.String())
-		if i != len(t.header)-1 {
-			buf.WriteString(strings.Repeat(" ", (widths[i]-len(cell.value))+padding))
-		}
+	if vl < width {
+		return value + strings.Repeat(" ", width-vl+padlen)
 	}
-	buf.WriteString("\n")
+	return value[0:width] + strings.Repeat(" ", padlen)
+}
 
-	for _, row := range t.rows {
-		for i, cell := range row {
-			buf.WriteString(cell.String())
-			if i != len(row)-1 {
-				buf.WriteString(strings.Repeat(" ", (widths[i]-len(cell.value))+padding))
-			}
+type tuiTRow struct {
+	model tuiTR
+	views.BoxLayout
+}
+
+func (t *tuiTable) handleUpdates(upsert map[string]tuiTR, remove map[string]tuiTR) bool {
+	resize := true
+
+	for id, row := range upsert {
+
+		// update
+		if e, ok := t.wmap[id]; ok {
+			t.handleRowUpdate(row, e)
+			continue
 		}
-		buf.WriteString("\n")
+
+		t.handleRowInsert(row)
+		resize = true
 	}
 
-	return buf.String()
+	for id, _ := range remove {
+		t.handleRowDelete(id)
+		resize = true
+	}
+
+	if resize {
+		t.Resize()
+	}
+
+	return resize
+}
+
+func (t *tuiTable) handleRowUpdate(row tuiTR, e *list.Element) {
+	cols := row.cols()
+
+	w := e.Value.(*tuiTRow)
+	wcols := w.Widgets()
+
+	for idx, col := range cols {
+		wcol := wcols[idx].(*views.Text)
+		wcol.SetText(t.renderCol(col.value, t.widths[idx], idx == len(cols)-1))
+		wcol.SetStyle(col.style)
+		//wcol.Draw()
+	}
+}
+
+func (t *tuiTable) handleRowInsert(row tuiTR) {
+	trow := t.makeTRow(row)
+
+	idx := 0
+	e := t.wlist.Front()
+	for {
+
+		if e == nil {
+			break
+		}
+
+		cur := e.Value.(*tuiTRow)
+		if strings.Compare(trow.model.id(), cur.model.id()) < 0 {
+			t.wmap[row.id()] = t.wlist.InsertBefore(trow, e)
+			t.content.InsertWidget(idx, trow, 0.0)
+			break
+		}
+
+		e = e.Next()
+		idx++
+	}
+	if e == nil {
+		t.wmap[row.id()] = t.wlist.PushBack(trow)
+		t.content.InsertWidget(idx, trow, 0.0)
+	}
+}
+
+func (t *tuiTable) makeTRow(row tuiTR) *tuiTRow {
+	w := new(tuiTRow)
+	w.model = row
+	w.BoxLayout = *views.NewBoxLayout(views.Horizontal)
+	cols := row.cols()
+	for idx, col := range cols {
+		wcol := views.NewText()
+		wcol.SetText(t.renderCol(col.value, t.widths[idx], idx == len(cols)-1))
+		wcol.SetStyle(col.style)
+		w.AddWidget(wcol, 0.0)
+	}
+	w.Resize()
+	return w
+}
+
+func (t *tuiTable) handleRowDelete(id string) {
+	e, ok := t.wmap[id]
+	if !ok {
+		return
+	}
+	w := e.Value.(*tuiTRow)
+	t.wlist.Remove(e)
+	t.content.RemoveWidget(w)
+	t.Resize()
+	delete(t.wmap, id)
 }

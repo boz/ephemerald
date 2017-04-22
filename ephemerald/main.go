@@ -53,13 +53,16 @@ func main() {
 
 	ctx := context.Background()
 
+	uishutdown := make(chan bool)
+
 	var appui ui.UI
 
 	if *useGUI {
-		appui = ui.NewGUI()
+		appui, err = ui.NewTUI(uishutdown)
 	} else {
-		appui = ui.NewIOUI(os.Stdout)
+		appui, err = ui.NewIOUI(os.Stdout)
 	}
+	kingpin.FatalIfError(err, "Can't start UI")
 
 	configs, err := config.Read(log, appui.Emitter(), *configFile)
 	(*configFile).Close()
@@ -81,6 +84,15 @@ func main() {
 
 	donech := server.ServerCloseNotify()
 
+	handleSignals(server, donech, uishutdown)
+
+	go server.Run()
+
+	<-donech
+	appui.Stop()
+}
+
+func handleSignals(server *net.Server, donech chan bool, uishutdown chan bool) {
 	go func() {
 		sigch := make(chan os.Signal, 1)
 
@@ -88,6 +100,8 @@ func main() {
 		defer signal.Stop(sigch)
 
 		select {
+		case <-uishutdown:
+			server.Close()
 		case <-sigch:
 			server.Close()
 		case <-donech:
@@ -95,9 +109,4 @@ func main() {
 
 		<-donech
 	}()
-
-	go server.Run()
-
-	<-donech
-	appui.Stop()
 }

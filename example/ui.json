@@ -1,0 +1,18 @@
+{
+  "pools": {
+    "redis": {
+      "image": "redis",
+      "size": 5,
+      "port": 6379,
+      "params": {
+        "database": "0",
+        "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
+      },
+      "actions": {
+        "healthcheck": {
+          "type": "redis.ping"
+        }
+      }
+    }
+  }
+}
