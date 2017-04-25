@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fmt"
+
+	"github.com/boz/ephemerald/version"
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/views"
 )
@@ -114,23 +117,24 @@ func poolsWidget() *tablePanel {
 }
 
 func createTuiApp(shutdownch chan bool) (*views.Application, *tuiWindow) {
-	title := views.NewTextBar()
-	title.SetStyle(tcell.StyleDefault.
-		Background(tcell.ColorTeal).
-		Foreground(tcell.ColorWhite))
-	title.SetCenter("Ephemerald", tcell.StyleDefault)
 
-	keybar := views.NewSimpleStyledText()
+	kbbg := tcell.StyleDefault.
+		Background(tcell.ColorSilver)
 
-	keybar.RegisterStyle('N', tcell.StyleDefault.
-		Background(tcell.ColorSilver).
-		Foreground(tcell.ColorBlack))
+	kbstyle := kbbg.Foreground(tcell.ColorBlack)
 
-	keybar.RegisterStyle('A', tcell.StyleDefault.
-		Background(tcell.ColorSilver).
-		Foreground(tcell.ColorRed))
+	keybar := views.NewSimpleStyledTextBar()
 
-	keybar.SetMarkup("[%AQ%N] Quit")
+	keybar.SetStyle(kbstyle)
+
+	keybar.RegisterLeftStyle('N', kbstyle)
+
+	keybar.RegisterLeftStyle('A', kbstyle.Foreground(tcell.ColorRed))
+
+	keybar.SetLeft("%N[%AQ%N] Quit")
+
+	keybar.RegisterRightStyle('N', kbstyle)
+	keybar.SetRight(fmt.Sprintf("%%NEphemerald %v", version.Version))
 
 	app := &views.Application{}
 
