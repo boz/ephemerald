@@ -13,6 +13,8 @@ import (
 const (
 	tuiMaxPeriod = time.Second / 2
 	tuiMinPeriod = time.Second / 15
+
+	tuiCHBufsiz = 15
 )
 
 type crec struct {
@@ -39,7 +41,11 @@ type tuiWriter struct {
 	// closed when user quits.
 	shutdownch chan bool
 
+	// closed when completely shut down
 	donech chan bool
+
+	// signal closing down
+	drainch chan bool
 
 	app    *views.Application
 	window *tuiWindow
@@ -55,14 +61,16 @@ func newTUIWriter(shutdownch chan bool) (writer, error) {
 		pupdate: make(map[string]tuiTR),
 		pdelete: make(map[string]tuiTR),
 
-		pch: make(chan pool),
-		cch: make(chan container),
-		dch: make(chan container),
+		pch: make(chan pool, tuiCHBufsiz),
+		cch: make(chan container, tuiCHBufsiz),
+		dch: make(chan container, tuiCHBufsiz),
 
 		drawch: make(chan bool),
 
 		shutdownch: shutdownch,
-		donech:     make(chan bool),
+
+		donech:  make(chan bool),
+		drainch: make(chan bool),
 
 		app:    app,
 		window: window,
@@ -117,18 +125,32 @@ func (w *tuiWriter) deleteContainer(c container) {
 }
 
 func (w *tuiWriter) stop() {
-	w.throttle.Stop()
-	close(w.donech)
+	w.drainch <- true
+	<-w.donech
 }
 
 func (w *tuiWriter) run() {
+	defer close(w.donech)
 	defer w.app.Quit()
+	defer w.throttle.Stop()
+
+	shuttingdown := 0
+
 	for {
 		select {
-		case <-w.donech:
-			return
+		case <-w.drainch:
+			shuttingdown++
 		case <-w.drawch:
-			w.draw()
+			switch {
+			case shuttingdown > 2:
+				return
+			case shuttingdown > 0:
+				w.throttle.Trigger()
+				shuttingdown++
+				fallthrough
+			case shuttingdown == 0:
+				w.draw()
+			}
 		case p := <-w.pch:
 			w.handlePool(p)
 			w.throttle.Trigger()
@@ -139,6 +161,7 @@ func (w *tuiWriter) run() {
 			w.handleDeleteContainer(c)
 			w.throttle.Trigger()
 		case <-time.After(tuiMaxPeriod):
+			w.throttle.Trigger()
 		}
 	}
 }

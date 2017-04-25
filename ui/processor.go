@@ -34,6 +34,10 @@ const (
 	ceventResult    ceventId = "action-result"
 )
 
+const (
+	pBufSiz = 15
+)
+
 type cevent struct {
 	id          ceventId
 	containerId string
@@ -66,8 +70,8 @@ func newProcessor(w writer) *processor {
 		pools:      make(map[string]*pool),
 		containers: make(map[string]*container),
 
-		poolch:      make(chan pevent),
-		containerch: make(chan cevent),
+		poolch:      make(chan pevent, pBufSiz),
+		containerch: make(chan cevent, pBufSiz),
 		donech:      make(chan bool),
 	}
 
@@ -78,7 +82,7 @@ func newProcessor(w writer) *processor {
 }
 
 func (p *processor) stop() {
-	close(p.donech)
+	defer close(p.donech)
 	p.writer.stop()
 }
 
