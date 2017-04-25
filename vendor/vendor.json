@@ -61,12 +61,6 @@
 			"revisionTime": "2016-09-22T05:46:36Z"
 		},
 		{
-			"checksumSHA1": "2I0XSS9nSH++ycsqGt2TDS5kPbA=",
-			"path": "github.com/buger/goterm",
-			"revision": "bc6c333206f446a53cac4db5d2e6a4316139d737",
-			"revisionTime": "2017-03-17T13:31:16Z"
-		},
-		{
 			"checksumSHA1": "LBSBvc68H0Za9OSZ0gli7Hf/tVM=",
 			"path": "github.com/buger/jsonparser",
 			"revision": "016ea00d7ed52c8acc470d90b03d2e6c13516814",
@@ -641,20 +635,8 @@
 			"revisionTime": "2017-04-20T13:36:16Z"
 		},
 		{
-			"checksumSHA1": "ZQdHbB9VYCXwQ+9/CmZPhJv0+SM=",
-			"path": "golang.org/x/text/internal/gen",
-			"revision": "a9a820217f98f7c8a207ec1e45a874e1fe12c478",
-			"revisionTime": "2017-04-20T13:36:16Z"
-		},
-		{
 			"checksumSHA1": "ziMb9+ANGRJSSIuxYdRbA+cDRBQ=",
 			"path": "golang.org/x/text/transform",
-			"revision": "a9a820217f98f7c8a207ec1e45a874e1fe12c478",
-			"revisionTime": "2017-04-20T13:36:16Z"
-		},
-		{
-			"checksumSHA1": "ZbYsJjfj1rPbHN+0baD1rg09PXQ=",
-			"path": "golang.org/x/text/unicode/cldr",
 			"revision": "a9a820217f98f7c8a207ec1e45a874e1fe12c478",
 			"revisionTime": "2017-04-20T13:36:16Z"
 		},
