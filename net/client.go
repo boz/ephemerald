@@ -1,65 +1,89 @@
 package net
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"strconv"
 
 	"github.com/boz/ephemerald/params"
-	"github.com/koding/kite"
+)
+
+var (
+	DefaultConnectAddress = net.JoinHostPort("localhost", strconv.Itoa(DefaultPort))
 )
 
 type ClientBuilder struct {
-	kclient *kite.Client
-	kite    *kite.Kite
-
-	host string
-	port int
+	address string
 }
 
 type Client struct {
-	kclient *kite.Client
+	address string
 }
 
 func NewClientBuilder() *ClientBuilder {
-	k := kite.New(kiteName+"-client", kiteVersion)
-	c := k.NewClient("")
-	// XXX: race condition
-	//k.SetLogLevel(kite.DEBUG)
-	c.Concurrent = true
-	c.ConcurrentCallbacks = true
-	return &ClientBuilder{c, k, "localhost", DefaultPort}
+	return &ClientBuilder{DefaultConnectAddress}
 }
 
-func (b *ClientBuilder) WithHost(host string) *ClientBuilder {
-	b.host = host
+func (b *ClientBuilder) WithAddress(address string) *ClientBuilder {
+	b.address = address
 	return b
 }
 
 func (b *ClientBuilder) WithPort(port int) *ClientBuilder {
-	b.port = port
+	address, _, _ := net.SplitHostPort(b.address)
+	b.address = net.JoinHostPort(address, strconv.Itoa(port))
 	return b
 }
 
 func (b *ClientBuilder) Create() (*Client, error) {
-	b.kclient.URL = fmt.Sprintf("http://%v:%v/kite", b.host, b.port)
-	b.kite.Config.Environment = b.host
-
-	if err := b.kclient.Dial(); err != nil {
-		return nil, err
-	}
-	return &Client{b.kclient}, nil
+	return &Client{b.address}, nil
 }
 
 func (c *Client) Checkout(names ...string) (params.Set, error) {
 	ps := params.Set{}
-	response, err := c.kclient.Tell(rpcCheckoutName, names)
+
+	req, err := http.NewRequest("PUT", c.url(rpcCheckoutName), &bytes.Buffer{})
+
 	if err != nil {
 		return ps, err
 	}
-	response.MustUnmarshal(&ps)
-	return ps, nil
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ps, err
+	}
+	defer resp.Body.Close()
+
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ps, err
+	}
+
+	err = json.Unmarshal(buf, &ps)
+	return ps, err
 }
 
 func (c *Client) Return(ps params.Set) error {
-	_, err := c.kclient.Tell(rpcReturnName, ps)
-	return err
+	buf, err := json.Marshal(ps)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", c.url(rpcReturnName), bytes.NewBuffer(buf))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (c *Client) url(path string) string {
+	return fmt.Sprintf("http://%v%v", c.address, path)
 }

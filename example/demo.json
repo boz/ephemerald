@@ -2,7 +2,7 @@
   "pools": {
     "redis": {
       "image": "redis",
-      "size": 3,
+      "size": 5,
       "port": 6379,
       "params": {
         "database": "0",
@@ -21,7 +21,7 @@
     },
     "vault": {
       "image": "vault",
-      "size": 3,
+      "size": 5,
       "port": 8200,
       "container": {
         "env": ["SKIP_SETCAP=1"]
@@ -37,7 +37,7 @@
     },
     "postgres": {
       "image": "postgres",
-      "size": 3,
+      "size": 5,
       "port": 5432,
       "params": {
         "username": "postgres",

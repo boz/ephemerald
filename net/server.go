@@ -1,19 +1,25 @@
 package net
 
 import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"strconv"
+
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/params"
-	"github.com/koding/kite"
+	"github.com/gorilla/mux"
 )
 
 const (
-	kiteName    = "ephemerald"
-	kiteVersion = "0.0.1"
-	DefaultPort = 6000
+	DefaultPort    = 6000
+	DefaultAddress = ":6000"
 )
 
 type Server struct {
-	kite *kite.Kite
+	l   *net.TCPListener
+	srv *http.Server
 
 	pools ephemerald.PoolSet
 
@@ -21,13 +27,13 @@ type Server struct {
 }
 
 type ServerBuilder struct {
-	port  int
-	pools ephemerald.PoolSet
+	address string
+	pools   ephemerald.PoolSet
 }
 
 func NewServerBuilder() *ServerBuilder {
 	return &ServerBuilder{
-		port: DefaultPort,
+		address: DefaultAddress,
 	}
 }
 
@@ -36,66 +42,77 @@ func (sb *ServerBuilder) WithPoolSet(pools ephemerald.PoolSet) *ServerBuilder {
 	return sb
 }
 
+func (sb *ServerBuilder) WithAddress(address string) *ServerBuilder {
+	sb.address = address
+	return sb
+}
+
 func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
-	sb.port = port
+	address, _, _ := net.SplitHostPort(sb.address)
+	sb.address = net.JoinHostPort(address, strconv.Itoa(port))
 	return sb
 }
 
 func (sb *ServerBuilder) Create() (*Server, error) {
-	k := kite.New(kiteName, kiteVersion)
-
-	k.Config.Port = sb.port
-	k.Config.DisableAuthentication = true
-
-	s := &Server{
-		kite:    k,
+	server := &Server{
 		closech: make(chan bool),
 		pools:   sb.pools,
 	}
 
-	s.kite.HandleFunc(rpcCheckoutName, s.handleCheckout)
-	s.kite.HandleFunc(rpcReturnName, s.handleReturn)
+	r := mux.NewRouter()
 
-	return s, nil
+	r.HandleFunc(rpcCheckoutName, server.handleCheckout).
+		Methods("PUT")
+
+	r.HandleFunc(rpcReturnName, server.handleReturn).
+		Methods("PUT")
+
+	l, err := net.Listen("tcp", sb.address)
+	if err != nil {
+		return nil, err
+	}
+
+	server.l = l.(*net.TCPListener)
+
+	server.srv = &http.Server{
+		Handler: r,
+	}
+
+	return server, nil
 }
 
 func (s *Server) Run() {
 	defer close(s.closech)
-	ch := s.kite.ServerCloseNotify()
-	go s.kite.Run()
-	<-ch
+	s.srv.Serve(s.l)
 	s.stopPools()
 }
 
 func (s *Server) Close() {
-	s.kite.Close()
+	s.l.Close()
 }
 
 func (s *Server) ServerCloseNotify() chan bool {
 	return s.closech
 }
 
-func (s *Server) ServerReadyNotify() chan bool {
-	return s.kite.ServerReadyNotify()
+func (s *Server) Address() string {
+	return s.l.Addr().String()
 }
 
 func (s *Server) Port() int {
-	return s.kite.Port()
+	_, port, _ := net.SplitHostPort(s.Address())
+	p, _ := strconv.Atoi(port)
+	return p
 }
 
 func (s *Server) stopPools() {
 	s.pools.Stop()
 }
 
-func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
-	var names []string
-	r.Args.MustUnmarshal(names)
-	ps, err := s.pools.Checkout(names...)
-	if err != nil {
-		return ps, err
-	}
+func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request) {
+	host, _, _ := net.SplitHostPort(r.Host)
 
-	host := r.Client.Environment
+	ps, err := s.pools.CheckoutWith(r.Context())
 
 	for name, p := range ps {
 		p2, e := p.ForHost(host)
@@ -105,15 +122,33 @@ func (s *Server) handleCheckout(r *kite.Request) (interface{}, error) {
 		}
 		ps[name] = p2
 	}
+
 	if err != nil {
 		s.pools.ReturnAll(ps)
+		http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+		return
 	}
-	return ps, err
+
+	buf, err := json.Marshal(ps)
+	if err != nil {
+		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/json; charset=utf-8")
+
+	w.Write(buf)
 }
 
-func (s *Server) handleReturn(r *kite.Request) (interface{}, error) {
+func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
 	ps := params.Set{}
-	r.Args.One().MustUnmarshal(&ps)
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+
+	if err := dec.Decode(&ps); err != nil {
+		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		return
+	}
 	s.pools.ReturnAll(ps)
-	return nil, nil
+	w.WriteHeader(http.StatusOK)
 }

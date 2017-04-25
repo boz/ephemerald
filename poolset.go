@@ -11,6 +11,7 @@ import (
 
 type PoolSet interface {
 	Checkout(name ...string) (params.Set, error)
+	CheckoutWith(ctx context.Context, name ...string) (params.Set, error)
 	ReturnAll(params.Set)
 	Return(name string, item Item)
 	WaitReady() error
@@ -56,7 +57,7 @@ func NewPoolSet(log logrus.FieldLogger, ctx context.Context, configs []*config.C
 	}, nil
 }
 
-func (ps *poolSet) Checkout(names ...string) (params.Set, error) {
+func (ps *poolSet) CheckoutWith(ctx context.Context, names ...string) (params.Set, error) {
 	type pentry struct {
 		name string
 		p    params.Params
@@ -84,7 +85,7 @@ func (ps *poolSet) Checkout(names ...string) (params.Set, error) {
 		wg.Add(1)
 		go func(name string, pool Pool) {
 			defer wg.Done()
-			p, err := pool.Checkout()
+			p, err := pool.CheckoutWith(ctx)
 			ch <- pentry{name, p, err}
 		}(name, pool)
 	}
@@ -118,6 +119,10 @@ func (ps *poolSet) Checkout(names ...string) (params.Set, error) {
 		return nil, cerr
 	}
 	return set, nil
+}
+
+func (ps *poolSet) Checkout(names ...string) (params.Set, error) {
+	return ps.CheckoutWith(context.Background(), names...)
 }
 
 func (ps *poolSet) ReturnAll(set params.Set) {

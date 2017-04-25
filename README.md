@@ -262,9 +262,7 @@ This is an alias for `redis.exec` with a default command of `"FLUSHALL"`.
    * Allow yaml
    * Allow built-in defaults (postgres, redis, etc...)
  * Polish/Optimize/Cleanup UI.
- * Use simple JSON API instead of [koding/kite](https://github.com/koding/kite).
- * Re-add remote actions
-   * Use websockets instead of [koding/kite](https://github.com/koding/kite)
- * Nodejs client example
+ * Re-add remote actions (websockets API)
+ * Clients: nodejs, ruby, python, etc...
  * Documentation
  * Tests

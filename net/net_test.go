@@ -45,7 +45,6 @@ func TestClientServer(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	readych := server.ServerReadyNotify()
 	donech := server.ServerCloseNotify()
 	defer func() {
 		<-donech
@@ -53,7 +52,6 @@ func TestClientServer(t *testing.T) {
 	defer server.Close()
 
 	go server.Run()
-	<-readych
 
 	client, err := net.NewClientBuilder().
 		WithPort(server.Port()).
