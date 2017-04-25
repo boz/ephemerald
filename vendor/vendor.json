@@ -67,23 +67,11 @@
 			"revisionTime": "2017-03-25T17:55:28Z"
 		},
 		{
-			"checksumSHA1": "SPQcWDUN+wcTThipcR9EzX4t3E8=",
-			"path": "github.com/cenkalti/backoff",
-			"revision": "b02f2bbce11d7ea6b97f282ef1771b0fe2f65ef3",
-			"revisionTime": "2016-10-20T19:44:10Z"
-		},
-		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "4d4bfba8f1d1027c4fdbe371823030df51419987",
 			"revisionTime": "2017-01-30T11:31:45Z"
-		},
-		{
-			"checksumSHA1": "2Fy1Y6Z3lRRX1891WF/+HT4XS2I=",
-			"path": "github.com/dgrijalva/jwt-go",
-			"revision": "2268707a8f0843315e2004ee4f1d021dc08baedf",
-			"revisionTime": "2017-02-01T22:58:49Z"
 		},
 		{
 			"checksumSHA1": "N/wXINEtcolzblUNCe2OIaJJfCM=",
@@ -433,78 +421,6 @@
 			"revisionTime": "2017-02-21T22:13:32Z"
 		},
 		{
-			"checksumSHA1": "jb1pFNNVYzpY4Mz09WEWeTNng40=",
-			"path": "github.com/gorilla/websocket",
-			"revision": "3f3e394da2b801fbe732a935ef40724762a67a07",
-			"revisionTime": "2017-02-18T16:27:10Z"
-		},
-		{
-			"checksumSHA1": "sKheT5xw89Tbu2Q071FQO27CVmE=",
-			"path": "github.com/juju/ratelimit",
-			"revision": "77ed1c8a01217656d2080ad51981f6e99adaa177",
-			"revisionTime": "2015-11-25T20:19:25Z"
-		},
-		{
-			"checksumSHA1": "YaqS8LpfDHW1UYHIOdgjr6Z3/Uk=",
-			"path": "github.com/koding/cache",
-			"revision": "e8a81b0b3f20f895153311abde1062894b5912d6",
-			"revisionTime": "2016-12-22T23:30:16Z"
-		},
-		{
-			"checksumSHA1": "5LwaVeVxsO5iSAWGGyF+zzg149E=",
-			"path": "github.com/koding/kite",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "mzS+ie44HDF7l9/nxrnklwPuHck=",
-			"path": "github.com/koding/kite/config",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "v4H1mGpG3SRTbGgmI75J+cr2loA=",
-			"path": "github.com/koding/kite/dnode",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "CZGwcWf+L2gCBSAjX76WvC/jX9g=",
-			"path": "github.com/koding/kite/kitekey",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "wbSQeLIe3Y7/5ooFJv68EnT1RqA=",
-			"path": "github.com/koding/kite/protocol",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "zuTfpihPyQwjlif89AnYJcP0wuA=",
-			"path": "github.com/koding/kite/sockjsclient",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "kwbsn6rJKce/TTxakEALgXkpD6o=",
-			"path": "github.com/koding/kite/systeminfo",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "kPqRgz02XC2P3DptrFTn83jWiyQ=",
-			"path": "github.com/koding/kite/utils",
-			"revision": "8fec640c9a1c5defda67672e78b5798f1eb5debd",
-			"revisionTime": "2017-01-30T04:18:25Z"
-		},
-		{
-			"checksumSHA1": "8ArErSl3CVUZy2yeGPJyb+YzQ74=",
-			"path": "github.com/koding/logging",
-			"revision": "8b5a689ed69b1c7cd1e3595276fc2a352d7818e0",
-			"revisionTime": "2016-07-20T13:40:17Z"
-		},
-		{
 			"checksumSHA1": "FZem1OXCd+ogu1yeG11GMlGiGVA=",
 			"path": "github.com/lib/pq",
 			"revision": "ba5d4f7a35561e22fbdf7a39aa0070f4d460cfc0",
@@ -557,12 +473,6 @@
 			"revisionTime": "2017-01-30T11:31:45Z"
 		},
 		{
-			"checksumSHA1": "zmC8/3V4ls53DJlNTKDZwPSC/dA=",
-			"path": "github.com/satori/go.uuid",
-			"revision": "b061729afc07e77a8aa4fad0a2fd840958f1942a",
-			"revisionTime": "2016-09-27T10:08:44Z"
-		},
-		{
 			"checksumSHA1": "0HjVbSOjVBK+4zO7P40DuPPb0Vc=",
 			"origin": "github.com/docker/docker/vendor/github.com/spf13/pflag",
 			"path": "github.com/spf13/pflag",
@@ -580,12 +490,6 @@
 			"path": "github.com/stretchr/testify/require",
 			"revision": "4d4bfba8f1d1027c4fdbe371823030df51419987",
 			"revisionTime": "2017-01-30T11:31:45Z"
-		},
-		{
-			"checksumSHA1": "xiderUuvye8Kpn7yX3niiJg32bE=",
-			"path": "golang.org/x/crypto/ssh/terminal",
-			"revision": "453249f01cfeb54c3d549ddb75ff152ca243f9d8",
-			"revisionTime": "2017-02-08T20:51:15Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
@@ -645,42 +549,6 @@
 			"path": "gopkg.in/alecthomas/kingpin.v2",
 			"revision": "7f0871f2e17818990e4eed73f9b5c2f429501228",
 			"revisionTime": "2017-03-28T23:38:35Z"
-		},
-		{
-			"checksumSHA1": "ay9WnRs0b3RGtKVTEGvKvfvfojs=",
-			"path": "gopkg.in/igm/sockjs-go.v2/sockjs",
-			"revision": "d276e9ffe5cc5c271b81198cc77a2adf6c4482d2",
-			"revisionTime": "2016-11-15T19:38:03Z"
-		},
-		{
-			"checksumSHA1": "1D8GzeoFGUs5FZOoyC2DpQg8c5Y=",
-			"path": "gopkg.in/mgo.v2",
-			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
-			"revisionTime": "2016-08-18T02:01:20Z"
-		},
-		{
-			"checksumSHA1": "YsB2DChSV9HxdzHaKATllAUKWSI=",
-			"path": "gopkg.in/mgo.v2/bson",
-			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
-			"revisionTime": "2016-08-18T02:01:20Z"
-		},
-		{
-			"checksumSHA1": "XQsrqoNT1U0KzLxOFcAZVvqhLfk=",
-			"path": "gopkg.in/mgo.v2/internal/json",
-			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
-			"revisionTime": "2016-08-18T02:01:20Z"
-		},
-		{
-			"checksumSHA1": "LEvMCnprte47qdAxWvQ/zRxVF1U=",
-			"path": "gopkg.in/mgo.v2/internal/sasl",
-			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
-			"revisionTime": "2016-08-18T02:01:20Z"
-		},
-		{
-			"checksumSHA1": "+1WDRPaOphSCmRMxVPIPBV4aubc=",
-			"path": "gopkg.in/mgo.v2/internal/scram",
-			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
-			"revisionTime": "2016-08-18T02:01:20Z"
 		}
 	],
 	"rootPath": "github.com/boz/ephemerald"
