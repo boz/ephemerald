@@ -2,7 +2,7 @@
 
 Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests which make use of (postgres, redis, vault) databases.
 
-[![asciicast](https://asciinema.org/a/4gicxubpag6ltqkafvznmcdu3.png)](https://asciinema.org/a/4gicxubpag6ltqkafvznmcdu3)
+[![asciicast](https://asciinema.org/a/117629.png)](https://asciinema.org/a/117629)
 
 * [Building](#building)
 * [Running](#building)
