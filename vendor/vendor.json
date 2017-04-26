@@ -407,6 +407,12 @@
 			"revisionTime": "2016-12-05T23:37:37Z"
 		},
 		{
+			"checksumSHA1": "ImX1uv6O09ggFeBPUJJ2nu7MPSA=",
+			"path": "github.com/ghodss/yaml",
+			"revision": "0ca9ea5df5451ffdf184b4428c902747c2c11cd7",
+			"revisionTime": "2017-03-27T23:54:44Z"
+		},
+		{
 			"checksumSHA1": "Bev6wUWj9ao5HvSK9NkV4EahnS0=",
 			"origin": "github.com/docker/docker/vendor/github.com/gorilla/context",
 			"path": "github.com/gorilla/context",
@@ -549,6 +555,12 @@
 			"path": "gopkg.in/alecthomas/kingpin.v2",
 			"revision": "7f0871f2e17818990e4eed73f9b5c2f429501228",
 			"revisionTime": "2017-03-28T23:38:35Z"
+		},
+		{
+			"checksumSHA1": "fALlQNY1fM99NesfLJ50KguWsio=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b",
+			"revisionTime": "2017-04-07T17:21:22Z"
 		}
 	],
 	"rootPath": "github.com/boz/ephemerald"
