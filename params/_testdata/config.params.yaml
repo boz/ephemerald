@@ -1,0 +1,3 @@
+username: postgres
+database: postgres
+url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable

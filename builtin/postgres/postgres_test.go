@@ -11,21 +11,25 @@ import (
 )
 
 func TestActionsPingExec(t *testing.T) {
-	testutil.RunPoolFromFile(t, "pool.json", func(p params.Params) {
-		db, err := sql.Open("postgres", p.Url)
-		require.NoError(t, err)
-		defer db.Close()
+	files := []string{"pool.json", "pool.yaml"}
 
-		rows, err := db.Query("SELECT COUNT(*) FROM users")
-		require.NoError(t, err)
-		defer rows.Close()
+	for _, file := range files {
+		testutil.RunPoolFromFile(t, file, func(p params.Params) {
+			db, err := sql.Open("postgres", p.Url)
+			require.NoError(t, err, file)
+			defer db.Close()
 
-		require.True(t, rows.Next())
+			rows, err := db.Query("SELECT COUNT(*) FROM users")
+			require.NoError(t, err, file)
+			defer rows.Close()
 
-		var count int
-		require.NoError(t, rows.Scan(&count))
-		require.Equal(t, 0, count)
-	})
+			require.True(t, rows.Next(), file)
+
+			var count int
+			require.NoError(t, rows.Scan(&count), file)
+			require.Equal(t, 0, count, file)
+		})
+	}
 }
 
 func TestActionTruncate(t *testing.T) {

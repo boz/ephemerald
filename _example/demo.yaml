@@ -1,0 +1,50 @@
+---
+pools:
+  redis:
+    image: redis
+    size: 5
+    port: 6379
+    params:
+      database: '0'
+      url: redis://{{.Hostname}}:{{.Port}}/{{.Database}}
+    actions:
+      healthcheck:
+        type: redis.ping
+      reset:
+        type: exec
+        path: sleep
+        args: [ '1' ]
+  vault:
+    image: vault
+    size: 5
+    port: 8200
+    container:
+      env:
+      - SKIP_SETCAP=1
+    params:
+      url: http://{{.Hostname}}:{{.Port}}
+    actions:
+      healthcheck:
+        type: http.get
+  postgres:
+    image: postgres
+    size: 5
+    port: 5432
+    params:
+      username: postgres
+      database: postgres
+      url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
+    actions:
+      initialize:
+        type: postgres.exec
+        query: |
+          CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            UNIQUE(name)
+          )
+      healthcheck:
+        type: postgres.ping
+        retries: 20
+      reset:
+        type: postgres.truncate

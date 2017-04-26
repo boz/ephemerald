@@ -21,7 +21,7 @@
     },
     "redis": {
       "size": 1,
-      "image": "redis"
+      "image": "redis",
       "port": 6379,
       "params": {
         "database": "0",

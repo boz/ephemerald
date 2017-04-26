@@ -1,0 +1,35 @@
+---
+pools:
+  redis:
+    image: redis
+    size: 5
+    port: 6379
+    params:
+      database: "0"
+      url: redis://{{.Hostname}}:{{.Port}}/{{.Database}}
+    actions:
+      healthcheck:
+        type: redis.ping
+      reset:
+        type: redis.truncate
+  postgres:
+    image: postgres
+    size: 5
+    port: 5432
+    params:
+      username: postgres
+      database: postgres
+      url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
+    actions:
+      initialize:
+        type: postgres.exec
+        query: |
+          CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            UNIQUE(name)
+          )
+      healthcheck:
+        type: postgres.ping
+      reset:
+        type: postgres.truncate

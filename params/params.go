@@ -48,7 +48,7 @@ func (c Config) ParamsFor(id string, status types.ContainerJSON, port int) (Para
 	p := Params{
 		Config: c,
 		Id:     id,
-		Port:   tcpPortFor(status, port),
+		Port:   TCPPortFor(status, port),
 	}
 	return p.ForHost(defaultHostname)
 }
@@ -107,12 +107,14 @@ func (p Params) queryEscape() Params {
 	}
 }
 
-func tcpPortFor(status types.ContainerJSON, port int) string {
-	ports := tcpPortsFor(status)
+// TODO: move these.
+
+func TCPPortFor(status types.ContainerJSON, port int) string {
+	ports := TCPPortsFor(status)
 	return ports[strconv.Itoa(port)]
 }
 
-func tcpPortsFor(status types.ContainerJSON) map[string]string {
+func TCPPortsFor(status types.ContainerJSON) map[string]string {
 	ports := make(map[string]string)
 
 	if status.Config == nil {

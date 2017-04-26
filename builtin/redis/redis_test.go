@@ -12,14 +12,18 @@ import (
 )
 
 func TestActionExec(t *testing.T) {
-	testutil.RunPoolFromFile(t, "pool.json", func(p params.Params) {
-		db, err := rredis.DialURL(p.Url)
-		require.NoError(t, err)
-		defer db.Close()
+	files := []string{"pool.json", "pool.yaml"}
 
-		_, err = db.Do("PING")
-		require.NoError(t, err)
-	})
+	for _, file := range files {
+		testutil.RunPoolFromFile(t, file, func(p params.Params) {
+			db, err := rredis.DialURL(p.Url)
+			require.NoError(t, err, file)
+			defer db.Close()
+
+			_, err = db.Do("PING")
+			require.NoError(t, err, file)
+		})
+	}
 }
 
 func TestActionTruncate(t *testing.T) {

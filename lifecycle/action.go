@@ -51,7 +51,7 @@ type ActionPlugin interface {
 func ParseAction(buf []byte) (Action, error) {
 	t, err := jsonparser.GetString(buf, "type")
 	if err != nil {
-		return nil, err
+		return nil, parseError("type", err)
 	}
 
 	p, err := lookupPlugin(t)
@@ -80,7 +80,7 @@ func (ac *ActionConfig) UnmarshalJSON(buf []byte) error {
 	if other.Timeout != "" {
 		val, err := time.ParseDuration(other.Timeout)
 		if err != nil {
-			return err
+			return parseError("timeout", err)
 		}
 		ac.Timeout = val
 	}
@@ -88,7 +88,7 @@ func (ac *ActionConfig) UnmarshalJSON(buf []byte) error {
 	if other.Delay != "" {
 		val, err := time.ParseDuration(other.Delay)
 		if err != nil {
-			return err
+			return parseError("delay", err)
 		}
 		ac.Delay = val
 	}
@@ -122,4 +122,8 @@ func (a *actionPlugin) Name() string {
 }
 func (a *actionPlugin) ParseConfig(buf []byte) (Action, error) {
 	return a.parseConfig(buf)
+}
+
+func parseError(field string, err error) error {
+	return fmt.Errorf("error parsing field '%v': %v", field, err)
 }

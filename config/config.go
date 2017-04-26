@@ -6,12 +6,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
+	"github.com/ghodss/yaml"
 )
 
 const (
@@ -32,18 +34,40 @@ type Config struct {
 	uie ui.PoolEmitter
 }
 
-func ReadFile(log logrus.FieldLogger, uie ui.Emitter, path string) ([]*Config, error) {
-	file, err := os.Open(path)
+func ReadFile(log logrus.FieldLogger, uie ui.Emitter, fpath string) ([]*Config, error) {
+	file, err := os.Open(fpath)
 	if err != nil {
 		return []*Config{}, err
 	}
 	defer file.Close()
-	return Read(log, uie, file)
+
+	switch path.Ext(fpath) {
+	case ".yml", ".yaml":
+		return ReadYAML(log, uie, file)
+	case ".json":
+		return Read(log, uie, file)
+	default:
+		return nil, fmt.Errorf("Unknown extension %v", path.Ext(fpath))
+	}
 }
 
 func Read(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, error) {
 	var configs []*Config
 	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return configs, err
+	}
+	return ParseAll(log, uie, buf)
+}
+
+func ReadYAML(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, error) {
+	var configs []*Config
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return configs, err
+	}
+
+	buf, err = yaml.YAMLToJSON(buf)
 	if err != nil {
 		return configs, err
 	}

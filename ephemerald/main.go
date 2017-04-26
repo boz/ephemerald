@@ -26,7 +26,7 @@ var (
 
 	configFile = kingpin.Flag("config", "config file").Short('c').
 			Required().
-			File()
+			ExistingFile()
 
 	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
 			Default("info").
@@ -67,8 +67,7 @@ func main() {
 	}
 	kingpin.FatalIfError(err, "Can't start UI")
 
-	configs, err := config.Read(log, appui.Emitter(), *configFile)
-	(*configFile).Close()
+	configs, err := config.ReadFile(log, appui.Emitter(), *configFile)
 	kingpin.FatalIfError(err, "invalid config file")
 
 	pools, err := ephemerald.NewPoolSet(log, ctx, configs)

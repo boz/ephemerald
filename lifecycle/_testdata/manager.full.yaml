@@ -1,0 +1,6 @@
+initialize:
+  type: noop
+healthcheck:
+  type: noop
+reset:
+  type: noop

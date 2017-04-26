@@ -27,7 +27,7 @@ func TestClientServer(t *testing.T) {
 
 	ctx := context.Background()
 
-	configs, err := config.ReadFile(log, uie, "_testdata/config.json")
+	configs, err := config.ReadFile(log, uie, "_testdata/config.yaml")
 	require.NoError(t, err)
 
 	pools, err := ephemerald.NewPoolSet(log, ctx, configs)

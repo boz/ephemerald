@@ -62,21 +62,21 @@ func (m *manager) ParseConfig(buf []byte) error {
 	{
 		action, err := m.parseAction(buf, "initialize")
 		if err != nil {
-			return err
+			return parseError("initialize", err)
 		}
 		m.initializeAction = action
 	}
 	{
 		action, err := m.parseAction(buf, "healthcheck")
 		if err != nil {
-			return err
+			return parseError("healthcheck", err)
 		}
 		m.healthcheckAction = action
 	}
 	{
 		action, err := m.parseAction(buf, "reset")
 		if err != nil {
-			return err
+			return parseError("reset", err)
 		}
 		m.resetAction = action
 	}

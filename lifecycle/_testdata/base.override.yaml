@@ -1,0 +1,5 @@
+type: exec
+retries: 10
+timeout: 5ms
+delay: 10s
+path: make

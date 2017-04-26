@@ -11,12 +11,19 @@ import (
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func CID() string {
 	return strings.Repeat("A", 36)
+}
+
+func Log() logrus.FieldLogger {
+	log := logrus.New()
+	log.Level = logrus.DebugLevel
+	return log
 }
 
 func Emitter() ui.Emitter {
@@ -47,13 +54,9 @@ func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {
 
 func WithPoolFromFile(t *testing.T, basename string, fn func(ephemerald.Pool)) {
 
-	path := path.Join("_testdata", basename)
+	buf := ReadJSON(t, basename)
 
-	log := logrus.New()
-	log.Level = logrus.DebugLevel
-
-	buf, err := ioutil.ReadFile(path)
-	require.NoError(t, err)
+	log := Log()
 
 	config, err := config.Parse(log, Emitter(), t.Name(), buf)
 	require.NoError(t, err)
@@ -70,4 +73,14 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(ephemerald.Pool)) {
 	if fn != nil {
 		fn(pool)
 	}
+}
+
+func ReadJSON(t *testing.T, fpath string) []byte {
+	buf, err := ioutil.ReadFile(path.Join("_testdata", fpath))
+	require.NoError(t, err, fpath)
+	if path.Ext(fpath) == ".yaml" {
+		buf, err = yaml.YAMLToJSON(buf)
+		require.NoError(t, err, fpath)
+	}
+	return buf
 }

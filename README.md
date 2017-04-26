@@ -42,7 +42,7 @@ development machines.
 To run the server, supply a configuration file:
 
 ```sh
-$ ephemerald -c config.json
+$ ephemerald -c config.yaml
 ```
 
 Press Q to quit the server.
@@ -61,53 +61,43 @@ Note: use Ctrl-C to stop the server wen not in `--ui tui` mode (`SIGINT`,`SIGQUI
 For example, to see only log messages (at debug level) use:
 
 ```sh
-$ ephememerald --ui none --log-level debug --log-file /dev/stdout -c config.json
+$ ephememerald --ui none --log-level debug --log-file /dev/stdout -c config.yaml
 ```
 
 ## Configuration
 
-Container pools are configured in a json file.  Each pool has options for the container parameters and
+Container pools are configured in a yaml (or json) file.  Each pool has options for the container parameters and
 for lifecycle actions.
 
 The following configuration creates a single pool called "pg" which maintains five containers from the "postgres" image and
 exposes port 5432 to clients.  See the [`params`](#params) and [`actions`](#lifecycle-actions) below for documentation on those fields.
 
-```json
-{
-  "pools": {
-    "pg": {
-      "image": "postgres",
-      "size": 5,
-      "port": 5432,
-      "params": {
-        "username": "postgres",
-        "password": "",
-        "database": "postgres",
-        "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
-      },
-      "actions": {
-        "healthcheck": {
-          "type": "postgres.ping",
-          "retries": 10,
-          "delay":   "50ms"
-        },
-        "initialize": {
-          "type":    "exec",
-          "path":    "make",
-          "args":    ["db:migrate"],
-          "env":     ["DATABASE_URL={{.Url}}"],
-          "timeout": "10s",
-        },
-        "reset": {
-          "type": "postgres.truncate"
-        }
-      }
-    }
-  }
-}
+```yaml
+pools:
+  pg:
+    image: postgres
+    size: 5
+    port: 5432
+    params:
+      username: postgres
+      database: postgres
+      url: postgres://{{.Username}}:@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
+    actions:
+      healthcheck:
+        type: postgres.ping
+        retries: 10
+        delay:   50ms
+      initialize:
+        type:    exec
+        path:    make
+        args:    [ 'db:migrate' ]
+        env:     [ 'DATABASE_URL={{.Url}}' ]
+        timeout: 10s
+      reset:
+        type: postgres.truncate
 ```
 
-See [example/config.json](_example/config.json) for a full working configuration.
+See [example/config.yaml](_example/config.yaml) for a full working configuration.
 
 ### Params
 
@@ -126,13 +116,10 @@ Database | The `database` field declared in `params`
 
 A `params` section for postgres may look like this:
 
-```json
-{
-  "username": "postgres",
-  "password": "",
-  "database": "postgres",
-  "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
-}
+```yaml
+username: postgres
+database: postgres
+url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
 ```
 
 ### Container
@@ -233,12 +220,10 @@ args | `[]` | values to be escaped with positional arguments in `command`.
 
 Example:
 
-```json
-{
-  "type": "postgres.exec",
-  "command": "INSERT INTO users (name) VALUES ($1)",
-  "args": "Robert'); DROP TABLE STUDENTS;--"
-}
+```yaml
+type:     postgres.exec
+command: 'INSERT INTO users (name) VALUES ($1)'
+args:    "Robert'); DROP TABLE STUDENTS;--"
 ```
 
 #### postgres.ping
@@ -365,7 +350,7 @@ $ make server example
 Run the example server and client in separate terminals
 
 ```sh
-$ ./ephemerald/ephemerald -f ./_example/config.json
+$ ./ephemerald/ephemerald -c _example/config.yaml
 ```
 
 ```sh
@@ -389,7 +374,7 @@ Download the [latest release](https://github.com/boz/ephemerald/releases/latest)
 ```sh
 $ release="https://github.com/boz/ephemerald/releases/download/v0.3.1/ephemerald_Linux_x86_64.tar.gz"
 $ curl -L "$release" | tar -C /tmp -zxv
-$ /tmp/ephemerald -c config.json
+$ /tmp/ephemerald -c config.yaml
 ```
 
 ### Homebrew

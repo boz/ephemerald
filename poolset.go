@@ -18,6 +18,8 @@ type PoolSet interface {
 	Stop() error
 }
 
+// ugh.
+
 type poolSet struct {
 	pools map[string]Pool
 	log   logrus.FieldLogger

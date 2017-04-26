@@ -1,10 +1,8 @@
 package lifecycle_test
 
 import (
-	"io/ioutil"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/testutil"
 	"github.com/stretchr/testify/assert"
@@ -12,35 +10,39 @@ import (
 )
 
 func TestParseManager_full(t *testing.T) {
+	ms := map[string]lifecycle.Manager{
+		"json": managerFromFile(t, "manager.full.json"),
+		"yaml": managerFromFile(t, "manager.full.yaml"),
+	}
 
-	buf, err := ioutil.ReadFile("_testdata/manager.full.json")
-	require.NoError(t, err)
+	for ext, m := range ms {
+		cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
 
-	log := logrus.New()
-	m := lifecycle.NewManager(log)
-
-	require.NoError(t, m.ParseConfig(buf))
-
-	cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
-
-	assert.True(t, cm.HasInitialize())
-	assert.True(t, cm.HasHealthcheck())
-	assert.True(t, cm.HasReset())
+		assert.True(t, cm.HasInitialize(), ext)
+		assert.True(t, cm.HasHealthcheck(), ext)
+		assert.True(t, cm.HasReset(), ext)
+	}
 }
 
 func TestParseManager_partial(t *testing.T) {
-	buf, err := ioutil.ReadFile("_testdata/manager.partial.json")
-	require.NoError(t, err)
+	ms := map[string]lifecycle.Manager{
+		"json": managerFromFile(t, "manager.partial.json"),
+		"yaml": managerFromFile(t, "manager.partial.yaml"),
+	}
 
-	log := logrus.New()
+	for ext, m := range ms {
+		cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
+		assert.True(t, cm.HasInitialize(), ext)
+		assert.False(t, cm.HasHealthcheck(), ext)
+		assert.False(t, cm.HasReset(), ext)
+	}
+}
+
+func managerFromFile(t *testing.T, fpath string) lifecycle.Manager {
+	buf := testutil.ReadJSON(t, fpath)
+	log := testutil.Log()
 
 	m := lifecycle.NewManager(log)
-
 	require.NoError(t, m.ParseConfig(buf))
-
-	cm := m.ForContainer(testutil.ContainerEmitter(), testutil.CID())
-
-	assert.True(t, cm.HasInitialize())
-	assert.False(t, cm.HasHealthcheck())
-	assert.False(t, cm.HasReset())
+	return m
 }
