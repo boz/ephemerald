@@ -57,9 +57,9 @@ func (sb *ServerBuilder) Create() (*Server, error) {
 	r := mux.NewRouter()
 
 	r.HandleFunc(rpcCheckoutPath, server.handleCheckoutBatch).
-		Methods("PUT")
+		Methods("POST")
 	r.HandleFunc(rpcCheckoutPath+"/{pool}", server.handleCheckoutPool).
-		Methods("PUT")
+		Methods("POST")
 
 	r.HandleFunc(rpcReturnPath, server.handleReturnBatch).
 		Headers("Content-Type", rpcContentType).

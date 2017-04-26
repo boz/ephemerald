@@ -43,7 +43,7 @@ func (b *ClientBuilder) Create() (*Client, error) {
 func (c *Client) CheckoutBatch(names ...string) (params.Set, error) {
 	ps := params.Set{}
 
-	req, err := http.NewRequest("PUT", c.url(rpcCheckoutPath), &bytes.Buffer{})
+	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath), &bytes.Buffer{})
 	if err != nil {
 		return ps, err
 	}
@@ -64,7 +64,7 @@ func (c *Client) CheckoutBatch(names ...string) (params.Set, error) {
 func (c *Client) Checkout(name string) (params.Params, error) {
 	params := params.Params{}
 
-	req, err := http.NewRequest("PUT", c.url(rpcCheckoutPath, name), &bytes.Buffer{})
+	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath, name), &bytes.Buffer{})
 	if err != nil {
 		return params, err
 	}

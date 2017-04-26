@@ -279,11 +279,11 @@ There is a REST API for clients to checkout and return items from one or more po
 
 ### Checkout
 
-`PUT /checkout/{pool}` checks out an instance from the given pool and returns
+`POST /checkout/{pool}` checks out an instance from the given pool and returns
 that instance's parameters:
 
 ```sh
-$ curl -s -XPUT localhost:6000/checkout/postgres | jq
+$ curl -s -XPOST localhost:6000/checkout/postgres | jq
 {
   "id":"8482c266192f013346d03f71b2aa6d4b647909e3502ac525039bdd0fe9fcac30",
   "hostname":"localhost",
@@ -304,10 +304,10 @@ $ curl -s -XDELETE localhost:6000/return/postgres/8482c266192f013346d03f71b2aa6d
 
 ### Batch Checkout
 
-`PUT /checkout` checks out an instance from every configured pool.
+`POST /checkout` checks out an instance from every configured pool.
 
 ```sh
-$ curl -s -XPUT localhost:6000/checkout | tee checkout.json | jq
+$ curl -s -XPOST localhost:6000/checkout | tee checkout.json | jq
 {
   "postgres": {
     "id": "2dedf5dbe9cc8d7a0cd71ed75455c7310db79aea44925562b82c01b959d85e7e",
