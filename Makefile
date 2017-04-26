@@ -16,4 +16,7 @@ server:
 example:
 	(cd example && go build)
 
+release:
+	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser
+
 .PHONY: build test vet server example

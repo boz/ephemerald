@@ -134,7 +134,7 @@ func createTuiApp(shutdownch chan bool) (*views.Application, *tuiWindow) {
 	keybar.SetLeft("%N[%AQ%N] Quit")
 
 	keybar.RegisterRightStyle('N', kbstyle)
-	keybar.SetRight(fmt.Sprintf("%%NEphemerald %v", version.Version))
+	keybar.SetRight(fmt.Sprintf("%%NEphemerald %v", version.Version()))
 
 	app := &views.Application{}
 

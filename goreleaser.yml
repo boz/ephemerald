@@ -1,0 +1,13 @@
+build:
+  main: ephemerald/main.go
+  binary: ephemerald
+  goos:
+    - darwin
+    - linux
+  goarch:
+    - amd64
+
+  ldflags: -s -w -X github.com/boz/ephemerald/version.version={{.Version}} -X github.com/boz/ephemerald/version.commit={{.Commit}} -X github.com/boz/ephemerald/version.date={{.Date}}
+
+release:
+  draft: true
