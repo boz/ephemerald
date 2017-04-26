@@ -40,15 +40,57 @@ func main() {
 			secs := time.Duration(rand.Intn(5)) * time.Second
 			time.Sleep(secs)
 
-			items, err := client.Checkout()
-			if err != nil {
-				log.WithError(err).Error("checkout")
-				return
+			var redisUrl string
+			var pgUrl string
+
+			if i%2 == 0 {
+				// multi checkout
+				items, err := client.CheckoutBatch()
+				if err != nil {
+					log.WithError(err).Error("checkout multi")
+					return
+				}
+				defer func() {
+					if err := client.ReturnBatch(items); err != nil {
+						log.WithError(err).Error("return multi")
+					}
+				}()
+
+				pgUrl = items["postgres"].Url
+				redisUrl = items["redis"].Url
+
+			} else {
+				// single checkout
+
+				rparam, err := client.Checkout("redis")
+				if err != nil {
+					log.WithError(err).Error("checkout redis")
+					return
+				}
+				defer func() {
+					if err := client.Return("redis", rparam); err != nil {
+						log.WithError(err).Error("return redis")
+					}
+				}()
+
+				redisUrl = rparam.Url
+
+				pgparam, err := client.Checkout("postgres")
+				if err != nil {
+					log.WithError(err).Error("checkout postgres")
+					return
+				}
+				defer func() {
+					if err := client.Return("postgres", rparam); err != nil {
+						log.WithError(err).Error("return postgres")
+					}
+				}()
+
+				pgUrl = pgparam.Url
 			}
-			defer client.Return(items)
 
 			// connect to redis instance
-			rconn, err := redis.DialURL(items["redis"].Url)
+			rconn, err := redis.DialURL(redisUrl)
 			if err != nil {
 				log.WithError(err).Error("dialing redis")
 				return
@@ -56,7 +98,7 @@ func main() {
 			defer rconn.Close()
 
 			// connect to pg
-			pconn, err := sql.Open("postgres", items["postgres"].Url)
+			pconn, err := sql.Open("postgres", pgUrl)
 			if err != nil {
 				log.WithError(err).Error("dialing postgres")
 				return

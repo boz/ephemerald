@@ -1,31 +1,7 @@
 {
   "pools": {
-    "postgres": {
-      "size": 2,
-      "image": "postgres",
-      "port": 5432,
-      "params": {
-        "username": "postgres",
-        "password": "",
-        "database": "postgres",
-        "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
-      },
-      "actions": {
-        "initialize": {
-          "type": "postgres.exec",
-          "query": "create table users (id serial primary key, name varchar(255), unique(name))"
-        },
-        "healthcheck": {
-          "type": "postgres.ping",
-          "retries": 20
-        },
-        "reset": {
-          "type": "postgres.truncate"
-        }
-      }
-    },
     "redis": {
-      "size": 2,
+      "size": 1,
       "image": "redis",
       "port": 6379,
       "params": {
@@ -33,9 +9,6 @@
         "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
       },
       "actions": {
-        "initialize": {
-          "type": "redis.exec"
-        },
         "healthcheck": {
           "type": "redis.ping"
         },

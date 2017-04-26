@@ -2,8 +2,6 @@ package net_test
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -17,7 +15,6 @@ import (
 	"github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/params"
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,48 +55,36 @@ func TestClientServer(t *testing.T) {
 		Create()
 	require.NoError(t, err)
 
-	pset, err := client.Checkout()
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, client.Return(pset))
+	func() {
+		pset, err := client.CheckoutBatch()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, client.ReturnBatch(pset))
+		}()
+
+		rparam, ok := pset["redis"]
+		require.True(t, ok)
+		doTestOperation(t, rparam, "multi")
 	}()
 
-	doTestOperation(t, pset, "main")
-
-	for i := 0; i < 1; i++ {
-		func(count int) {
-			pset, err := client.Checkout()
-			require.NoError(t, err)
-			defer func() {
-				assert.NoError(t, client.Return(pset))
-			}()
-			doTestOperation(t, pset, fmt.Sprintf("child %v", count))
-		}(i)
-	}
+	func() {
+		rparam, err := client.Checkout("redis")
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, client.Return("redis", rparam))
+		}()
+		doTestOperation(t, rparam, "single")
+	}()
 }
 
-func doTestOperation(t *testing.T, pset params.Set, message string) {
-	rparam, ok := pset["redis"]
-	require.True(t, ok, message)
+func doTestOperation(t *testing.T, rparam params.Params, message string) {
 	require.NotNil(t, rparam, message)
 	require.NotEmpty(t, rparam.Url, message)
-
-	pgparam, ok := pset["postgres"]
-	require.True(t, ok, message)
-	require.NotNil(t, pgparam, message)
-	require.NotEmpty(t, pgparam.Url, message)
 
 	rdb, err := redigo.DialURL(rparam.Url)
 	require.NoError(t, err, message)
 	defer rdb.Close()
 
-	pg, err := sql.Open("postgres", pgparam.Url)
-	require.NoError(t, err, message)
-	defer pg.Close()
-
 	_, err = rdb.Do("PING")
-	require.NoError(t, err, message)
-
-	err = pg.Ping()
 	require.NoError(t, err, message)
 }

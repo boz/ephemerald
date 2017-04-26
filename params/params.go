@@ -19,10 +19,10 @@ const (
 // hard-code parameters and url generation for now.
 
 type Config struct {
-	Username string
-	Password string
-	Database string
-	Url      string
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Database string `json:"database,omitempty"`
+	Url      string `json:"url,omitempty"`
 
 	urlTemplate *template.Template
 }
@@ -54,9 +54,9 @@ func (c Config) ParamsFor(id string, status types.ContainerJSON, port int) (Para
 }
 
 type Params struct {
-	Id       string
-	Hostname string
-	Port     string
+	Id       string `json:"id"`
+	Hostname string `json:"hostname"`
+	Port     string `json:"port"`
 	Config
 }
 

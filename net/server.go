@@ -12,11 +12,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const (
-	DefaultPort    = 6000
-	DefaultAddress = ":6000"
-)
-
 type Server struct {
 	l   *net.TCPListener
 	srv *http.Server
@@ -33,7 +28,7 @@ type ServerBuilder struct {
 
 func NewServerBuilder() *ServerBuilder {
 	return &ServerBuilder{
-		address: DefaultAddress,
+		address: DefaultListenAddress,
 	}
 }
 
@@ -61,11 +56,16 @@ func (sb *ServerBuilder) Create() (*Server, error) {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc(rpcCheckoutName, server.handleCheckout).
+	r.HandleFunc(rpcCheckoutPath, server.handleCheckoutBatch).
+		Methods("PUT")
+	r.HandleFunc(rpcCheckoutPath+"/{pool}", server.handleCheckoutPool).
 		Methods("PUT")
 
-	r.HandleFunc(rpcReturnName, server.handleReturn).
-		Methods("PUT")
+	r.HandleFunc(rpcReturnPath, server.handleReturnBatch).
+		Headers("Content-Type", rpcContentType).
+		Methods("DELETE")
+	r.HandleFunc(rpcReturnPath+"/{pool}/{id}", server.handleReturn).
+		Methods("DELETE")
 
 	l, err := net.Listen("tcp", sb.address)
 	if err != nil {
@@ -109,8 +109,12 @@ func (s *Server) stopPools() {
 	s.pools.Stop()
 }
 
-func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request) {
-	host, _, _ := net.SplitHostPort(r.Host)
+func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+		return
+	}
 
 	ps, err := s.pools.CheckoutWith(r.Context())
 
@@ -132,17 +136,61 @@ func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request) {
 	buf, err := json.Marshal(ps)
 	if err != nil {
 		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		s.pools.ReturnAll(ps)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/json; charset=utf-8")
-
+	w.Header().Set("Content-Type", rpcContentType)
 	w.Write(buf)
 }
 
-func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+		return
+	}
+
+	poolName := mux.Vars(r)["pool"]
+	if poolName == "" {
+		http.Error(w, "Invalid pool name", http.StatusBadRequest)
+		return
+	}
+
+	ps, err := s.pools.CheckoutWith(r.Context(), poolName)
+	if err != nil {
+		s.pools.ReturnAll(ps)
+		http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+		return
+	}
+
+	params, ok := ps[poolName]
+	if !ok {
+		s.pools.ReturnAll(ps)
+		http.Error(w, "Pool not found", http.StatusInternalServerError)
+		return
+	}
+
+	params, err = params.ForHost(host)
+	if err != nil {
+		s.pools.ReturnAll(ps)
+		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		return
+	}
+
+	buf, err := json.Marshal(params)
+	if err != nil {
+		s.pools.ReturnAll(ps)
+		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", rpcContentType)
+	w.Write(buf)
+}
+
+func (s *Server) handleReturnBatch(w http.ResponseWriter, r *http.Request) {
 	ps := params.Set{}
-	defer r.Body.Close()
+
 	dec := json.NewDecoder(r.Body)
 
 	if err := dec.Decode(&ps); err != nil {
@@ -150,5 +198,32 @@ func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.pools.ReturnAll(ps)
+
+	w.Header().Set("Content-Type", rpcContentType)
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
+	pool := mux.Vars(r)["pool"]
+	if pool == "" {
+		http.Error(w, "Invalid pool name", http.StatusBadRequest)
+		return
+	}
+
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	s.pools.Return(pool, itemID(id))
+
+	w.Header().Set("Content-Type", rpcContentType)
+	w.WriteHeader(http.StatusOK)
+}
+
+type itemID string
+
+func (i itemID) ID() string {
+	return string(i)
 }
