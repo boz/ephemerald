@@ -14,9 +14,12 @@ server:
 	(cd ephemerald && go build)
 
 example:
-	(cd example && go build)
+	(cd _example && go build -o example)
+
+clean:
+	rm _example/example ephemerald/ephemerald || true 2>/dev/null
 
 release:
 	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser
 
-.PHONY: build test vet server example
+.PHONY: build test vet server example release clean

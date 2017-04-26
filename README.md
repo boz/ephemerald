@@ -35,13 +35,13 @@ $ make server example
 To run the server, supply a configuration file:
 
 ```sh
-$ ./ephemerald/ephemerald -f ./example/config.json
+$ ./ephemerald/ephemerald -f ./_example/config.json
 ```
 
-Run the [example client](example/main.go) in another terminal
+Run the [example client](_example/main.go) in another terminal
 
 ```sh
-$ ./example/example
+$ ./_example/example
 ```
 
 Press Ctrl-C to quit the server.
@@ -89,7 +89,7 @@ exposes port 5432 to clients.  See the [`params`](#params) and [`actions`](#life
 }
 ```
 
-See [example/config.json](example/config.json) for a full working configuration.
+See [example/config.json](_example/config.json) for a full working configuration.
 
 ### Params
 
