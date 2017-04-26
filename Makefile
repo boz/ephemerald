@@ -20,7 +20,7 @@ install:
 	go install ./ephemerald
 
 clean:
-	rm _example/example ephemerald/ephemerald || true 2>/dev/null
+	rm _example/example ephemerald/ephemerald 2>/dev/null || true
 
 release:
 	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser
