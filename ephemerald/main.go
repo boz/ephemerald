@@ -20,25 +20,25 @@ import (
 )
 
 var (
-	listenPort = kingpin.Flag("port", "Listen port").Short('p').
+	listenPort = kingpin.Flag("port", "Listen port. Default: "+strconv.Itoa(net.DefaultPort)).Short('p').
 			Default(strconv.Itoa(net.DefaultPort)).
 			Int()
 
-	configFile = kingpin.Flag("config", "config file").Short('f').
+	configFile = kingpin.Flag("config", "config file").Short('c').
 			Required().
 			File()
 
-	logLevel = kingpin.Flag("log-level", "Log level").
+	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
 			Default("info").
-			Enum("debug", "info", "error", "warn")
+			Enum("debug", "info", "warn", "error")
 
-	logFile = kingpin.Flag("log-file", "Log file").
+	logFile = kingpin.Flag("log-file", "Log file.  Default: /dev/null").
 		Default("/dev/null").
 		OpenFile(os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 
-	useGUI = kingpin.Flag("gui", "terminal gui output").
-		Default("true").
-		Bool()
+	uiType = kingpin.Flag("ui", "UI type (tui, stream, or none). Default: tui").
+		Default("tui").
+		Enum("tui", "stream", "none")
 )
 
 func main() {
@@ -57,10 +57,13 @@ func main() {
 
 	var appui ui.UI
 
-	if *useGUI {
+	switch *uiType {
+	case "tui":
 		appui, err = ui.NewTUI(uishutdown)
-	} else {
+	case "stream":
 		appui, err = ui.NewIOUI(os.Stdout)
+	default:
+		appui = ui.NewNoopUI()
 	}
 	kingpin.FatalIfError(err, "Can't start UI")
 

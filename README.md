@@ -4,7 +4,11 @@ Ephemerald manages pools of short-lived servers to be used for testing purposes.
 
 [![asciicast](https://asciinema.org/a/117629.png)](https://asciinema.org/a/117629)
 
-Ephemerald has [REST API](#api) for accessing server instances from any language and comes with a built-in [go client](net/client.go). See the [examples](_example/) directory for example configurations and client usage.
+It has [REST API](#api) for accessing server instances from any language and comes with a built-in [go client](net/client.go). See the [examples](_example/) directory for example configurations and client usage.
+
+The ephemerald server can run on a remote host; container connection parameters are rewritten so that the client
+connects to the right place.  This way ephemerald can run on a large server and be used from less powerful
+development machines.
 
 * [Running](#running)
 * [Configuration](#building)
@@ -38,10 +42,27 @@ Ephemerald has [REST API](#api) for accessing server instances from any language
 To run the server, supply a configuration file:
 
 ```sh
-$ ephemerald -f config.json
+$ ephemerald -c config.json
 ```
 
-Press Ctrl-C to quit the server.
+Press Q to quit the server.
+
+### Flags
+
+ * `--help` print help message.
+ * `-p <port>` changes the listen port.  Defaults to 6000
+ * `--ui stream` will dump the event steam to the console in lieu of a curses-esque UI.
+ * `--ui none` will not print any UI information (useful with `--log-file /dev/stdout`)
+ * `--log-file <path>` write logs to file at `path`.  Defaults to `/dev/null`
+ * `--log-level <level>` log level.  defaults to `info`.  Options are `debug`,`info`,`warn`,`error`
+
+Note: use Ctrl-C to stop the server wen not in `--ui tui` mode (`SIGINT`,`SIGQUIT` always work too)
+
+For example, to see only log messages (at debug level) use:
+
+```sh
+$ ephememerald --ui none --log-level debug --log-file /dev/stdout -c config.json
+```
 
 ## Configuration
 
