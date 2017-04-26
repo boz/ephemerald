@@ -16,6 +16,9 @@ server:
 example:
 	(cd _example && go build -o example)
 
+install:
+	go install ./ephemerald
+
 clean:
 	rm _example/example ephemerald/ephemerald || true 2>/dev/null
 

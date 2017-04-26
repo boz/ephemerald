@@ -1,11 +1,12 @@
 # ephemerald
 
-Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests which make use of (postgres, redis, vault) databases.
+Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests.
 
 [![asciicast](https://asciinema.org/a/117629.png)](https://asciinema.org/a/117629)
 
-* [Building](#building)
-* [Running](#building)
+Ephemerald has [REST API](#api) for accessing server instances from any language and comes with a built-in [go client](net/client.go). See the [examples](_example/) directory for example configurations and client usage.
+
+* [Running](#running)
 * [Configuration](#building)
   * [Params](#params)
   * [Container](#container)
@@ -20,28 +21,24 @@ Ephemerald manages pools of short-lived servers to be used for testing purposes.
     * [redis.exec](#redisexec)
     * [redis.ping](#redisping)
     * [redis.truncate](#redistruncate)
+* [API](#api)
+  * [Checkout](#checkout)
+  * [Return](#return)
+  * [Batch Checkout](#batch-checkout)
+  * [Batch Return](#batch-return)
+* [Building](#building)
+* [Installing](#installing)
+  * [Homebrew](#homebrew)
+  * [Binary](#binary)
+  * [Source](#source)
 * [TODO](#todo)
-
-## Building
-
-```sh
-$ govendor get -d github.com/boz/ephemerald/...
-$ cd $GOPATH/src/github.com/boz/ephemerald
-$ make server example
-```
 
 ## Running
 
 To run the server, supply a configuration file:
 
 ```sh
-$ ./ephemerald/ephemerald -f ./_example/config.json
-```
-
-Run the [example client](_example/main.go) in another terminal
-
-```sh
-$ ./_example/example
+$ ephemerald -f config.json
 ```
 
 Press Ctrl-C to quit the server.
@@ -255,13 +252,138 @@ This is an alias for `redis.exec`.
 
 This is an alias for `redis.exec` with a default command of `"FLUSHALL"`.
 
-### TODO
+## API
+
+There is a REST API for clients to checkout and return items from one or more pools.
+
+### Checkout
+
+`PUT /checkout/{pool}` checks out an instance from the given pool and returns
+that instance's parameters:
+
+```sh
+$ curl -s -XPUT localhost:6000/checkout/postgres | jq
+{
+  "id":"8482c266192f013346d03f71b2aa6d4b647909e3502ac525039bdd0fe9fcac30",
+  "hostname":"localhost",
+  "port":"34031",
+  "username":"postgres",
+  "database":"postgres",
+  "url":"postgres://postgres:@localhost:34031/postgres?sslmode=disable"
+}
+```
+
+### Return
+
+`DELETE /return/{pool}/{id}` returns the instance given by `id` to the pool `pool`:
+
+```sh
+$ curl -s -XDELETE localhost:6000/return/postgres/8482c266192f013346d03f71b2aa6d4b647909e3502ac525039bdd0fe9fcac30
+```
+
+### Batch Checkout
+
+`PUT /checkout` checks out an instance from every configured pool.
+
+```sh
+$ curl -s -XPUT localhost:6000/checkout | tee checkout.json | jq
+{
+  "postgres": {
+    "id": "2dedf5dbe9cc8d7a0cd71ed75455c7310db79aea44925562b82c01b959d85e7e",
+    "hostname": "localhost",
+    "port": "34023",
+    "username": "postgres",
+    "database": "postgres",
+    "url": "postgres://postgres:@localhost:34023/postgres?sslmode=disable"
+  },
+  "redis": {
+    "id": "a8dbf5043c7145510f48ccffa6f1e20b9f2c8140dda73d567a29dc2ec823ca46",
+    "hostname": "localhost",
+    "port": "34019",
+    "database": "0",
+    "url": "redis://localhost:34019/0"
+  },
+  "vault": {
+    "id": "11f4752d5e0b762c65b05809c9500a6e0a20ee4a79b861638a084adf77dbfb78",
+    "hostname": "localhost",
+    "port": "34021",
+    "url": "http://localhost:34021"
+  }
+}
+```
+
+### Batch Return
+
+`DELETE /return` returns multiple instances at once.  Meant to be used with [batch checkout](#batch-checkout).
+
+```sh
+$ cat checkout.json
+{
+  "postgres": {
+    "id": "2dedf5dbe9cc8d7a0cd71ed75455c7310db79aea44925562b82c01b959d85e7e"
+  },
+  "redis": {
+    "id": "a8dbf5043c7145510f48ccffa6f1e20b9f2c8140dda73d567a29dc2ec823ca46"
+  },
+  "vault": {
+    "id": "11f4752d5e0b762c65b05809c9500a6e0a20ee4a79b861638a084adf77dbfb78"
+  }
+}
+$ curl -XDELETE -H'Content-Type: application/json' -d @checkout.json localhost:6000/return
+```
+
+Note that the complete response from [batch checkout](#batch-checkout) may be sent.  The only requirement is the `id` field for each pool instance.
+
+## Building
+
+```sh
+$ govendor get -d github.com/boz/ephemerald/...
+$ cd $GOPATH/src/github.com/boz/ephemerald
+$ make server example
+```
+Run the example server and client in separate terminals
+
+```sh
+$ ./ephemerald/ephemerald -f ./_example/config.json
+```
+
+```sh
+$ ./_example/example
+```
+
+## Installing
+
+### Source
+
+Follow the [building](#building) steps then run `make install`:
+
+```sh
+$ make install
+```
+
+### Binary
+
+Download the [latest release](https://github.com/boz/ephemerald/releases/latest) for your system.  Unpack the archive and put the binary in your path.
+
+```sh
+$ release="https://github.com/boz/ephemerald/releases/download/v0.3.1/ephemerald_Linux_x86_64.tar.gz"
+$ curl -L "$release" | tar -C /tmp -zxv
+$ /tmp/ephemerald -c config.json
+```
+
+### Homebrew
+
+```
+$ brew install boz/repo/ephemerald
+```
+
+## TODO
 
  * Configuration
    * Current parsing is a disaster
    * Allow yaml
    * Allow built-in defaults (postgres, redis, etc...)
- * Polish/Optimize/Cleanup UI.
+ * Polish/Optimize/Cleanup/Refactor UI.
  * Re-add remote actions (websockets API)
  * Clients: nodejs, ruby, python, etc...
  * Documentation
