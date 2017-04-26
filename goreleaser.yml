@@ -10,4 +10,11 @@ build:
   ldflags: -s -w -X github.com/boz/ephemerald/version.version={{.Version}} -X github.com/boz/ephemerald/version.commit={{.Commit}} -X github.com/boz/ephemerald/version.date={{.Date}}
 
 release:
-  draft: true
+  draft: false
+
+brew:
+  github:
+    owner: boz
+    name: homebrew-repo
+  homepage: "https://github.com/boz/ephemerald"
+  description: "Manage ephemeral docker containers for parallel testing."
