@@ -1,23 +1,25 @@
+GOCMD := GO111MODULE=on go
+
 build:
-	govendor build +local
+	$(GOCMD) build ./...
 
 test:
-	govendor test +local -race
+	$(GOCMD) test ./...
 
 vet:
-	govendor vet +local
+	$(GOCMD) vet ./...
 
 lint:
 	govendor list +local | awk '{ print $$2 }' | xargs golint
 
 server:
-	(cd ephemerald && go build)
+	(cd ephemerald && $(GOCMD) build)
 
 example:
-	(cd _example && go build -o example)
+	(cd _example && $(GOCMD) build -o example)
 
 install:
-	go install ./ephemerald
+	$(GOCMD) install ./ephemerald
 
 clean:
 	rm _example/example ephemerald/ephemerald 2>/dev/null || true
