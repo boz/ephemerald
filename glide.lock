@@ -1,5 +1,5 @@
-hash: 754d60e88215c88df1e4dfa3257faf1628d4e6ec46cf9ce530037a26029af52d
-updated: 2019-04-08T14:06:14.240981-07:00
+hash: e5e3c658ae670b9d65645c395cd0610473a36237ad7009318dcbe2db1dc13f85
+updated: 2019-04-08T16:03:53.543437-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -15,6 +15,8 @@ imports:
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
+- name: github.com/boz/go-lifecycle
+  version: 306f43893d07fc208f048b72d0f6a3b25a3b3418
 - name: github.com/boz/go-throttle
   version: fdc4eab740c14b7be4fcbcb300a9aaebf716fde5
 - name: github.com/buger/jsonparser

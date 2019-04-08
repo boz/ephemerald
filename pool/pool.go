@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/go-lifecycle"
 )
 
@@ -19,17 +20,25 @@ type Pool interface {
 }
 
 func Create(ctx context.Context) Pool {
-	return &pool{
+	p := &pool{
 		readych: make(chan struct{}),
+		config:  config{},
 		ctx:     ctx,
 		lc:      lifecycle.New(),
 	}
+
+	go p.lc.WatchContext(ctx)
+	go p.run()
+
+	return p
 }
 
 type pool struct {
-	readych chan struct{}
-	ctx     context.Context
-	lc      lifecycle.Lifecycle
+	config    config
+	scheduler scheduler.Scheduler
+	readych   chan struct{}
+	ctx       context.Context
+	lc        lifecycle.Lifecycle
 }
 
 func (p *pool) Ready() <-chan struct{} {
@@ -50,4 +59,22 @@ func (p *pool) Shutdown() {
 
 func (p *pool) Done() <-chan struct{} {
 	return p.lc.Done()
+}
+
+func (p *pool) run() {
+	defer p.lc.ShutdownCompleted()
+
+	go func() {
+		img, err := p.scheduler.ResolveImage(p.ctx, p.config.imageName)
+	}()
+
+loop:
+	for {
+		select {
+		case err := <-p.lc.ShutdownRequest():
+			p.lc.ShutdownInitiated(err)
+			break loop
+		}
+	}
+
 }

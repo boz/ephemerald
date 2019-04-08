@@ -45,3 +45,5 @@ import:
   - require
 - package: gopkg.in/alecthomas/kingpin.v2
   version: ^2.2.6
+- package: github.com/boz/go-lifecycle
+  version: ^0.1.0
