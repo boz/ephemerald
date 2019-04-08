@@ -1,16 +1,16 @@
-GOCMD := GO111MODULE=on go
+GOCMD := GO111MODULE=auto go
 
 build:
 	$(GOCMD) build ./...
+
+deps:
+	glide install -v
 
 test:
 	$(GOCMD) test ./...
 
 vet:
 	$(GOCMD) vet ./...
-
-lint:
-	govendor list +local | awk '{ print $$2 }' | xargs golint
 
 server:
 	(cd ephemerald && $(GOCMD) build)
@@ -27,4 +27,4 @@ clean:
 release:
 	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser
 
-.PHONY: build test vet server example release clean
+.PHONY: build deps test vet server example release clean

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
 	"github.com/docker/distribution/reference"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/nat"
+	"github.com/sirupsen/logrus"
 )
 
 type dockerAdapter interface {
@@ -110,7 +110,7 @@ func (a *dadapter) imageExists() (bool, error) {
 	switch {
 	case err == nil:
 		return true, nil
-	case client.IsErrImageNotFound(err):
+	case client.IsErrNotFound(err):
 		return false, nil
 	default:
 		a.log.WithError(err).

@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/docker/docker/api/types"
+	"github.com/sirupsen/logrus"
 )
 
 type poolItemEvent string

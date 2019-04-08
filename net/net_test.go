@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald"
+	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"

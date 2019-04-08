@@ -1,9 +1,9 @@
 package ephemerald
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/ui"
+	"github.com/sirupsen/logrus"
 )
 
 type poolItemSpawner interface {

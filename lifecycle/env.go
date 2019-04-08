@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type Env interface {

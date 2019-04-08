@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/docker/docker/api/types"
+	"github.com/sirupsen/logrus"
 )
 
 var (

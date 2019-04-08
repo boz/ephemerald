@@ -1,6 +1,6 @@
 package: github.com/boz/ephemerald
 import:
-- package: github.com/Sirupsen/logrus
+- package: github.com/sirupsen/logrus
   version: ^1.4.1
 - package: github.com/boz/go-throttle
 - package: github.com/buger/jsonparser

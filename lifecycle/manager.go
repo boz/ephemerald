@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
+	"github.com/sirupsen/logrus"
 )
 
 var (

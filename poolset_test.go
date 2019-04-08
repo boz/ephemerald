@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/ui"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

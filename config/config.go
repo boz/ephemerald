@@ -8,12 +8,12 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
 	"github.com/ghodss/yaml"
+	"github.com/sirupsen/logrus"
 )
 
 const (

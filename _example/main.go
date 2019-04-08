@@ -12,9 +12,9 @@ import (
 	_ "github.com/boz/ephemerald/builtin/redis"
 	_ "github.com/lib/pq"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/net"
 	"github.com/garyburd/redigo/redis"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
+	"github.com/sirupsen/logrus"
 )
 
 type PoolSet interface {

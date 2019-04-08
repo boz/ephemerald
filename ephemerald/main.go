@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/ui"
+	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
