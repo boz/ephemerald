@@ -1,0 +1,47 @@
+package: github.com/boz/ephemerald
+import:
+- package: github.com/Sirupsen/logrus
+  version: ^1.4.1
+- package: github.com/boz/go-throttle
+- package: github.com/buger/jsonparser
+- package: github.com/docker/distribution
+  version: ^2.7.1
+  subpackages:
+  - reference
+- package: github.com/docker/docker
+  version: ^v18.09.4
+  repo: git@github.com:docker/engine.git
+  subpackages:
+  - api/types
+  - api/types/container
+  - api/types/events
+  - api/types/filters
+  - api/types/network
+  - api/types/strslice
+  - client
+  - registry
+- package: github.com/docker/go-connections
+  version: ^0.4.0
+  subpackages:
+  - nat
+- package: github.com/garyburd/redigo
+  version: ^1.6.0
+  subpackages:
+  - redis
+- package: github.com/gdamore/tcell
+  version: ^1.1.1
+  subpackages:
+  - views
+- package: github.com/ghodss/yaml
+  version: ^1.0.0
+- package: github.com/gorilla/mux
+  version: ^1.7.1
+- package: github.com/lib/pq
+  version: ^1.0.0
+- package: github.com/stretchr/testify
+  version: ^1.3.0
+  subpackages:
+  - assert
+  - require
+- package: gopkg.in/alecthomas/kingpin.v2
+  version: ^2.2.6
