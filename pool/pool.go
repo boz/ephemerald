@@ -5,8 +5,10 @@ import (
 	"errors"
 
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/go-lifecycle"
+	"github.com/docker/distribution/reference"
 )
 
 type Pool interface {
@@ -64,17 +66,58 @@ func (p *pool) Done() <-chan struct{} {
 func (p *pool) run() {
 	defer p.lc.ShutdownCompleted()
 
-	go func() {
-		img, err := p.scheduler.ResolveImage(p.ctx, p.config.imageName)
-	}()
+	_, err := p.resolveImage()
+	if err != nil {
+		p.lc.ShutdownInitiated(err)
+		return
+	}
 
 loop:
 	for {
+
+		// create containers
+		// for i := len(containers); i < 10; i++ {
+		// }
+		// for len(containers) < 10 {
+		// }
+
 		select {
 		case err := <-p.lc.ShutdownRequest():
 			p.lc.ShutdownInitiated(err)
 			break loop
+
+		case cid := <-creadych:
+			// container ready
+
+		case cid := <-cdonech:
+			// container done
+
+		case req := <-ccheckoutch:
+			// container checkout
+
+		case cid := <-creleasech:
+			// container release
 		}
+	}
+}
+
+func (p *pool) resolveImage() (reference.Canonical, error) {
+	ctx, cancel := context.WithCancel(p.ctx)
+
+	refch := runner.Do(func() runner.Result {
+		return runner.NewResult(p.scheduler.ResolveImage(ctx, p.config.imageName))
+	})
+
+	select {
+	case err := <-p.lc.ShutdownRequest():
+		cancel()
+		<-refch
+		return nil, err
+	case result := <-refch:
+		if result.Err() != nil {
+			return nil, result.Err()
+		}
+		return result.Value().(reference.Canonical), nil
 	}
 
 }
