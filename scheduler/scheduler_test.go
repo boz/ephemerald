@@ -12,9 +12,11 @@ func Test_Scheduler_ResolveImage(t *testing.T) {
 
 	s := scheduler.New()
 
-	obj, err := s.ResolveImage(context.Background(), "nginx:latest")
+	ref, err := s.ResolveImage(context.Background(), "nginx:latest")
 	assert.NoError(t, err)
-	t.Logf("%#v\n", obj)
+	assert.Equal(t, "docker.io/library/nginx", ref.Name())
+
+	// t.Logf("%#v\n", obj)
 
 	// t.Log(obj.Name())
 	// nginx        -> docker.io/library/nginx

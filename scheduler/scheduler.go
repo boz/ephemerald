@@ -53,6 +53,7 @@ func (s *scheduler) ResolveImage(ctx context.Context, name string) (reference.Ca
 	if err != nil {
 		return nil, nil
 	}
+	defer body.Close()
 
 	if _, err := ioutil.ReadAll(body); err != nil {
 		return nil, err
