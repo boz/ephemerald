@@ -7,6 +7,7 @@ import (
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/scheduler"
+	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
 	"github.com/docker/distribution/reference"
 )
@@ -21,8 +22,15 @@ type Pool interface {
 	Done() <-chan struct{}
 }
 
-func Create(ctx context.Context) Pool {
+func Create(ctx context.Context) (Pool, error) {
+
+	id, err := types.NewID()
+	if err != nil {
+		return nil, err
+	}
+
 	p := &pool{
+		id:      id,
 		readych: make(chan struct{}),
 		config:  config{},
 		ctx:     ctx,
@@ -32,10 +40,11 @@ func Create(ctx context.Context) Pool {
 	go p.lc.WatchContext(ctx)
 	go p.run()
 
-	return p
+	return p, nil
 }
 
 type pool struct {
+	id        types.PoolID
 	config    config
 	scheduler scheduler.Scheduler
 	readych   chan struct{}

@@ -6,16 +6,12 @@ import (
 
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
 )
 
-/*
-PoolID
-Node - docker client, endpoint info
-EventBus
-*/
-
 type Container interface {
+	ID() types.ContainerID
 	Checkout(context.Context) (params.Params, error)
 	Release(context.Context) error
 	Shutdown()
@@ -24,11 +20,16 @@ type Container interface {
 
 type Config struct{}
 
-func Create(node node.Node, poolID string, config Config) (Container, error) {
+func Create(node node.Node, pid types.PoolID, config Config) (Container, error) {
+
+	id, err := types.NewID()
+	if err != nil {
+		return nil, err
+	}
 
 	c := &container{
+		id:     types.ContainerID{id, pid},
 		node:   node,
-		poolID: poolID,
 		config: config,
 		lc:     lifecycle.New(),
 	}
@@ -40,10 +41,14 @@ func Create(node node.Node, poolID string, config Config) (Container, error) {
 
 type container struct {
 	node   node.Node
-	poolID string
+	id     types.ContainerID
 	config Config
 
 	lc lifecycle.Lifecycle
+}
+
+func (c container) ID() types.ContainerID {
+	return c.id
 }
 
 func (c *container) Checkout(ctx context.Context) (params.Params, error) {

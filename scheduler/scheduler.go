@@ -2,18 +2,23 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 
+	"github.com/boz/ephemerald/container"
 	"github.com/boz/ephemerald/node"
+	"github.com/boz/ephemerald/types"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/opencontainers/go-digest"
 )
 
 type Scheduler interface {
 	ResolveImage(context.Context, string) (reference.Canonical, error)
+
+	CreateContainer(context.Context, types.PoolID, container.Config) (container.Container, error)
 }
 
 func New(node node.Node) Scheduler {
@@ -29,7 +34,7 @@ type scheduler struct {
 func (s *scheduler) ResolveImage(ctx context.Context, name string) (reference.Canonical, error) {
 
 	var (
-		ii   types.ImageInspect
+		ii   dtypes.ImageInspect
 		err  error
 		body io.ReadCloser
 	)
@@ -49,7 +54,7 @@ func (s *scheduler) ResolveImage(ctx context.Context, name string) (reference.Ca
 		return nil, err
 	}
 
-	body, err = dc.ImagePull(ctx, ref.String(), types.ImagePullOptions{})
+	body, err = dc.ImagePull(ctx, ref.String(), dtypes.ImagePullOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -71,4 +76,8 @@ done:
 		return nil, err
 	}
 	return reference.WithDigest(ref, digest)
+}
+
+func (s *scheduler) CreateContainer(ctx context.Context, pid types.PoolID, config container.Config) (container.Container, error) {
+	return nil, errors.New("not implemented")
 }
