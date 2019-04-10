@@ -6,11 +6,10 @@ import (
 )
 
 type ID string
-type PoolID = ID
 
-type ContainerID struct {
+type Container struct {
 	ID     ID
-	PoolID PoolID
+	PoolID ID
 }
 
 func NewID() (ID, error) {
