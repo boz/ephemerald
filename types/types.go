@@ -7,7 +7,7 @@ import (
 
 type ID string
 
-type Container struct {
+type Instance struct {
 	ID     ID
 	PoolID ID
 	Host   string

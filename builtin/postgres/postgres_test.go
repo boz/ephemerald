@@ -1,72 +1,62 @@
 package postgres_test
 
-import (
-	"database/sql"
-	"testing"
+// func TestActionsPingExec(t *testing.T) {
+// 	files := []string{"pool.json", "pool.yaml"}
 
-	"github.com/boz/ephemerald"
-	"github.com/boz/ephemerald/params"
-	"github.com/boz/ephemerald/testutil"
-	"github.com/stretchr/testify/require"
-)
+// 	for _, file := range files {
+// 		testutil.RunPoolFromFile(t, file, func(p params.Params) {
+// 			db, err := sql.Open("postgres", p.Url)
+// 			require.NoError(t, err, file)
+// 			defer db.Close()
 
-func TestActionsPingExec(t *testing.T) {
-	files := []string{"pool.json", "pool.yaml"}
+// 			rows, err := db.Query("SELECT COUNT(*) FROM users")
+// 			require.NoError(t, err, file)
+// 			defer rows.Close()
 
-	for _, file := range files {
-		testutil.RunPoolFromFile(t, file, func(p params.Params) {
-			db, err := sql.Open("postgres", p.Url)
-			require.NoError(t, err, file)
-			defer db.Close()
+// 			require.True(t, rows.Next(), file)
 
-			rows, err := db.Query("SELECT COUNT(*) FROM users")
-			require.NoError(t, err, file)
-			defer rows.Close()
+// 			var count int
+// 			require.NoError(t, rows.Scan(&count), file)
+// 			require.Equal(t, 0, count, file)
+// 		})
+// 	}
+// }
 
-			require.True(t, rows.Next(), file)
+// func TestActionTruncate(t *testing.T) {
+// 	testutil.WithPoolFromFile(t, "pool.json", func(pool ephemerald.Pool) {
+// 		username := "testuser"
 
-			var count int
-			require.NoError(t, rows.Scan(&count), file)
-			require.Equal(t, 0, count, file)
-		})
-	}
-}
+// 		func() {
+// 			p, err := pool.Checkout()
+// 			require.NoError(t, err)
+// 			defer pool.Return(p)
 
-func TestActionTruncate(t *testing.T) {
-	testutil.WithPoolFromFile(t, "pool.json", func(pool ephemerald.Pool) {
-		username := "testuser"
+// 			db, err := sql.Open("postgres", p.Url)
+// 			require.NoError(t, err)
+// 			defer db.Close()
 
-		func() {
-			p, err := pool.Checkout()
-			require.NoError(t, err)
-			defer pool.Return(p)
+// 			_, err = db.Exec("INSERT INTO users (name) VALUES ($1)", username)
+// 			require.NoError(t, err)
+// 		}()
 
-			db, err := sql.Open("postgres", p.Url)
-			require.NoError(t, err)
-			defer db.Close()
+// 		func() {
+// 			p, err := pool.Checkout()
+// 			require.NoError(t, err)
+// 			defer pool.Return(p)
 
-			_, err = db.Exec("INSERT INTO users (name) VALUES ($1)", username)
-			require.NoError(t, err)
-		}()
+// 			db, err := sql.Open("postgres", p.Url)
+// 			require.NoError(t, err)
+// 			defer db.Close()
 
-		func() {
-			p, err := pool.Checkout()
-			require.NoError(t, err)
-			defer pool.Return(p)
+// 			rows, err := db.Query("SELECT COUNT(*) FROM users WHERE name = $1", username)
+// 			require.NoError(t, err)
+// 			defer rows.Close()
 
-			db, err := sql.Open("postgres", p.Url)
-			require.NoError(t, err)
-			defer db.Close()
+// 			require.True(t, rows.Next())
 
-			rows, err := db.Query("SELECT COUNT(*) FROM users WHERE name = $1", username)
-			require.NoError(t, err)
-			defer rows.Close()
-
-			require.True(t, rows.Next())
-
-			var count int
-			require.NoError(t, rows.Scan(&count))
-			require.Equal(t, 0, count)
-		}()
-	})
-}
+// 			var count int
+// 			require.NoError(t, rows.Scan(&count))
+// 			require.Equal(t, 0, count)
+// 		}()
+// 	})
+// }

@@ -1,4 +1,4 @@
-package container
+package instance
 
 import "github.com/boz/ephemerald/lifecycle"
 

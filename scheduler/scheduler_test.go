@@ -10,7 +10,7 @@ import (
 
 func Test_Scheduler_ResolveImage(t *testing.T) {
 
-	s := scheduler.New()
+	s := scheduler.New(nil)
 
 	ref, err := s.ResolveImage(context.Background(), "nginx:latest")
 	assert.NoError(t, err)

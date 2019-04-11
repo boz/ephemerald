@@ -72,7 +72,7 @@ func createPoolItem(uie ui.PoolEmitter, log logrus.FieldLogger, adapter dockerAd
 	cuie.EmitCreated()
 
 	item := &pitem{
-		lifecycle: lifecycle.ForContainer(cuie, container.ID()),
+		// lifecycle: lifecycle.ForContainer(container.ID()),
 		adapter:   adapter,
 		container: container,
 		events:    make(chan poolItemEvent),

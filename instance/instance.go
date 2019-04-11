@@ -1,4 +1,4 @@
-package container
+package instance
 
 import (
 	"context"
@@ -15,21 +15,21 @@ import (
 	"github.com/docker/docker/api/types/network"
 )
 
-type containerState string
+type iState string
 
 const (
-	containerStateCreate      containerState = "create"
-	containerStateStart                      = "start"
-	containerStateInitialize                 = "initialize"
-	containerStateHealthcheck                = "healthcheck"
-	containerStateReady                      = "ready"
-	containerStateCheckout                   = "checkout"
-	containerStateReset                      = "reset"
-	containerStateKill                       = "kill"
-	containerStateDone                       = "done"
+	iStateCreate      iState = "create"
+	iStateStart              = "start"
+	iStateInitialize         = "initialize"
+	iStateHealthcheck        = "healthcheck"
+	iStateReady              = "ready"
+	iStateCheckout           = "checkout"
+	iStateReset              = "reset"
+	iStateKill               = "kill"
+	iStateDone               = "done"
 )
 
-type Container interface {
+type Instance interface {
 	ID() types.ID
 	PoolID() types.ID
 	Checkout(context.Context) (params.Params, error)
@@ -45,15 +45,15 @@ type Info struct {
 
 type Config struct{}
 
-func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Container, error) {
+func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Instance, error) {
 
 	id, err := types.NewID()
 	if err != nil {
 		return nil, err
 	}
 
-	c := &container{
-		state:  containerStateCreate,
+	i := &instance{
+		state:  iStateCreate,
 		bus:    bus,
 		id:     id,
 		pid:    pid,
@@ -62,13 +62,13 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Contai
 		lc:     lifecycle.New(),
 	}
 
-	go c.run()
+	go i.run()
 
-	return c, nil
+	return i, nil
 }
 
-type container struct {
-	state  containerState
+type instance struct {
+	state  iState
 	node   node.Node
 	id     types.ID
 	pid    types.ID
@@ -79,57 +79,57 @@ type container struct {
 	lc lifecycle.Lifecycle
 }
 
-func (c *container) ID() types.ID {
-	return c.id
+func (i *instance) ID() types.ID {
+	return i.id
 }
 
-func (c *container) PoolID() types.ID {
-	return c.pid
+func (i *instance) PoolID() types.ID {
+	return i.pid
 }
 
-func (c *container) Checkout(ctx context.Context) (params.Params, error) {
+func (i *instance) Checkout(ctx context.Context) (params.Params, error) {
 	return params.Params{}, errors.New("not implemented")
 }
 
-func (c *container) Release(ctx context.Context) error {
+func (i *instance) Release(ctx context.Context) error {
 	return errors.New("not implemented")
 }
 
-func (c *container) Shutdown() {
-	c.lc.ShutdownAsync(nil)
+func (i *instance) Shutdown() {
+	i.lc.ShutdownAsync(nil)
 }
 
-func (c *container) Done() <-chan struct{} {
-	return c.lc.Done()
+func (i *instance) Done() <-chan struct{} {
+	return i.lc.Done()
 }
 
-func (c *container) run() {
-	defer c.lc.ShutdownCompleted()
+func (i *instance) run() {
+	defer i.lc.ShutdownCompleted()
 
-	cinfo, err := c.create()
+	cinfo, err := i.create()
 	if err != nil {
-		c.lc.ShutdownInitiated(err)
+		i.lc.ShutdownInitiated(err)
 		return
 	}
 
-	_, err = params.ParamsFor(types.Container{
-		ID:     c.id,
-		PoolID: c.pid,
-		Host:   c.node.Endpoint(),
+	_, err = params.ParamsFor(types.Instance{
+		ID:     i.id,
+		PoolID: i.pid,
+		Host:   i.node.Endpoint(),
 	}, cinfo, 80)
 
 	if err != nil {
-		c.lc.ShutdownInitiated(err)
+		i.lc.ShutdownInitiated(err)
 		goto kill
 	}
 
-	c.state = containerStateInitialize
+	i.state = iStateInitialize
 
 loop:
 	for {
 		select {
-		case err := <-c.lc.ShutdownRequest():
-			c.lc.ShutdownInitiated(err)
+		case err := <-i.lc.ShutdownRequest():
+			i.lc.ShutdownInitiated(err)
 			break loop
 		}
 	}
@@ -137,15 +137,15 @@ loop:
 kill:
 }
 
-func (c *container) create() (dtypes.ContainerJSON, error) {
+func (i *instance) create() (dtypes.ContainerJSON, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runch := runner.Do(func() runner.Result {
-		return runner.NewResult(c.doCreate(ctx))
+		return runner.NewResult(i.doCreate(ctx))
 	})
 
 	select {
-	case err := <-c.lc.ShutdownRequest():
+	case err := <-i.lc.ShutdownRequest():
 		cancel()
 		<-runch
 		return dtypes.ContainerJSON{}, err
@@ -158,11 +158,11 @@ func (c *container) create() (dtypes.ContainerJSON, error) {
 	}
 }
 
-func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
+func (i *instance) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
 	cconfig := &dcontainer.Config{
 		Labels: map[string]string{
-			node.LabelEphemeraldPoolID:      string(c.pid),
-			node.LabelEphemeraldContainerID: string(c.id),
+			node.LabelEphemeraldPoolID:      string(i.pid),
+			node.LabelEphemeraldContainerID: string(i.id),
 		},
 		/*
 			Image:        a.ref.Name(),
@@ -187,18 +187,18 @@ func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) 
 	}
 	nconfig := &network.NetworkingConfig{}
 
-	cinfo, err := c.node.Client().ContainerCreate(ctx, cconfig, hconfig, nconfig, "")
+	cinfo, err := i.node.Client().ContainerCreate(ctx, cconfig, hconfig, nconfig, "")
 	if err != nil {
 		return dtypes.ContainerJSON{}, err
 	}
 
 	// emit created, state start
 
-	if err := c.node.Client().ContainerStart(ctx, cinfo.ID, dtypes.ContainerStartOptions{}); err != nil {
+	if err := i.node.Client().ContainerStart(ctx, cinfo.ID, dtypes.ContainerStartOptions{}); err != nil {
 		return dtypes.ContainerJSON{}, err
 	}
 
-	info, err := c.node.Client().ContainerInspect(ctx, cinfo.ID)
+	info, err := i.node.Client().ContainerInspect(ctx, cinfo.ID)
 	if err != nil {
 		return info, err
 	}

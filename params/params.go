@@ -18,7 +18,7 @@ type Params struct {
 
 type Set map[string]Params
 
-func ParamsFor(c types.Container, status dtypes.ContainerJSON, port int) (Params, error) {
+func ParamsFor(c types.Instance, status dtypes.ContainerJSON, port int) (Params, error) {
 	return Params{
 		ID:   string(c.ID),
 		Host: c.Host,

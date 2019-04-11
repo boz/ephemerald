@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/boz/ephemerald/container"
+	"github.com/boz/ephemerald/instance"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/types"
 	"github.com/docker/distribution/reference"
@@ -18,7 +18,7 @@ import (
 type Scheduler interface {
 	ResolveImage(context.Context, string) (reference.Canonical, error)
 
-	CreateContainer(context.Context, types.ID, container.Config) (container.Container, error)
+	CreateContainer(context.Context, types.ID, instance.Config) (instance.Instance, error)
 }
 
 func New(node node.Node) Scheduler {
@@ -78,6 +78,6 @@ done:
 	return reference.WithDigest(ref, digest)
 }
 
-func (s *scheduler) CreateContainer(ctx context.Context, pid types.ID, config container.Config) (container.Container, error) {
+func (s *scheduler) CreateContainer(ctx context.Context, pid types.ID, config instance.Config) (instance.Instance, error) {
 	return nil, errors.New("not implemented")
 }
