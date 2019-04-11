@@ -7,7 +7,11 @@ import (
 	"github.com/boz/ephemerald/types"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/ovrclk/akash/provider/event"
+)
+
+const (
+	LabelEphemeraldPoolID      = "ephemerald.io.pool-id"
+	LabelEphemeraldContainerID = "ephemerald.io.container-id"
 )
 
 type EventPublisher interface {
@@ -16,24 +20,37 @@ type EventPublisher interface {
 	Done() <-chan struct{}
 }
 
-func NewEventPublisher(ctx context.Context, node Node, bus event.Bus) EventPublisher {
-	return nil
+func NewEventPublisher(ctx context.Context, node Node, bus pubsub.Bus) EventPublisher {
+	ctx, cancel := context.WithCancel(ctx)
+	return &eventPublisher{
+		node:   node,
+		bus:    bus,
+		cancel: cancel,
+		ctx:    ctx,
+	}
 }
 
 type eventPublisher struct {
-	node Node
-	bus  pubsub.Bus
-	ctx  context.Context
+	node   Node
+	bus    pubsub.Bus
+	donech chan struct{}
+	cancel context.CancelFunc
+	ctx    context.Context
 }
 
-const (
-	LabelEphemeraldPoolID      = "ephemerald.io.pool-id"
-	LabelEphemeraldContainerID = "ephemerald.io.container-id"
-)
+func (ep *eventPublisher) Node() Node {
+	return ep.node
+}
+
+func (ep *eventPublisher) Stop() {
+	ep.cancel()
+}
+
+func (ep *eventPublisher) Done() <-chan struct{} {
+	return ep.donech
+}
 
 func (ep *eventPublisher) run() {
-	ctx, cancel := context.WithCancel(ep.ctx)
-	defer cancel()
 
 	filters := filters.NewArgs()
 	filters.Add("type", "container")
@@ -44,10 +61,12 @@ func (ep *eventPublisher) run() {
 		Filters: filters,
 	}
 
-	msgch, errch := ep.node.Client().Events(ctx, opts)
+	msgch, errch := ep.node.Client().Events(ep.ctx, opts)
 
 	for {
 		select {
+		case <-ep.ctx.Done():
+			return
 		case msg := <-msgch:
 			pid := msg.Actor.Attributes[LabelEphemeraldPoolID]
 			cid := msg.Actor.Attributes[LabelEphemeraldContainerID]
@@ -61,12 +80,12 @@ func (ep *eventPublisher) run() {
 				Message:   msg,
 			}
 
-			if err := ep.bus.Publish(ctx, ev); err != nil {
+			if err := ep.bus.Publish(ev); err != nil {
 				// TODO: error
 			}
 
-		case err := <-errch:
-			// TODO:
+		case <-errch:
+			// TODO: retry
 		}
 	}
 }
