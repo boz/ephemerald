@@ -4,19 +4,22 @@ import (
 	"context"
 	"errors"
 
+	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
 )
 
+type Filter func(types.BusEvent) bool
+
 type Bus interface {
-	Publish(interface{}) error
-	Subscribe(func(interface{}) bool) (Subscription, error)
+	Publish(types.BusEvent) error
+	Subscribe(Filter) (Subscription, error)
 	Shutdown() error
 }
 
 func NewBus(ctx context.Context) (Bus, error) {
 
 	b := &bus{
-		pubch:       make(chan interface{}),
+		pubch:       make(chan types.BusEvent),
 		subch:       make(chan subreq),
 		subdonech:   make(chan *subscription),
 		subscribers: make(map[*subscription]bool),
@@ -31,7 +34,7 @@ func NewBus(ctx context.Context) (Bus, error) {
 }
 
 type bus struct {
-	pubch       chan interface{}
+	pubch       chan types.BusEvent
 	subch       chan subreq
 	subdonech   chan *subscription
 	subscribers map[*subscription]bool
@@ -40,11 +43,11 @@ type bus struct {
 }
 
 type subreq struct {
-	filter func(interface{}) bool
+	filter Filter
 	ch     chan<- Subscription
 }
 
-func (b *bus) Publish(ev interface{}) error {
+func (b *bus) Publish(ev types.BusEvent) error {
 	select {
 	case b.pubch <- ev:
 		return nil
@@ -53,7 +56,7 @@ func (b *bus) Publish(ev interface{}) error {
 	}
 }
 
-func (b *bus) Subscribe(filter func(interface{}) bool) (Subscription, error) {
+func (b *bus) Subscribe(filter Filter) (Subscription, error) {
 	ch := make(chan Subscription, 1)
 	req := subreq{filter, ch}
 

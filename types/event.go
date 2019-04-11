@@ -10,14 +10,18 @@ const (
 	EventTypeContainer = "container"
 )
 
+type EventAction string
+
 type BusEvent interface {
 	GetType() EventType
+	GetAction() EventAction
 	GetPool() ID
 	GetContainer() ID
 }
 
 type Event struct {
 	Type      EventType
+	Action    EventAction
 	Pool      ID
 	Container ID
 }
@@ -39,6 +43,10 @@ type DockerEvent struct {
 
 func (ev DockerEvent) GetType() EventType {
 	return EventTypeDocker
+}
+
+func (ev DockerEvent) GetAction() EventAction {
+	return EventAction(ev.Message.Action)
 }
 
 func (ev DockerEvent) GetPool() ID {

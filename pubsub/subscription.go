@@ -3,6 +3,7 @@ package pubsub
 import (
 	"time"
 
+	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
 )
 
@@ -12,23 +13,23 @@ const (
 )
 
 type Subscription interface {
-	Events() <-chan interface{}
+	Events() <-chan types.BusEvent
 	Close()
 	Done() <-chan struct{}
 }
 
 type subscription struct {
-	inch  chan interface{}
-	outch chan interface{}
+	inch  chan types.BusEvent
+	outch chan types.BusEvent
 
 	lc lifecycle.Lifecycle
 }
 
-func newSubscription(donech chan<- *subscription, filter func(interface{}) bool) *subscription {
+func newSubscription(donech chan<- *subscription, filter Filter) *subscription {
 
 	s := &subscription{
-		inch:  make(chan interface{}, bufSiz),
-		outch: make(chan interface{}, bufSiz),
+		inch:  make(chan types.BusEvent, bufSiz),
+		outch: make(chan types.BusEvent, bufSiz),
 	}
 
 	go s.run(donech, filter)
@@ -36,7 +37,7 @@ func newSubscription(donech chan<- *subscription, filter func(interface{}) bool)
 	return s
 }
 
-func (s *subscription) Events() <-chan interface{} {
+func (s *subscription) Events() <-chan types.BusEvent {
 	return s.outch
 }
 
@@ -48,14 +49,14 @@ func (s *subscription) Done() <-chan struct{} {
 	return s.lc.Done()
 }
 
-func (s *subscription) publish(ev interface{}) {
+func (s *subscription) publish(ev types.BusEvent) {
 	select {
 	case s.inch <- ev:
 	case <-s.lc.ShuttingDown():
 	}
 }
 
-func (s *subscription) run(donech chan<- *subscription, filter func(interface{}) bool) {
+func (s *subscription) run(donech chan<- *subscription, filter Filter) {
 	defer s.lc.ShutdownCompleted()
 	defer func() { donech <- s }()
 
@@ -76,6 +77,7 @@ loop:
 			select {
 			case s.outch <- ev:
 			case <-time.After(bufWait):
+				// TODO
 				panic("XXX clean this up")
 			}
 
