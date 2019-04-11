@@ -24,7 +24,7 @@ type actionRunner struct {
 	uie        ui.ContainerEmitter
 }
 
-func newActionRunner(ctx context.Context, uie ui.ContainerEmitter, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
+func newActionRunner(ctx context.Context, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
 
 	actionType := action.Config().Type
 
@@ -38,7 +38,6 @@ func newActionRunner(ctx context.Context, uie ui.ContainerEmitter, log logrus.Fi
 		p:          p,
 		ctx:        ctx,
 		log:        log,
-		uie:        uie,
 	}
 }
 

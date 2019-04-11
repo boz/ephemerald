@@ -126,6 +126,7 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 		<-refch
 		return nil, err
 	case result := <-refch:
+		cancel()
 		if result.Err() != nil {
 			return nil, result.Err()
 		}

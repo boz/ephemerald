@@ -15,6 +15,19 @@ import (
 	"github.com/docker/docker/api/types/network"
 )
 
+type containerState string
+
+const (
+	containerStateStart       containerState = "start"
+	containerStateInitialize                 = "initialize"
+	containerStateHealthcheck                = "healthcheck"
+	containerStateReady                      = "ready"
+	containerStateCheckout                   = "checkout"
+	containerStateReset                      = "reset"
+	containerStateKill                       = "kill"
+	containerStateDone                       = "done"
+)
+
 type Container interface {
 	ID() types.ID
 	PoolID() types.ID
@@ -39,6 +52,7 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Contai
 	}
 
 	c := &container{
+		state:  containerStateStart,
 		bus:    bus,
 		id:     id,
 		pid:    pid,
@@ -53,6 +67,7 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Contai
 }
 
 type container struct {
+	state  containerState
 	node   node.Node
 	id     types.ID
 	pid    types.ID
@@ -90,11 +105,24 @@ func (c *container) Done() <-chan struct{} {
 func (c *container) run() {
 	defer c.lc.ShutdownCompleted()
 
-	_, err := c.create()
+	cinfo, err := c.create()
 	if err != nil {
 		c.lc.ShutdownInitiated(err)
 		return
 	}
+
+	_, err = params.ParamsFor(types.Container{
+		ID:     c.id,
+		PoolID: c.pid,
+		Host:   c.node.Endpoint(),
+	}, cinfo, 80)
+
+	if err != nil {
+		c.lc.ShutdownInitiated(err)
+		goto kill
+	}
+
+	c.state = containerStateInitialize
 
 loop:
 	for {
@@ -104,9 +132,11 @@ loop:
 			break loop
 		}
 	}
+
+kill:
 }
 
-func (c *container) create() (string, error) {
+func (c *container) create() (dtypes.ContainerJSON, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runch := runner.Do(func() runner.Result {
@@ -117,13 +147,13 @@ func (c *container) create() (string, error) {
 	case err := <-c.lc.ShutdownRequest():
 		cancel()
 		<-runch
-		return "", err
+		return dtypes.ContainerJSON{}, err
 	case res := <-runch:
 		cancel()
 		if res.Err() != nil {
-			return "", res.Err()
+			return dtypes.ContainerJSON{}, res.Err()
 		}
-		return res.Value().(string), nil
+		return res.Value().(dtypes.ContainerJSON), nil
 	}
 }
 

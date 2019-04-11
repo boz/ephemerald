@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/boz/ephemerald/params"
-	"github.com/boz/ephemerald/ui"
+	"github.com/boz/ephemerald/types"
 	"github.com/buger/jsonparser"
 	"github.com/sirupsen/logrus"
 )
@@ -18,7 +18,7 @@ var (
 type Manager interface {
 	ParseConfig([]byte) error
 	MaxDelay() time.Duration
-	ForContainer(ui.ContainerEmitter, string) ContainerManager
+	ForContainer(types.Container) ContainerManager
 }
 
 type ContainerManager interface {
@@ -42,19 +42,17 @@ type manager struct {
 
 type containerManager struct {
 	manager
-	ui ui.ContainerEmitter
 }
 
 func NewManager(log logrus.FieldLogger) Manager {
 	return &manager{log: log.WithField("component", "lifecycle.Manager")}
 }
 
-func (m *manager) ForContainer(uie ui.ContainerEmitter, id string) ContainerManager {
+func (m *manager) ForContainer(container types.Container) ContainerManager {
 	next := &containerManager{
 		manager: *m,
-		ui:      uie,
 	}
-	next.log = m.log.WithField("container", id[0:12])
+	next.log = m.log.WithField("container", container.ID)
 	return next
 }
 
@@ -131,7 +129,7 @@ func (m *containerManager) HasInitialize() bool {
 
 func (m *containerManager) DoInitialize(ctx context.Context, p params.Params) error {
 	if !m.HasInitialize() {
-		return ErrActionNotConfigured
+		return m.runAction(ctx, &actionNoop{}, p, "initialize")
 	}
 	return m.runAction(ctx, m.initializeAction, p, "initialize")
 }
@@ -142,7 +140,7 @@ func (m *containerManager) HasHealthcheck() bool {
 
 func (m *containerManager) DoHealthcheck(ctx context.Context, p params.Params) error {
 	if !m.HasHealthcheck() {
-		return ErrActionNotConfigured
+		return m.runAction(ctx, &actionNoop{}, p, "healthcheck")
 	}
 	return m.runAction(ctx, m.healthcheckAction, p, "healthcheck")
 }
@@ -153,11 +151,11 @@ func (m *containerManager) HasReset() bool {
 
 func (m *containerManager) DoReset(ctx context.Context, p params.Params) error {
 	if !m.HasReset() {
-		return ErrActionNotConfigured
+		return m.runAction(ctx, &actionNoop{}, p, "reset")
 	}
 	return m.runAction(ctx, m.resetAction, p, "reset")
 }
 
 func (m *containerManager) runAction(ctx context.Context, action Action, p params.Params, name string) error {
-	return newActionRunner(ctx, m.ui, m.log, action, p, name).Run()
+	return newActionRunner(ctx, m.log, action, p, name).Run()
 }
