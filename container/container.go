@@ -85,13 +85,8 @@ func (c *container) Done() <-chan struct{} {
 func (c *container) run() {
 	defer c.lc.ShutdownCompleted()
 
-	cid, err := c.create()
+	_, err := c.create()
 	if err != nil {
-		c.lc.ShutdownInitiated(err)
-		return
-	}
-
-	if err := c.start(cid); err != nil {
 		c.lc.ShutdownInitiated(err)
 		return
 	}
@@ -127,7 +122,7 @@ func (c *container) create() (string, error) {
 	}
 }
 
-func (c *container) doCreate(ctx context.Context) (string, error) {
+func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
 	cconfig := &dcontainer.Config{
 		/*
 			Image:        a.ref.Name(),
@@ -152,33 +147,19 @@ func (c *container) doCreate(ctx context.Context) (string, error) {
 	}
 	nconfig := &network.NetworkingConfig{}
 
-	ret, err := c.node.Client().ContainerCreate(ctx, cconfig, hconfig, nconfig, "")
-
+	cinfo, err := c.node.Client().ContainerCreate(ctx, cconfig, hconfig, nconfig, "")
 	if err != nil {
-		return "", err
+		return dtypes.ContainerJSON{}, err
 	}
 
-	return ret.ID, nil
-}
-
-func (c *container) start(id string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	runch := runner.Do(func() runner.Result {
-		return runner.NewResult(nil, c.doStart(ctx, id))
-	})
-
-	select {
-	case err := <-c.lc.ShutdownRequest():
-		cancel()
-		<-runch
-		return err
-	case res := <-runch:
-		cancel()
-		return res.Err()
+	if err := c.node.Client().ContainerStart(ctx, cinfo.ID, dtypes.ContainerStartOptions{}); err != nil {
+		return dtypes.ContainerJSON{}, err
 	}
-}
 
-func (c *container) doStart(ctx context.Context, id string) error {
-	return c.node.Client().ContainerStart(ctx, id, dtypes.ContainerStartOptions{})
+	info, err := c.node.Client().ContainerInspect(ctx, cinfo.ID)
+	if err != nil {
+		return info, err
+	}
+
+	return info, nil
 }

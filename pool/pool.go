@@ -31,6 +31,7 @@ func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 	}
 
 	p := &pool{
+		bus:     bus,
 		id:      id,
 		readych: make(chan struct{}),
 		config:  config{},
@@ -45,6 +46,7 @@ func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 }
 
 type pool struct {
+	bus       pubsub.Bus
 	id        types.PoolID
 	config    config
 	scheduler scheduler.Scheduler
