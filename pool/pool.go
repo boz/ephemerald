@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/types"
@@ -22,7 +23,7 @@ type Pool interface {
 	Done() <-chan struct{}
 }
 
-func Create(ctx context.Context) (Pool, error) {
+func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 
 	id, err := types.NewID()
 	if err != nil {
