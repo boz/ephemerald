@@ -18,7 +18,8 @@ import (
 type containerState string
 
 const (
-	containerStateStart       containerState = "start"
+	containerStateCreate      containerState = "create"
+	containerStateStart                      = "start"
 	containerStateInitialize                 = "initialize"
 	containerStateHealthcheck                = "healthcheck"
 	containerStateReady                      = "ready"
@@ -52,7 +53,7 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Contai
 	}
 
 	c := &container{
-		state:  containerStateStart,
+		state:  containerStateCreate,
 		bus:    bus,
 		id:     id,
 		pid:    pid,
@@ -191,6 +192,8 @@ func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) 
 		return dtypes.ContainerJSON{}, err
 	}
 
+	// emit created, state start
+
 	if err := c.node.Client().ContainerStart(ctx, cinfo.ID, dtypes.ContainerStartOptions{}); err != nil {
 		return dtypes.ContainerJSON{}, err
 	}
@@ -199,6 +202,8 @@ func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) 
 	if err != nil {
 		return info, err
 	}
+
+	// emit started, state initialize
 
 	return info, nil
 }

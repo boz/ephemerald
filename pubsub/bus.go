@@ -10,13 +10,25 @@ import (
 
 type Filter func(types.BusEvent) bool
 
-type Bus interface {
+type Writer interface {
 	Publish(types.BusEvent) error
+}
+
+type Reader interface {
 	Subscribe(Filter) (Subscription, error)
+}
+
+type Bus interface {
+	Writer
+	Reader
+}
+
+type Service interface {
+	Bus
 	Shutdown() error
 }
 
-func NewBus(ctx context.Context) (Bus, error) {
+func NewBus(ctx context.Context) (Service, error) {
 
 	b := &bus{
 		pubch:       make(chan types.BusEvent),
