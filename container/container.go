@@ -24,6 +24,11 @@ type Container interface {
 	Done() <-chan struct{}
 }
 
+type Info struct {
+	Host string
+	Port string
+}
+
 type Config struct{}
 
 func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Container, error) {
@@ -124,6 +129,10 @@ func (c *container) create() (string, error) {
 
 func (c *container) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
 	cconfig := &dcontainer.Config{
+		Labels: map[string]string{
+			node.LabelEphemeraldPoolID:      string(c.pid),
+			node.LabelEphemeraldContainerID: string(c.id),
+		},
 		/*
 			Image:        a.ref.Name(),
 			Cmd:          a.config.Container.Cmd,
