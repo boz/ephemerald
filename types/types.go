@@ -10,6 +10,7 @@ type ID string
 type Container struct {
 	ID     ID
 	PoolID ID
+	Host   string
 }
 
 func NewID() (ID, error) {

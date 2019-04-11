@@ -119,7 +119,7 @@ func (ps *poolSet) ReturnAll(set params.Set) {
 	for name, p := range set {
 		go func(name string, p params.Params) {
 			defer wg.Done()
-			ps.Return(name, p)
+			// ps.Return(name, p)
 		}(name, p)
 	}
 	wg.Wait()

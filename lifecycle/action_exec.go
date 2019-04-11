@@ -107,13 +107,13 @@ func actionExecParse(buf []byte) (Action, error) {
 func (a *actionExec) Do(e Env, p params.Params) error {
 
 	env := []string{
-		fmt.Sprintf("EPHEMERALD_ID=%v", p.ID()),
-		fmt.Sprintf("EPHEMERALD_HOSTNAME=%v", p.Hostname),
+		fmt.Sprintf("EPHEMERALD_ID=%v", p.ID),
+		fmt.Sprintf("EPHEMERALD_HOST=%v", p.Host),
 		fmt.Sprintf("EPHEMERALD_PORT=%v", p.Port),
-		fmt.Sprintf("EPHEMERALD_USERNAME=%v", p.Username),
-		fmt.Sprintf("EPHEMERALD_PASSWORD=%v", p.Password),
-		fmt.Sprintf("EPHEMERALD_DATABASE=%v", p.Database),
-		fmt.Sprintf("EPHEMERALD_URL=%v", p.Url),
+		// fmt.Sprintf("EPHEMERALD_USERNAME=%v", p.Username),
+		// fmt.Sprintf("EPHEMERALD_PASSWORD=%v", p.Password),
+		// fmt.Sprintf("EPHEMERALD_DATABASE=%v", p.Database),
+		// fmt.Sprintf("EPHEMERALD_URL=%v", p.Url),
 	}
 
 	for _, text := range a.Env {

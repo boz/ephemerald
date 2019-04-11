@@ -203,7 +203,7 @@ func (a *dadapter) containerLogs(id string, options types.ContainerLogsOptions) 
 }
 
 func (a *dadapter) makeParams(c StatusItem) (params.Params, error) {
-	return a.config.Params.ParamsFor(c.ID(), c.Status(), a.config.Port)
+	return params.Params{}, nil // a.config.Params.ParamsFor(c.ID(), c.Status(), a.config.Port)
 }
 
 func (a *dadapter) logger() logrus.FieldLogger {

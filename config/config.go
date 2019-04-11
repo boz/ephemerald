@@ -9,7 +9,6 @@ import (
 	"path"
 
 	"github.com/boz/ephemerald/lifecycle"
-	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
 	"github.com/ghodss/yaml"
@@ -26,7 +25,7 @@ type Config struct {
 	Image     string
 	Port      int
 	Container *Container
-	Params    params.Config
+	// Params    params.Config
 	Lifecycle lifecycle.Manager
 
 	log logrus.FieldLogger
@@ -114,19 +113,20 @@ func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Co
 		return nil, err
 	}
 
-	paramBuf, vt, _, err := jsonparser.Get(buf, "params")
-	if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
-		paramBuf = []byte("{}")
-	} else if err != nil {
-		log.WithError(err).Error("invalid params type")
-		return nil, err
-	}
+	// paramBuf, vt, _, err := jsonparser.Get(buf, "params")
+	// if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
+	// 	paramBuf = []byte("{}")
+	// } else if err != nil {
+	// 	log.WithError(err).Error("invalid params type")
+	// 	return nil, err
+	// }
 
-	params, err := params.ParseConfig(paramBuf)
-	if err != nil {
-		log.WithError(err).Error("parsing params")
-		return nil, err
-	}
+	// TODO
+	// params, err := params.ParseConfig(paramBuf)
+	// if err != nil {
+	// 	log.WithError(err).Error("parsing params")
+	// 	return nil, err
+	// }
 
 	contBuf, vt, _, err := jsonparser.Get(buf, "container")
 	if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
@@ -162,7 +162,7 @@ func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Co
 		Image:     image,
 		Port:      int(port),
 		Container: cont,
-		Params:    params,
+		// Params:    params,
 		Lifecycle: lifecycle,
 		log:       log,
 		uie:       uie.ForPool(name),

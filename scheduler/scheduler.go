@@ -18,7 +18,7 @@ import (
 type Scheduler interface {
 	ResolveImage(context.Context, string) (reference.Canonical, error)
 
-	CreateContainer(context.Context, types.PoolID, container.Config) (container.Container, error)
+	CreateContainer(context.Context, types.ID, container.Config) (container.Container, error)
 }
 
 func New(node node.Node) Scheduler {
@@ -78,6 +78,6 @@ done:
 	return reference.WithDigest(ref, digest)
 }
 
-func (s *scheduler) CreateContainer(ctx context.Context, pid types.PoolID, config container.Config) (container.Container, error) {
+func (s *scheduler) CreateContainer(ctx context.Context, pid types.ID, config container.Config) (container.Container, error) {
 	return nil, errors.New("not implemented")
 }

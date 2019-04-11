@@ -21,10 +21,11 @@ func openDB(e lifecycle.Env, p params.Params) (*sql.DB, error) {
 }
 
 func pgURL(p params.Params) string {
-	ui := url.UserPassword(p.Username, p.Password)
+	// ui := url.UserPassword(p.Username, p.Password)
+	ui := url.UserPassword("postgres", "postgres")
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(),
-		url.QueryEscape(p.Hostname),
+		url.QueryEscape(p.Host),
 		url.QueryEscape(p.Port),
-		url.QueryEscape(p.Database))
+		url.QueryEscape("postgres"))
 }

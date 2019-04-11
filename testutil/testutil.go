@@ -48,7 +48,7 @@ func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {
 		}
 
 		assert.NotNil(t, item)
-		pool.Return(item)
+		// pool.Return(item)
 	})
 }
 

@@ -47,7 +47,7 @@ func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 
 type pool struct {
 	bus       pubsub.Bus
-	id        types.PoolID
+	id        types.ID
 	config    config
 	scheduler scheduler.Scheduler
 	readych   chan struct{}
@@ -98,17 +98,17 @@ loop:
 			p.lc.ShutdownInitiated(err)
 			break loop
 
-		case cid := <-creadych:
-			// container ready
+			// case cid := <-creadych:
+			// 	// container ready
 
-		case cid := <-cdonech:
-			// container done
+			// case cid := <-cdonech:
+			// 	// container done
 
-		case req := <-ccheckoutch:
-			// container checkout
+			// case req := <-ccheckoutch:
+			// 	// container checkout
 
-		case cid := <-creleasech:
-			// container release
+			// case cid := <-creleasech:
+			// 	// container release
 		}
 	}
 }

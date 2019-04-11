@@ -110,7 +110,7 @@ func (s *Server) stopPools() {
 }
 
 func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
-	host, _, err := net.SplitHostPort(r.Host)
+	_, _, err := net.SplitHostPort(r.Host)
 	if err != nil {
 		http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 		return
@@ -118,14 +118,14 @@ func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
 
 	ps, err := s.pools.CheckoutWith(r.Context())
 
-	for name, p := range ps {
-		p2, e := p.ForHost(host)
-		if e != nil {
-			err = e
-			break
-		}
-		ps[name] = p2
-	}
+	// for name, p := range ps {
+	// 	// p2, e := p.ForHost(host)
+	// 	// if e != nil {
+	// 	// 	err = e
+	// 	// 	break
+	// 	// }
+	// 	// ps[name] = p2
+	// }
 
 	if err != nil {
 		s.pools.ReturnAll(ps)
@@ -145,47 +145,47 @@ func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
-	host, _, err := net.SplitHostPort(r.Host)
-	if err != nil {
-		http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
-		return
-	}
+	// host, _, err := net.SplitHostPort(r.Host)
+	// if err != nil {
+	// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+	// 	return
+	// }
 
-	poolName := mux.Vars(r)["pool"]
-	if poolName == "" {
-		http.Error(w, "Invalid pool name", http.StatusBadRequest)
-		return
-	}
+	// poolName := mux.Vars(r)["pool"]
+	// if poolName == "" {
+	// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
+	// 	return
+	// }
 
-	ps, err := s.pools.CheckoutWith(r.Context(), poolName)
-	if err != nil {
-		s.pools.ReturnAll(ps)
-		http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
-		return
-	}
+	// ps, err := s.pools.CheckoutWith(r.Context(), poolName)
+	// if err != nil {
+	// 	s.pools.ReturnAll(ps)
+	// 	http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+	// 	return
+	// }
 
-	params, ok := ps[poolName]
-	if !ok {
-		s.pools.ReturnAll(ps)
-		http.Error(w, "Pool not found", http.StatusInternalServerError)
-		return
-	}
+	// params, ok := ps[poolName]
+	// if !ok {
+	// 	s.pools.ReturnAll(ps)
+	// 	http.Error(w, "Pool not found", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	params, err = params.ForHost(host)
-	if err != nil {
-		s.pools.ReturnAll(ps)
-		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-		return
-	}
+	// params, err = params.ForHost(host)
+	// if err != nil {
+	// 	s.pools.ReturnAll(ps)
+	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	buf, err := json.Marshal(params)
-	if err != nil {
-		s.pools.ReturnAll(ps)
-		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", rpcContentType)
-	w.Write(buf)
+	// buf, err := json.Marshal(params)
+	// if err != nil {
+	// 	s.pools.ReturnAll(ps)
+	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+	// 	return
+	// }
+	// w.Header().Set("Content-Type", rpcContentType)
+	// w.Write(buf)
 }
 
 func (s *Server) handleReturnBatch(w http.ResponseWriter, r *http.Request) {
