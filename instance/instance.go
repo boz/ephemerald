@@ -160,13 +160,21 @@ func (i *instance) Done() <-chan struct{} {
 func (i *instance) run() {
 	defer i.lc.ShutdownCompleted()
 
-	cinfo, err := i.create()
+	var iparams params.Params
+
+	sub, err := i.subscribe()
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
 		return
 	}
 
-	params, err := params.ParamsFor(types.Instance{
+	cinfo, err := i.create()
+	if err != nil {
+		i.lc.ShutdownInitiated(err)
+		goto kill
+	}
+
+	iparams, err = params.ParamsFor(types.Instance{
 		ID:     i.id,
 		PoolID: i.pid,
 		Host:   i.node.Endpoint(),
@@ -190,14 +198,14 @@ loop:
 
 			if i.state != iStateReady {
 				req.ech <- errors.New("invalid state")
-				continue
+				continue loop
 			}
 
 			select {
 			case <-req.ctx.Done():
 				// warn error
 				continue loop
-			case req.pch <- params:
+			case req.pch <- iparams:
 			}
 
 			// todo: run lifecycle
@@ -214,6 +222,18 @@ loop:
 	}
 
 kill:
+
+	sub.Close()
+	<-sub.Done()
+}
+
+func (i *instance) subscribe() (pubsub.Subscription, error) {
+	filter := func(ev types.BusEvent) bool {
+		return ev.GetInstance() == i.id &&
+			ev.GetPool() == i.pid &&
+			ev.GetType() != types.EventTypeInstance
+	}
+	return i.bus.Subscribe(filter)
 }
 
 func (i *instance) create() (dtypes.ContainerJSON, error) {

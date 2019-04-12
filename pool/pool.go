@@ -132,12 +132,7 @@ func (p *pool) run() {
 
 	numStarted := 0
 
-	filter := func(ev types.BusEvent) bool {
-		return ev.GetPool() == p.id &&
-			ev.GetType() == types.EventTypeInstance
-	}
-
-	sub, err := p.bus.Subscribe(filter)
+	sub, err := p.subscribe()
 	if err != nil {
 		p.lc.ShutdownInitiated(err)
 		return
@@ -218,6 +213,14 @@ done:
 	}
 
 	<-sub.Done()
+}
+
+func (p *pool) subscribe() (pubsub.Subscription, error) {
+	filter := func(ev types.BusEvent) bool {
+		return ev.GetPool() == p.id &&
+			ev.GetType() == types.EventTypeInstance
+	}
+	return p.bus.Subscribe(filter)
 }
 
 func (p *pool) resolveImage() (reference.Canonical, error) {
