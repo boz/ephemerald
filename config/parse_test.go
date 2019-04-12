@@ -3,6 +3,7 @@ package config_test
 import (
 	"testing"
 
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ func TestRead(t *testing.T) {
 func doReadTest(t *testing.T, path string, msg string) {
 	log := testutil.Log()
 
-	configs, err := config.ReadFile(log, uie, "_testdata/config.json")
+	configs, err := config.ReadFile(log, "_testdata/config.json")
 	require.NoError(t, err, msg)
 
 	require.Equal(t, 1, len(configs), msg)

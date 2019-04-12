@@ -107,7 +107,7 @@ func Parse(log logrus.FieldLogger, name string, buf []byte) (*Pool, error) {
 	}
 
 	cont := NewContainer()
-	err = json.Unmarshal(contBuf, cont)
+	err = json.Unmarshal(contBuf, &cont)
 	if err != nil {
 		return nil, err
 	}
