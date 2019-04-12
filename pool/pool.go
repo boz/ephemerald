@@ -64,6 +64,7 @@ type pool struct {
 	instances map[types.ID]instance.Instance
 	iready    map[types.ID]instance.Instance
 
+	crequests  []checkoutReq
 	checkoutch chan checkoutReq
 	releasech  chan types.ID
 
@@ -83,30 +84,26 @@ type checkoutReq struct {
 
 func (p *pool) Checkout(ctx context.Context) (params.Params, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	ch := make(chan params.Params, 1)
+	ch := make(chan params.Params)
 
 	req := checkoutReq{ch: ch, ctx: ctx}
 
 	select {
 	case <-ctx.Done():
-		cancel()
 		return params.Params{}, ctx.Err()
 	case <-p.lc.ShuttingDown():
-		cancel()
-		return params.Params{}, ctx.Err()
+		return params.Params{}, errors.New("not running")
 	case p.checkoutch <- req:
 	}
 
 	select {
 	case <-ctx.Done():
-		cancel()
 		return params.Params{}, ctx.Err()
 	case <-p.lc.ShuttingDown():
-		cancel()
-		return params.Params{}, ctx.Err()
+		return params.Params{}, errors.New("not running")
 	case val := <-ch:
-		cancel()
 		return val, nil
 	}
 }
@@ -133,7 +130,7 @@ func (p *pool) Done() <-chan struct{} {
 func (p *pool) run() {
 	defer p.lc.ShutdownCompleted()
 
-	requests := []checkoutReq{}
+	numStarted := 0
 
 	filter := func(ev types.BusEvent) bool {
 		return ev.GetPool() == p.id &&
@@ -146,18 +143,11 @@ func (p *pool) run() {
 		return
 	}
 
-	defer func() {
-		sub.Close()
-		<-sub.Done()
-	}()
-
 	_, err = p.resolveImage()
 	if err != nil {
 		p.lc.ShutdownInitiated(err)
-		return
+		goto done
 	}
-
-	numStarted := 0
 
 loop:
 	for {
@@ -187,7 +177,7 @@ loop:
 				}
 				numStarted++
 
-				// TODO: check requests
+				p.fulfillRequests()
 
 			case types.EventActionDone:
 
@@ -198,15 +188,8 @@ loop:
 
 		case req := <-p.checkoutch:
 
-			for id, instance := range p.iready {
-				if params, err := instance.Checkout(req.ctx); err != nil {
-					delete(p.iready, id)
-					req.ch <- params
-					continue loop
-				}
-			}
-
-			requests = append(requests, req)
+			p.crequests = append(p.crequests, req)
+			p.fulfillRequests()
 
 		case id := <-p.releasech:
 			instance, ok := p.iready[id]
@@ -217,10 +200,24 @@ loop:
 			delete(p.iready, id)
 			if err := instance.Release(p.ctx); err != nil {
 				// warn
-
 			}
 		}
 	}
+
+done:
+
+	sub.Close()
+
+	// drain
+	for _, instance := range p.instances {
+		instance.Shutdown()
+	}
+
+	for _, instance := range p.instances {
+		<-instance.Done()
+	}
+
+	<-sub.Done()
 }
 
 func (p *pool) resolveImage() (reference.Canonical, error) {
@@ -254,4 +251,46 @@ func (p *pool) fill() error {
 		p.instances[instance.ID()] = instance
 	}
 	return nil
+}
+
+func (p *pool) fulfillRequests() {
+
+	// clear out stale requests
+	for idx, req := range p.crequests {
+		if req.ctx.Err() != nil {
+			// warn stale request
+			p.crequests = append(p.crequests[:idx], p.crequests[idx+1:]...)
+		}
+	}
+
+loop:
+	for len(p.crequests) > 0 && len(p.iready) > 0 {
+
+		for id, instance := range p.iready {
+			delete(p.iready, id)
+
+			params, err := instance.Checkout(p.ctx)
+			if err != nil {
+				// warn
+				continue
+			}
+
+			for idx, req := range p.crequests {
+				p.crequests = append(p.crequests[:idx], p.crequests[idx+1:]...)
+
+				select {
+				case <-req.ctx.Done():
+					// warn stale request
+
+				case req.ch <- params:
+					continue loop
+				}
+			}
+
+			// XXX: no more requests to check out.
+			if err := instance.Release(p.ctx); err != nil {
+				// warn.
+			}
+		}
+	}
 }
