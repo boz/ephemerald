@@ -3,12 +3,12 @@ package testutil
 import (
 	"io/ioutil"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/types"
 	"github.com/boz/ephemerald/ui"
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
@@ -16,8 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CID() string {
-	return strings.Repeat("A", 36)
+func ID(t *testing.T) types.ID {
+	id, err := types.NewID()
+	assert.NoError(t, err)
+	return id
 }
 
 func Log() logrus.FieldLogger {

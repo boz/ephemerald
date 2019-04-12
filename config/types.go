@@ -1,6 +1,18 @@
 package config
 
-import "github.com/docker/docker/api/types/strslice"
+import (
+	"github.com/boz/ephemerald/lifecycle"
+	"github.com/docker/docker/api/types/strslice"
+)
+
+type Pool struct {
+	Name      string
+	Size      int
+	Image     string
+	Port      int
+	Container Container
+	Actions   lifecycle.Manager
+}
 
 type Container struct {
 	// docker/docker/api/types/container/config.go
@@ -18,8 +30,8 @@ type Container struct {
 	CapDrop strslice.StrSlice
 }
 
-func NewContainer() *Container {
-	return &Container{
+func NewContainer() Container {
+	return Container{
 		Labels:  make(map[string]string),
 		Volumes: make(map[string]struct{}),
 	}

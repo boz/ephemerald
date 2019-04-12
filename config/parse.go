@@ -9,7 +9,6 @@ import (
 	"path"
 
 	"github.com/boz/ephemerald/lifecycle"
-	"github.com/boz/ephemerald/ui"
 	"github.com/buger/jsonparser"
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
@@ -19,48 +18,34 @@ const (
 	maxSize = 200
 )
 
-type Config struct {
-	Name      string
-	Size      int
-	Image     string
-	Port      int
-	Container *Container
-	// Params    params.Config
-	Lifecycle lifecycle.Manager
-
-	log logrus.FieldLogger
-
-	uie ui.PoolEmitter
-}
-
-func ReadFile(log logrus.FieldLogger, uie ui.Emitter, fpath string) ([]*Config, error) {
+func ReadFile(log logrus.FieldLogger, fpath string) ([]*Pool, error) {
 	file, err := os.Open(fpath)
 	if err != nil {
-		return []*Config{}, err
+		return nil, err
 	}
 	defer file.Close()
 
 	switch path.Ext(fpath) {
 	case ".yml", ".yaml":
-		return ReadYAML(log, uie, file)
+		return ReadYAML(log, file)
 	case ".json":
-		return Read(log, uie, file)
+		return Read(log, file)
 	default:
 		return nil, fmt.Errorf("Unknown extension %v", path.Ext(fpath))
 	}
 }
 
-func Read(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, error) {
-	var configs []*Config
+func Read(log logrus.FieldLogger, r io.Reader) ([]*Pool, error) {
+	var configs []*Pool
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return configs, err
 	}
-	return ParseAll(log, uie, buf)
+	return ParseAll(log, buf)
 }
 
-func ReadYAML(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, error) {
-	var configs []*Config
+func ReadYAML(log logrus.FieldLogger, r io.Reader) ([]*Pool, error) {
+	var configs []*Pool
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return configs, err
@@ -70,13 +55,13 @@ func ReadYAML(log logrus.FieldLogger, uie ui.Emitter, r io.Reader) ([]*Config, e
 	if err != nil {
 		return configs, err
 	}
-	return ParseAll(log, uie, buf)
+	return ParseAll(log, buf)
 }
 
-func ParseAll(log logrus.FieldLogger, uie ui.Emitter, buf []byte) ([]*Config, error) {
-	var configs []*Config
+func ParseAll(log logrus.FieldLogger, buf []byte) ([]*Pool, error) {
+	var configs []*Pool
 	err := jsonparser.ObjectEach(buf, func(key []byte, buf []byte, dt jsonparser.ValueType, _ int) error {
-		config, err := Parse(log, uie, string(key), buf)
+		config, err := Parse(log, string(key), buf)
 		if err != nil {
 			return err
 		}
@@ -86,7 +71,7 @@ func ParseAll(log logrus.FieldLogger, uie ui.Emitter, buf []byte) ([]*Config, er
 	return configs, err
 }
 
-func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Config, error) {
+func Parse(log logrus.FieldLogger, name string, buf []byte) (*Pool, error) {
 
 	log = log.WithField("pool", name).WithField("component", "config.Parse")
 
@@ -112,21 +97,6 @@ func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Co
 		log.WithError(err).Error("parsing port")
 		return nil, err
 	}
-
-	// paramBuf, vt, _, err := jsonparser.Get(buf, "params")
-	// if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
-	// 	paramBuf = []byte("{}")
-	// } else if err != nil {
-	// 	log.WithError(err).Error("invalid params type")
-	// 	return nil, err
-	// }
-
-	// TODO
-	// params, err := params.ParseConfig(paramBuf)
-	// if err != nil {
-	// 	log.WithError(err).Error("parsing params")
-	// 	return nil, err
-	// }
 
 	contBuf, vt, _, err := jsonparser.Get(buf, "container")
 	if vt == jsonparser.NotExist && err == jsonparser.KeyPathNotFoundError {
@@ -156,23 +126,12 @@ func Parse(log logrus.FieldLogger, uie ui.Emitter, name string, buf []byte) (*Co
 		return nil, err
 	}
 
-	return &Config{
+	return &Pool{
 		Name:      name,
 		Size:      int(size),
 		Image:     image,
 		Port:      int(port),
 		Container: cont,
-		// Params:    params,
-		Lifecycle: lifecycle,
-		log:       log,
-		uie:       uie.ForPool(name),
+		Actions:   lifecycle,
 	}, nil
-}
-
-func (c Config) Log() logrus.FieldLogger {
-	return c.log
-}
-
-func (c Config) Emitter() ui.PoolEmitter {
-	return c.uie
 }

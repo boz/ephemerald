@@ -43,8 +43,6 @@ type Info struct {
 	Port string
 }
 
-type Config struct{}
-
 func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Instance, error) {
 
 	id, err := types.NewID()
