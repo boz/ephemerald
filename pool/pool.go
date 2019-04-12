@@ -37,14 +37,16 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		bus:       bus,
 		scheduler: scheduler,
 		config:    config,
+
 		instances: make(map[types.ID]instance.Instance),
+		iready:    make(map[types.ID]instance.Instance),
 
 		checkoutch: make(chan checkoutReq),
 		releasech:  make(chan types.ID),
+		readych:    make(chan struct{}),
 
-		readych: make(chan struct{}),
-		ctx:     ctx,
-		lc:      lifecycle.New(),
+		ctx: ctx,
+		lc:  lifecycle.New(),
 	}
 
 	go p.lc.WatchContext(ctx)
@@ -58,7 +60,9 @@ type pool struct {
 	id        types.ID
 	config    config.Pool
 	scheduler scheduler.Scheduler
+
 	instances map[types.ID]instance.Instance
+	iready    map[types.ID]instance.Instance
 
 	checkoutch chan checkoutReq
 	releasech  chan types.ID
@@ -129,7 +133,7 @@ func (p *pool) Done() <-chan struct{} {
 func (p *pool) run() {
 	defer p.lc.ShutdownCompleted()
 
-	ready := make(map[types.ID]instance.Instance)
+	requests := []checkoutReq{}
 
 	filter := func(ev types.BusEvent) bool {
 		return ev.GetPool() == p.id &&
@@ -153,6 +157,8 @@ func (p *pool) run() {
 		return
 	}
 
+	numStarted := 0
+
 loop:
 	for {
 
@@ -173,31 +179,42 @@ loop:
 					// warn
 					continue loop
 				}
-				ready[instance.ID()] = instance
+
+				p.iready[instance.ID()] = instance
+
+				if numStarted == 0 {
+					close(p.readych)
+				}
+				numStarted++
+
+				// TODO: check requests
 
 			case types.EventActionDone:
 
 				delete(p.instances, ev.GetInstance())
-				delete(ready, ev.GetInstance())
+				delete(p.iready, ev.GetInstance())
 
 			}
 
 		case req := <-p.checkoutch:
 
-			for id, instance := range ready {
+			for id, instance := range p.iready {
 				if params, err := instance.Checkout(req.ctx); err != nil {
-					delete(ready, id)
+					delete(p.iready, id)
 					req.ch <- params
+					continue loop
 				}
 			}
 
+			requests = append(requests, req)
+
 		case id := <-p.releasech:
-			instance, ok := ready[id]
+			instance, ok := p.iready[id]
 			if !ok {
 				// warn
 				continue loop
 			}
-			delete(ready, id)
+			delete(p.iready, id)
 			if err := instance.Release(p.ctx); err != nil {
 				// warn
 
