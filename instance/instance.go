@@ -53,14 +53,16 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Contain
 	}
 
 	i := &instance{
-		state:     iStateCreate,
-		bus:       bus,
-		id:        id,
-		pid:       pid,
-		node:      node,
-		cconfig:   cconfig,
-		lifecycle: lifecycle,
-		lc:        golifecycle.New(),
+		state:      iStateCreate,
+		bus:        bus,
+		id:         id,
+		pid:        pid,
+		node:       node,
+		cconfig:    cconfig,
+		checkoutch: make(chan checkoutReq),
+		releasech:  make(chan chan<- error),
+		lifecycle:  lifecycle,
+		lc:         golifecycle.New(),
 	}
 
 	go i.run()
@@ -74,6 +76,9 @@ type instance struct {
 	id      types.ID
 	pid     types.ID
 	cconfig config.Container
+
+	checkoutch chan checkoutReq
+	releasech  chan chan<- error
 
 	lifecycle lifecycle.Manager
 	bus       pubsub.Bus
@@ -89,12 +94,59 @@ func (i *instance) PoolID() types.ID {
 	return i.pid
 }
 
+type checkoutReq struct {
+	pch chan<- params.Params
+	ech chan<- error
+	ctx context.Context
+}
+
 func (i *instance) Checkout(ctx context.Context) (params.Params, error) {
-	return params.Params{}, errors.New("not implemented")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	pch := make(chan params.Params)
+	ech := make(chan error)
+	req := checkoutReq{pch: pch, ech: ech, ctx: ctx}
+
+	select {
+	case <-ctx.Done():
+		return params.Params{}, ctx.Err()
+	case <-i.lc.ShuttingDown():
+		return params.Params{}, errors.New("not running")
+	case i.checkoutch <- req:
+	}
+
+	select {
+	case <-ctx.Done():
+		return params.Params{}, ctx.Err()
+	case <-i.lc.ShuttingDown():
+		return params.Params{}, errors.New("not running")
+	case err := <-ech:
+		return params.Params{}, err
+	case params := <-pch:
+		return params, nil
+	}
 }
 
 func (i *instance) Release(ctx context.Context) error {
-	return errors.New("not implemented")
+	ch := make(chan error, 1)
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-i.lc.ShuttingDown():
+		return errors.New("not running")
+	case i.releasech <- ch:
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-i.lc.ShuttingDown():
+		return errors.New("not running")
+	case err := <-ch:
+		return err
+	}
 }
 
 func (i *instance) Shutdown() {
@@ -114,7 +166,7 @@ func (i *instance) run() {
 		return
 	}
 
-	_, err = params.ParamsFor(types.Instance{
+	params, err := params.ParamsFor(types.Instance{
 		ID:     i.id,
 		PoolID: i.pid,
 		Host:   i.node.Endpoint(),
@@ -133,6 +185,31 @@ loop:
 		case err := <-i.lc.ShutdownRequest():
 			i.lc.ShutdownInitiated(err)
 			break loop
+
+		case req := <-i.checkoutch:
+
+			if i.state != iStateReady {
+				req.ech <- errors.New("invalid state")
+				continue
+			}
+
+			select {
+			case <-req.ctx.Done():
+				// warn error
+				continue loop
+			case req.pch <- params:
+			}
+
+			// todo: run lifecycle
+
+		case req := <-i.releasech:
+			if i.state != iStateCheckout {
+				req <- errors.New("invalid state")
+				continue loop
+			}
+			req <- nil
+
+			// todo: run lifecycle.
 		}
 	}
 
