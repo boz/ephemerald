@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 
+	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/types"
-	"github.com/boz/go-lifecycle"
+	golifecycle "github.com/boz/go-lifecycle"
 	dtypes "github.com/docker/docker/api/types"
 	dcontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -43,7 +45,7 @@ type Info struct {
 	Port string
 }
 
-func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Instance, error) {
+func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Container, lifecycle lifecycle.Manager) (Instance, error) {
 
 	id, err := types.NewID()
 	if err != nil {
@@ -51,13 +53,14 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Instan
 	}
 
 	i := &instance{
-		state:  iStateCreate,
-		bus:    bus,
-		id:     id,
-		pid:    pid,
-		node:   node,
-		config: config,
-		lc:     lifecycle.New(),
+		state:     iStateCreate,
+		bus:       bus,
+		id:        id,
+		pid:       pid,
+		node:      node,
+		cconfig:   cconfig,
+		lifecycle: lifecycle,
+		lc:        golifecycle.New(),
 	}
 
 	go i.run()
@@ -66,15 +69,16 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, config Config) (Instan
 }
 
 type instance struct {
-	state  iState
-	node   node.Node
-	id     types.ID
-	pid    types.ID
-	config Config
+	state   iState
+	node    node.Node
+	id      types.ID
+	pid     types.ID
+	cconfig config.Container
 
-	bus pubsub.Bus
+	lifecycle lifecycle.Manager
+	bus       pubsub.Bus
 
-	lc lifecycle.Lifecycle
+	lc golifecycle.Lifecycle
 }
 
 func (i *instance) ID() types.ID {

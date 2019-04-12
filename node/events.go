@@ -69,15 +69,15 @@ func (ep *eventPublisher) run() {
 			return
 		case msg := <-msgch:
 			pid := msg.Actor.Attributes[LabelEphemeraldPoolID]
-			cid := msg.Actor.Attributes[LabelEphemeraldContainerID]
+			iid := msg.Actor.Attributes[LabelEphemeraldContainerID]
 
 			// TODO: err if empty
 
 			ev := types.DockerEvent{
-				Node:      ep.node.Host(),
-				Pool:      types.ID(pid),
-				Container: types.ID(cid),
-				Message:   msg,
+				Node:     ep.node.Host(),
+				Pool:     types.ID(pid),
+				Instance: types.ID(iid),
+				Message:  msg,
 			}
 
 			if err := ep.bus.Publish(ev); err != nil {

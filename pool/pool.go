@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/instance"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/runner"
@@ -17,13 +19,13 @@ type Pool interface {
 	Ready() <-chan struct{}
 
 	Checkout(context.Context) (params.Params, error)
-	Release(context.Context, string) error
+	Release(context.Context, types.ID) error
 
 	Shutdown()
 	Done() <-chan struct{}
 }
 
-func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
+func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, config config.Pool) (Pool, error) {
 
 	id, err := types.NewID()
 	if err != nil {
@@ -31,10 +33,16 @@ func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 	}
 
 	p := &pool{
-		bus:     bus,
-		id:      id,
+		id:        id,
+		bus:       bus,
+		scheduler: scheduler,
+		config:    config,
+		instances: make(map[types.ID]instance.Instance),
+
+		checkoutch: make(chan checkoutReq),
+		releasech:  make(chan types.ID),
+
 		readych: make(chan struct{}),
-		config:  config{},
 		ctx:     ctx,
 		lc:      lifecycle.New(),
 	}
@@ -48,23 +56,66 @@ func Create(ctx context.Context, bus pubsub.Bus) (Pool, error) {
 type pool struct {
 	bus       pubsub.Bus
 	id        types.ID
-	config    config
+	config    config.Pool
 	scheduler scheduler.Scheduler
-	readych   chan struct{}
-	ctx       context.Context
-	lc        lifecycle.Lifecycle
+	instances map[types.ID]instance.Instance
+
+	checkoutch chan checkoutReq
+	releasech  chan types.ID
+
+	readych chan struct{}
+	ctx     context.Context
+	lc      lifecycle.Lifecycle
 }
 
 func (p *pool) Ready() <-chan struct{} {
 	return p.readych
 }
 
-func (p *pool) Checkout(ctx context.Context) (params.Params, error) {
-	return params.Params{}, errors.New("not implemented")
+type checkoutReq struct {
+	ch  chan<- params.Params
+	ctx context.Context
 }
 
-func (p *pool) Release(ctx context.Context, id string) error {
-	return errors.New("not implemented")
+func (p *pool) Checkout(ctx context.Context) (params.Params, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	ch := make(chan params.Params, 1)
+
+	req := checkoutReq{ch: ch, ctx: ctx}
+
+	select {
+	case <-ctx.Done():
+		cancel()
+		return params.Params{}, ctx.Err()
+	case <-p.lc.ShuttingDown():
+		cancel()
+		return params.Params{}, ctx.Err()
+	case p.checkoutch <- req:
+	}
+
+	select {
+	case <-ctx.Done():
+		cancel()
+		return params.Params{}, ctx.Err()
+	case <-p.lc.ShuttingDown():
+		cancel()
+		return params.Params{}, ctx.Err()
+	case val := <-ch:
+		cancel()
+		return val, nil
+	}
+}
+
+func (p *pool) Release(ctx context.Context, id types.ID) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.lc.ShuttingDown():
+		return errors.New("not running")
+	case p.releasech <- id:
+		return nil
+	}
 }
 
 func (p *pool) Shutdown() {
@@ -78,7 +129,25 @@ func (p *pool) Done() <-chan struct{} {
 func (p *pool) run() {
 	defer p.lc.ShutdownCompleted()
 
-	_, err := p.resolveImage()
+	ready := make(map[types.ID]instance.Instance)
+
+	filter := func(ev types.BusEvent) bool {
+		return ev.GetPool() == p.id &&
+			ev.GetType() == types.EventTypeInstance
+	}
+
+	sub, err := p.bus.Subscribe(filter)
+	if err != nil {
+		p.lc.ShutdownInitiated(err)
+		return
+	}
+
+	defer func() {
+		sub.Close()
+		<-sub.Done()
+	}()
+
+	_, err = p.resolveImage()
 	if err != nil {
 		p.lc.ShutdownInitiated(err)
 		return
@@ -87,28 +156,52 @@ func (p *pool) run() {
 loop:
 	for {
 
-		// create containers
-		// for i := len(containers); i < 10; i++ {
-		// }
-		// for len(containers) < 10 {
-		// }
+		p.fill()
 
 		select {
 		case err := <-p.lc.ShutdownRequest():
 			p.lc.ShutdownInitiated(err)
 			break loop
 
-			// case cid := <-creadych:
-			// 	// container ready
+		case ev := <-sub.Events():
 
-			// case cid := <-cdonech:
-			// 	// container done
+			switch ev.GetAction() {
+			case types.EventActionReady:
 
-			// case req := <-ccheckoutch:
-			// 	// container checkout
+				instance, ok := p.instances[ev.GetInstance()]
+				if !ok {
+					// warn
+					continue loop
+				}
+				ready[instance.ID()] = instance
 
-			// case cid := <-creleasech:
-			// 	// container release
+			case types.EventActionDone:
+
+				delete(p.instances, ev.GetInstance())
+				delete(ready, ev.GetInstance())
+
+			}
+
+		case req := <-p.checkoutch:
+
+			for id, instance := range ready {
+				if params, err := instance.Checkout(req.ctx); err != nil {
+					delete(ready, id)
+					req.ch <- params
+				}
+			}
+
+		case id := <-p.releasech:
+			instance, ok := ready[id]
+			if !ok {
+				// warn
+				continue loop
+			}
+			delete(ready, id)
+			if err := instance.Release(p.ctx); err != nil {
+				// warn
+
+			}
 		}
 	}
 }
@@ -117,7 +210,7 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 	ctx, cancel := context.WithCancel(p.ctx)
 
 	refch := runner.Do(func() runner.Result {
-		return runner.NewResult(p.scheduler.ResolveImage(ctx, p.config.imageName))
+		return runner.NewResult(p.scheduler.ResolveImage(ctx, p.config.Image))
 	})
 
 	select {
@@ -133,4 +226,15 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 		return result.Value().(reference.Canonical), nil
 	}
 
+}
+
+func (p *pool) fill() error {
+	for len(p.instances) < p.config.Size {
+		instance, err := p.scheduler.CreateInstance(p.ctx, p.id, p.config.Container, p.config.Actions)
+		if err != nil {
+			return err
+		}
+		p.instances[instance.ID()] = instance
+	}
+	return nil
 }

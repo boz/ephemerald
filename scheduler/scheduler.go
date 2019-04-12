@@ -2,12 +2,14 @@ package scheduler
 
 import (
 	"context"
-	"errors"
 	"io"
 	"io/ioutil"
 
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/instance"
+	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/node"
+	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/types"
 	"github.com/docker/distribution/reference"
 	dtypes "github.com/docker/docker/api/types"
@@ -18,7 +20,7 @@ import (
 type Scheduler interface {
 	ResolveImage(context.Context, string) (reference.Canonical, error)
 
-	CreateContainer(context.Context, types.ID, instance.Config) (instance.Instance, error)
+	CreateInstance(context.Context, types.ID, config.Container, lifecycle.Manager) (instance.Instance, error)
 }
 
 func New(node node.Node) Scheduler {
@@ -28,6 +30,7 @@ func New(node node.Node) Scheduler {
 }
 
 type scheduler struct {
+	bus  pubsub.Bus
 	node node.Node
 }
 
@@ -78,6 +81,6 @@ done:
 	return reference.WithDigest(ref, digest)
 }
 
-func (s *scheduler) CreateContainer(ctx context.Context, pid types.ID, config instance.Config) (instance.Instance, error) {
-	return nil, errors.New("not implemented")
+func (s *scheduler) CreateInstance(ctx context.Context, pid types.ID, cconfig config.Container, lifecycle lifecycle.Manager) (instance.Instance, error) {
+	return instance.Create(s.bus, s.node, pid, cconfig, lifecycle)
 }

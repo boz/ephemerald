@@ -5,40 +5,51 @@ import "github.com/docker/docker/api/types/events"
 type EventType string
 
 const (
-	EventTypeDocker    = "docker"
-	EventTypePool      = "pool"
-	EventTypeContainer = "container"
+	EventTypeDocker   = "docker"
+	EventTypePool     = "pool"
+	EventTypeInstance = "instance"
 )
 
 type EventAction string
+
+const (
+	EventActionCreating     EventAction = "creating"
+	EventActionStarting                 = "starting"
+	EventActionInitializing             = "initializing"
+	EventActionChecking                 = "checking"
+	EventActionReady                    = "ready"
+	EventActionCheckout                 = "checkout"
+	EventActionRelease                  = "release"
+	EventActionDone                     = "done"
+)
 
 type BusEvent interface {
 	GetType() EventType
 	GetAction() EventAction
 	GetPool() ID
-	GetContainer() ID
+	GetInstance() ID
 }
 
 type Event struct {
-	Type      EventType
-	Action    EventAction
-	Pool      ID
-	Container ID
+	Type     EventType
+	Action   EventAction
+	Pool     ID
+	Instance ID
 }
 
 func (ev Event) GetPool() ID {
 	return ev.Pool
 }
 
-func (ev Event) GetContainer() ID {
-	return ev.Container
+func (ev Event) GetInstance() ID {
+	return ev.Instance
 }
 
 type DockerEvent struct {
-	Node      string
-	Pool      ID
-	Container ID
-	Message   events.Message
+	Node     string
+	Pool     ID
+	Instance ID
+	Message  events.Message
 }
 
 func (ev DockerEvent) GetType() EventType {
@@ -53,6 +64,6 @@ func (ev DockerEvent) GetPool() ID {
 	return ev.Pool
 }
 
-func (ev DockerEvent) GetContainer() ID {
-	return ev.Container
+func (ev DockerEvent) GetInstance() ID {
+	return ev.Instance
 }
