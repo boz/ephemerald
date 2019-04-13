@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
@@ -13,9 +14,11 @@ import (
 	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/types"
 	golifecycle "github.com/boz/go-lifecycle"
+	"github.com/docker/distribution/reference"
 	dtypes "github.com/docker/docker/api/types"
 	dcontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/go-connections/nat"
 )
 
 type iState string
@@ -41,12 +44,15 @@ type Instance interface {
 	Done() <-chan struct{}
 }
 
-type Info struct {
-	Host string
-	Port string
+type Config struct {
+	PoolID    types.ID
+	Image     reference.Canonical
+	Port      int
+	Container config.Container
+	Actions   lifecycle.Manager
 }
 
-func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Container, lifecycle lifecycle.Manager) (Instance, error) {
+func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 	id, err := types.NewID()
 	if err != nil {
@@ -55,19 +61,17 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Contain
 
 	l := logrus.StandardLogger().
 		WithField("cmp", "instance").
-		WithField("pid", pid).
+		WithField("pid", config.PoolID).
 		WithField("iid", id)
 
 	i := &instance{
-		state:      iStateCreate,
-		bus:        bus,
 		id:         id,
-		pid:        pid,
+		state:      iStateCreate,
 		node:       node,
-		cconfig:    cconfig,
+		config:     config,
+		bus:        bus,
 		checkoutch: make(chan checkoutReq),
 		releasech:  make(chan chan<- error),
-		lifecycle:  lifecycle,
 		lc:         golifecycle.New(),
 		l:          l,
 	}
@@ -78,17 +82,15 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Contain
 }
 
 type instance struct {
-	state   iState
-	node    node.Node
-	id      types.ID
-	pid     types.ID
-	cconfig config.Container
+	id    types.ID
+	state iState
+
+	node   node.Node
+	config Config
+	bus    pubsub.Bus
 
 	checkoutch chan checkoutReq
 	releasech  chan chan<- error
-
-	lifecycle lifecycle.Manager
-	bus       pubsub.Bus
 
 	lc golifecycle.Lifecycle
 	l  logrus.FieldLogger
@@ -99,7 +101,7 @@ func (i *instance) ID() types.ID {
 }
 
 func (i *instance) PoolID() types.ID {
-	return i.pid
+	return i.config.PoolID
 }
 
 type checkoutReq struct {
@@ -194,7 +196,7 @@ func (i *instance) run() {
 
 	iparams, err = params.ParamsFor(types.Instance{
 		ID:     i.id,
-		PoolID: i.pid,
+		PoolID: i.PoolID(),
 		Host:   i.node.Endpoint(),
 	}, cinfo, 80)
 
@@ -251,7 +253,7 @@ kill:
 func (i *instance) subscribe() (pubsub.Subscription, error) {
 	filter := func(ev types.BusEvent) bool {
 		return ev.GetInstance() == i.id &&
-			ev.GetPool() == i.pid &&
+			ev.GetPool() == i.PoolID() &&
 			ev.GetType() != types.EventTypeInstance
 	}
 	sub, err := i.bus.Subscribe(filter)
@@ -282,29 +284,25 @@ func (i *instance) create() (string, error) {
 func (i *instance) doCreate(ctx context.Context) (string, error) {
 	cconfig := &dcontainer.Config{
 		Labels: map[string]string{
-			node.LabelEphemeraldPoolID:      string(i.pid),
+			node.LabelEphemeraldPoolID:      string(i.PoolID()),
 			node.LabelEphemeraldContainerID: string(i.id),
 		},
-		/*
-			Image:        a.ref.Name(),
-			Cmd:          a.config.Container.Cmd,
-			Env:          a.config.Container.Env,
-			Volumes:      a.config.Container.Volumes,
-			Labels:       a.config.Container.Labels,
-			AttachStdin:  false,
-			AttachStdout: false,
-			AttachStderr: false,
-			ExposedPorts: nat.PortSet{
-				nat.Port(strconv.Itoa(a.config.Port)): struct{}{},
-			},
-		*/
+		Image:        i.config.Image.Name(),
+		Cmd:          i.config.Container.Cmd,
+		Env:          i.config.Container.Env,
+		Volumes:      i.config.Container.Volumes,
+		AttachStdin:  false,
+		AttachStdout: false,
+		AttachStderr: false,
+		ExposedPorts: nat.PortSet{
+			nat.Port(strconv.Itoa(i.config.Port)): struct{}{},
+		},
 	}
+
 	hconfig := &dcontainer.HostConfig{
-		/*
-			AutoRemove:      true,
-			PublishAllPorts: true,
-			RestartPolicy:   dcontainer.RestartPolicy{},
-		*/
+		AutoRemove:      true,
+		PublishAllPorts: true,
+		RestartPolicy:   dcontainer.RestartPolicy{},
 	}
 	nconfig := &network.NetworkingConfig{}
 
