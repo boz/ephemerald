@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/node"
@@ -52,6 +53,11 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Contain
 		return nil, err
 	}
 
+	l := logrus.StandardLogger().
+		WithField("cmp", "instance").
+		WithField("pid", pid).
+		WithField("iid", id)
+
 	i := &instance{
 		state:      iStateCreate,
 		bus:        bus,
@@ -63,6 +69,7 @@ func Create(bus pubsub.Bus, node node.Node, pid types.ID, cconfig config.Contain
 		releasech:  make(chan chan<- error),
 		lifecycle:  lifecycle,
 		lc:         golifecycle.New(),
+		l:          l,
 	}
 
 	go i.run()
@@ -84,6 +91,7 @@ type instance struct {
 	bus       pubsub.Bus
 
 	lc golifecycle.Lifecycle
+	l  logrus.FieldLogger
 }
 
 func (i *instance) ID() types.ID {
@@ -160,7 +168,11 @@ func (i *instance) Done() <-chan struct{} {
 func (i *instance) run() {
 	defer i.lc.ShutdownCompleted()
 
-	var iparams params.Params
+	var (
+		iparams params.Params
+		cid     string
+		cinfo   dtypes.ContainerJSON
+	)
 
 	sub, err := i.subscribe()
 	if err != nil {
@@ -168,7 +180,13 @@ func (i *instance) run() {
 		return
 	}
 
-	cinfo, err := i.create()
+	cid, err = i.create()
+	if err != nil {
+		i.lc.ShutdownInitiated(err)
+		goto kill
+	}
+
+	cinfo, err = i.start(cid)
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
 		goto kill
@@ -197,13 +215,14 @@ loop:
 		case req := <-i.checkoutch:
 
 			if i.state != iStateReady {
+				i.l.Warn("checkout: invalid state")
 				req.ech <- errors.New("invalid state")
 				continue loop
 			}
 
 			select {
 			case <-req.ctx.Done():
-				// warn error
+				i.l.Warn("checkout: stale request")
 				continue loop
 			case req.pch <- iparams:
 			}
@@ -212,6 +231,7 @@ loop:
 
 		case req := <-i.releasech:
 			if i.state != iStateCheckout {
+				i.l.Warn("release: invalid state")
 				req <- errors.New("invalid state")
 				continue loop
 			}
@@ -224,6 +244,7 @@ loop:
 kill:
 
 	sub.Close()
+	i.kill(cid)
 	<-sub.Done()
 }
 
@@ -233,11 +254,17 @@ func (i *instance) subscribe() (pubsub.Subscription, error) {
 			ev.GetPool() == i.pid &&
 			ev.GetType() != types.EventTypeInstance
 	}
-	return i.bus.Subscribe(filter)
+	sub, err := i.bus.Subscribe(filter)
+	if err != nil {
+		i.l.WithError(err).Error("bus-subscribe")
+	}
+	return sub, err
 }
 
-func (i *instance) create() (dtypes.ContainerJSON, error) {
+func (i *instance) create() (string, error) {
+	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	runch := runner.Do(func() runner.Result {
 		return runner.NewResult(i.doCreate(ctx))
@@ -245,19 +272,14 @@ func (i *instance) create() (dtypes.ContainerJSON, error) {
 
 	select {
 	case err := <-i.lc.ShutdownRequest():
-		cancel()
-		<-runch
-		return dtypes.ContainerJSON{}, err
+		res := <-runch
+		return res.Value().(string), err
 	case res := <-runch:
-		cancel()
-		if res.Err() != nil {
-			return dtypes.ContainerJSON{}, res.Err()
-		}
-		return res.Value().(dtypes.ContainerJSON), nil
+		return res.Value().(string), res.Err()
 	}
 }
 
-func (i *instance) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
+func (i *instance) doCreate(ctx context.Context) (string, error) {
 	cconfig := &dcontainer.Config{
 		Labels: map[string]string{
 			node.LabelEphemeraldPoolID:      string(i.pid),
@@ -288,21 +310,63 @@ func (i *instance) doCreate(ctx context.Context) (dtypes.ContainerJSON, error) {
 
 	cinfo, err := i.node.Client().ContainerCreate(ctx, cconfig, hconfig, nconfig, "")
 	if err != nil {
+		i.l.WithError(err).Error("container-create")
+		return "", err
+	}
+
+	return cinfo.ID, nil
+
+}
+
+func (i *instance) start(cid string) (dtypes.ContainerJSON, error) {
+	// todo: timeout
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	runch := runner.Do(func() runner.Result {
+		return runner.NewResult(i.doStart(ctx, cid))
+	})
+
+	select {
+	case err := <-i.lc.ShutdownRequest():
+		res := <-runch
+		if val, ok := res.Value().(dtypes.ContainerJSON); ok {
+			return val, err
+		}
+		return dtypes.ContainerJSON{}, err
+	case res := <-runch:
+		if res.Err() != nil {
+			return dtypes.ContainerJSON{}, res.Err()
+		}
+		return res.Value().(dtypes.ContainerJSON), nil
+	}
+}
+
+func (i *instance) doStart(ctx context.Context, cid string) (dtypes.ContainerJSON, error) {
+
+	if err := i.node.Client().ContainerStart(ctx, cid, dtypes.ContainerStartOptions{}); err != nil {
+		i.l.WithError(err).Error("container-start")
 		return dtypes.ContainerJSON{}, err
 	}
 
-	// emit created, state start
-
-	if err := i.node.Client().ContainerStart(ctx, cinfo.ID, dtypes.ContainerStartOptions{}); err != nil {
-		return dtypes.ContainerJSON{}, err
-	}
-
-	info, err := i.node.Client().ContainerInspect(ctx, cinfo.ID)
+	info, err := i.node.Client().ContainerInspect(ctx, cid)
 	if err != nil {
+		i.l.WithError(err).Error("container-inspect")
 		return info, err
 	}
 
 	// emit started, state initialize
-
 	return info, nil
+}
+
+func (i *instance) kill(cid string) error {
+	// todo: timeout
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := i.node.Client().ContainerKill(ctx, cid, "KILL"); err != nil {
+		i.l.WithError(err).Warn("kill")
+		return err
+	}
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/instance"
 	"github.com/boz/ephemerald/params"
@@ -32,6 +33,10 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		return nil, err
 	}
 
+	l := logrus.StandardLogger().
+		WithField("cmp", "pool").
+		WithField("pid", id)
+
 	p := &pool{
 		id:        id,
 		bus:       bus,
@@ -47,6 +52,7 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 
 		ctx: ctx,
 		lc:  lifecycle.New(),
+		l:   l,
 	}
 
 	go p.lc.WatchContext(ctx)
@@ -71,6 +77,8 @@ type pool struct {
 	readych chan struct{}
 	ctx     context.Context
 	lc      lifecycle.Lifecycle
+
+	l logrus.FieldLogger
 }
 
 func (p *pool) Ready() <-chan struct{} {
@@ -128,6 +136,7 @@ func (p *pool) Done() <-chan struct{} {
 }
 
 func (p *pool) run() {
+	defer func() { p.l.Debug("done") }()
 	defer p.lc.ShutdownCompleted()
 
 	numStarted := 0
@@ -156,12 +165,18 @@ loop:
 
 		case ev := <-sub.Events():
 
+			l := p.l.WithField("ev:action", ev.GetAction()).
+				WithField("ev:type", ev.GetType()).
+				WithField("ev:iid", ev.GetInstance())
+
+			l.Debug("event received")
+
 			switch ev.GetAction() {
 			case types.EventActionReady:
 
 				instance, ok := p.instances[ev.GetInstance()]
 				if !ok {
-					// warn
+					l.Warn("unknown instance")
 					continue loop
 				}
 
@@ -187,19 +202,25 @@ loop:
 			p.fulfillRequests()
 
 		case id := <-p.releasech:
+
 			instance, ok := p.iready[id]
 			if !ok {
-				// warn
+				p.l.WithField("iid", id).Warn("release: unknown instance")
 				continue loop
 			}
+
 			delete(p.iready, id)
+
 			if err := instance.Release(p.ctx); err != nil {
-				// warn
+				p.l.WithField("iid", id).
+					WithError(err).Warn("release: error releasing")
 			}
 		}
 	}
 
 done:
+
+	p.l.WithField("num-instances", len(p.instances)).Info("shutting down")
 
 	sub.Close()
 
@@ -220,7 +241,11 @@ func (p *pool) subscribe() (pubsub.Subscription, error) {
 		return ev.GetPool() == p.id &&
 			ev.GetType() == types.EventTypeInstance
 	}
-	return p.bus.Subscribe(filter)
+	sub, err := p.bus.Subscribe(filter)
+	if err != nil {
+		p.l.WithError(err).Error("bus-subscribe")
+	}
+	return sub, err
 }
 
 func (p *pool) resolveImage() (reference.Canonical, error) {
@@ -238,6 +263,7 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 	case result := <-refch:
 		cancel()
 		if result.Err() != nil {
+			p.l.WithError(result.Err()).Error("image-resolve")
 			return nil, result.Err()
 		}
 		return result.Value().(reference.Canonical), nil
@@ -246,9 +272,13 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 }
 
 func (p *pool) fill() error {
+
+	p.l.WithField("num-instances", p.config.Size-len(p.instances)).Debug("filling")
+
 	for len(p.instances) < p.config.Size {
 		instance, err := p.scheduler.CreateInstance(p.ctx, p.id, p.config.Container, p.config.Actions)
 		if err != nil {
+			p.l.WithError(err).Error("create-instance")
 			return err
 		}
 		p.instances[instance.ID()] = instance
@@ -261,7 +291,7 @@ func (p *pool) fulfillRequests() {
 	// clear out stale requests
 	for idx, req := range p.crequests {
 		if req.ctx.Err() != nil {
-			// warn stale request
+			p.l.Debug("stale request dropped")
 			p.crequests = append(p.crequests[:idx], p.crequests[idx+1:]...)
 		}
 	}
@@ -274,7 +304,7 @@ loop:
 
 			params, err := instance.Checkout(p.ctx)
 			if err != nil {
-				// warn
+				p.l.WithField("iid", id).Warn("checkout failed")
 				continue
 			}
 
@@ -283,16 +313,18 @@ loop:
 
 				select {
 				case <-req.ctx.Done():
-					// warn stale request
+					p.l.Warn("stale request")
 
 				case req.ch <- params:
 					continue loop
 				}
 			}
 
+			p.l.WithField("iid", id).Warn("unused checkout found")
+
 			// XXX: no more requests to check out.
 			if err := instance.Release(p.ctx); err != nil {
-				// warn.
+				p.l.WithField("iid", id).WithError(err).Warn("releasing unused checkout")
 			}
 		}
 	}
