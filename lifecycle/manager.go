@@ -18,7 +18,7 @@ var (
 type Manager interface {
 	ParseConfig([]byte) error
 	MaxDelay() time.Duration
-	ForContainer(types.ID) ContainerManager
+	ForInstance(types.Instance) ContainerManager
 }
 
 type ContainerManager interface {
@@ -45,14 +45,16 @@ type containerManager struct {
 }
 
 func NewManager(log logrus.FieldLogger) Manager {
-	return &manager{log: log.WithField("component", "lifecycle.Manager")}
+	return &manager{log: log.WithField("cmp", "lifecycle.manager")}
 }
 
-func (m *manager) ForContainer(cid types.ID) ContainerManager {
+func (m *manager) ForInstance(i types.Instance) ContainerManager {
 	next := &containerManager{
 		manager: *m,
 	}
-	next.log = m.log.WithField("container", cid)
+	next.log = m.log.
+		WithField("pid", i.PoolID).
+		WithField("iid", i.ID)
 	return next
 }
 

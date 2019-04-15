@@ -174,6 +174,8 @@ func (i *instance) run() {
 		iparams params.Params
 		cid     string
 		cinfo   dtypes.ContainerJSON
+		model   types.Instance
+		manager lifecycle.ContainerManager
 	)
 
 	sub, err := i.subscribe()
@@ -194,11 +196,13 @@ func (i *instance) run() {
 		goto kill
 	}
 
-	iparams, err = params.ParamsFor(types.Instance{
+	model = types.Instance{
 		ID:     i.id,
 		PoolID: i.PoolID(),
 		Host:   i.node.Endpoint(),
-	}, cinfo, 80)
+	}
+
+	iparams, err = params.ParamsFor(model, cinfo, 80)
 
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
@@ -206,6 +210,12 @@ func (i *instance) run() {
 	}
 
 	i.state = iStateInitialize
+
+	manager = i.lifecycle.ForInstance(model)
+
+	actionch = i.runAction(manager.StartCheck)
+
+	// todo: run lifecycle
 
 loop:
 	for {
@@ -228,8 +238,6 @@ loop:
 				continue loop
 			case req.pch <- iparams:
 			}
-
-			// todo: run lifecycle
 
 		case req := <-i.releasech:
 			if i.state != iStateCheckout {

@@ -11,6 +11,7 @@ type Instance struct {
 	ID     ID
 	PoolID ID
 	Host   string
+	Port   int
 }
 
 func NewID() (ID, error) {
