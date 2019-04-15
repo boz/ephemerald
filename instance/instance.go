@@ -21,20 +21,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-type iState string
-
-const (
-	iStateCreate      iState = "create"
-	iStateStart              = "start"
-	iStateInitialize         = "initialize"
-	iStateHealthcheck        = "healthcheck"
-	iStateReady              = "ready"
-	iStateCheckout           = "checkout"
-	iStateReset              = "reset"
-	iStateKill               = "kill"
-	iStateDone               = "done"
-)
-
 type Instance interface {
 	ID() types.ID
 	PoolID() types.ID
@@ -66,7 +52,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 	i := &instance{
 		id:         id,
-		state:      iStateCreate,
+		state:      types.EventActionStart,
 		node:       node,
 		config:     config,
 		bus:        bus,
@@ -83,7 +69,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 type instance struct {
 	id    types.ID
-	state iState
+	state types.EventAction
 
 	node   node.Node
 	config Config
@@ -171,11 +157,12 @@ func (i *instance) run() {
 	defer i.lc.ShutdownCompleted()
 
 	var (
-		iparams params.Params
-		cid     string
-		cinfo   dtypes.ContainerJSON
-		model   types.Instance
-		manager lifecycle.ContainerManager
+		iparams  params.Params
+		cid      string
+		cinfo    dtypes.ContainerJSON
+		model    types.Instance
+		manager  lifecycle.ContainerManager
+		actionch <-chan error
 	)
 
 	sub, err := i.subscribe()
@@ -183,6 +170,8 @@ func (i *instance) run() {
 		i.lc.ShutdownInitiated(err)
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	cid, err = i.create()
 	if err != nil {
@@ -209,13 +198,10 @@ func (i *instance) run() {
 		goto kill
 	}
 
-	i.state = iStateInitialize
+	manager = i.config.Actions.ForInstance(model)
 
-	manager = i.lifecycle.ForInstance(model)
-
-	actionch = i.runAction(manager.StartCheck)
-
-	// todo: run lifecycle
+	i.enterState(types.EventActionCheck)
+	actionch = i.runAction(ctx, iparams, manager.DoHealthcheck)
 
 loop:
 	for {
@@ -226,7 +212,7 @@ loop:
 
 		case req := <-i.checkoutch:
 
-			if i.state != iStateReady {
+			if i.state != types.EventActionReady {
 				i.l.Warn("checkout: invalid state")
 				req.ech <- errors.New("invalid state")
 				continue loop
@@ -239,23 +225,86 @@ loop:
 			case req.pch <- iparams:
 			}
 
+			i.enterState(types.EventActionCheckout)
+
 		case req := <-i.releasech:
-			if i.state != iStateCheckout {
+
+			if i.state != types.EventActionCheckout {
 				i.l.Warn("release: invalid state")
 				req <- errors.New("invalid state")
 				continue loop
 			}
 			req <- nil
 
-			// todo: run lifecycle.
+			if !manager.HasReset() {
+				i.lc.ShutdownInitiated(err)
+				break loop
+			}
+
+			i.enterState(types.EventActionReset)
+			actionch = i.runAction(ctx, iparams, manager.DoReset)
+
+		case err := <-actionch:
+			actionch = nil
+			switch i.state {
+			case types.EventActionCheck:
+				if err != nil {
+					i.lc.ShutdownInitiated(err)
+					break loop
+				}
+
+				i.enterState(types.EventActionInitialize)
+				actionch = i.runAction(ctx, iparams, manager.DoInitialize)
+
+			case types.EventActionInitialize:
+				if err != nil {
+					i.lc.ShutdownInitiated(err)
+					break loop
+				}
+
+				i.enterState(types.EventActionReady)
+
+			case types.EventActionReset:
+				if err != nil {
+					i.lc.ShutdownInitiated(err)
+					break loop
+				}
+
+				i.enterState(types.EventActionInitialize)
+				actionch = i.runAction(ctx, iparams, manager.DoHealthcheck)
+			}
 		}
 	}
 
 kill:
+	cancel()
 
 	sub.Close()
+
 	i.kill(cid)
+
+	if actionch != nil {
+		<-actionch
+	}
+
+	i.enterState(types.EventActionDone)
+
 	<-sub.Done()
+}
+
+func (i *instance) enterState(state types.EventAction) {
+	i.state = state
+	err := i.bus.Publish(types.Event{
+		Type:     types.EventTypeInstance,
+		Action:   state,
+		Pool:     i.PoolID(),
+		Instance: i.id,
+	})
+	if err != nil {
+		i.l.WithError(err).
+			WithField("state", state).
+			Error("entering state")
+	}
 }
 
 func (i *instance) subscribe() (pubsub.Subscription, error) {
@@ -272,6 +321,8 @@ func (i *instance) subscribe() (pubsub.Subscription, error) {
 }
 
 func (i *instance) create() (string, error) {
+	i.enterState(types.EventActionCreate)
+
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -325,6 +376,8 @@ func (i *instance) doCreate(ctx context.Context) (string, error) {
 }
 
 func (i *instance) start(cid string) (dtypes.ContainerJSON, error) {
+	i.enterState(types.EventActionStart)
+
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -361,11 +414,12 @@ func (i *instance) doStart(ctx context.Context, cid string) (dtypes.ContainerJSO
 		return info, err
 	}
 
-	// emit started, state initialize
 	return info, nil
 }
 
 func (i *instance) kill(cid string) error {
+	i.enterState(types.EventActionKill)
+
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -375,4 +429,12 @@ func (i *instance) kill(cid string) error {
 		return err
 	}
 	return nil
+}
+
+func (i *instance) runAction(ctx context.Context, iparams params.Params, fn func(context.Context, params.Params) error) <-chan error {
+	errch := make(chan error, 1)
+	go func() {
+		errch <- fn(ctx, iparams)
+	}()
+	return errch
 }

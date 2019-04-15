@@ -21,6 +21,9 @@ type Manager interface {
 	ForInstance(types.Instance) ContainerManager
 }
 
+// StartedProbe
+// ReadyProbe
+
 type ContainerManager interface {
 	HasInitialize() bool
 	DoInitialize(context.Context, params.Params) error

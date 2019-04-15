@@ -13,15 +13,18 @@ const (
 type EventAction string
 
 const (
-	EventActionCreating     EventAction = "creating"
-	EventActionStarting                 = "starting"
-	EventActionInitializing             = "initializing"
-	EventActionChecking                 = "checking"
-	EventActionReady                    = "ready"
-	EventActionCheckout                 = "checkout"
-	EventActionRelease                  = "release"
-	EventActionDone                     = "done"
+	EventActionCreate     EventAction = "creating"
+	EventActionStart                  = "starting"
+	EventActionCheck                  = "checking"
+	EventActionInitialize             = "initializing"
+	EventActionReady                  = "ready"
+	EventActionCheckout               = "checkout"
+	EventActionReset                  = "resetting"
+	EventActionKill                   = "killing"
+	EventActionDone                   = "done"
 )
+
+var _ BusEvent = Event{}
 
 type BusEvent interface {
 	GetType() EventType
@@ -35,6 +38,14 @@ type Event struct {
 	Action   EventAction
 	Pool     ID
 	Instance ID
+}
+
+func (ev Event) GetType() EventType {
+	return ev.Type
+}
+
+func (ev Event) GetAction() EventAction {
+	return ev.Action
 }
 
 func (ev Event) GetPool() ID {
