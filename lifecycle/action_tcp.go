@@ -25,6 +25,9 @@ func actionTCPConnectParse(buf []byte) (Action, error) {
 func (a *actionTCPConnect) Do(e Env, p params.Params) error {
 	address := net.JoinHostPort(p.Host, p.Port)
 	con, err := net.DialTimeout("tcp", address, a.Timeout)
-	defer con.Close()
-	return err
+	if err != nil {
+		return err
+	}
+	con.Close()
+	return nil
 }

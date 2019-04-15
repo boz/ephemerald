@@ -20,8 +20,9 @@ type Scheduler interface {
 	CreateInstance(context.Context, instance.Config) (instance.Instance, error)
 }
 
-func New(node node.Node) Scheduler {
+func New(bus pubsub.Bus, node node.Node) Scheduler {
 	return &scheduler{
+		bus:  bus,
 		node: node,
 	}
 }

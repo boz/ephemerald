@@ -30,6 +30,7 @@ func newSubscription(donech chan<- *subscription, filter Filter) *subscription {
 	s := &subscription{
 		inch:  make(chan types.BusEvent, bufSiz),
 		outch: make(chan types.BusEvent, bufSiz),
+		lc:    lifecycle.New(),
 	}
 
 	go s.run(donech, filter)

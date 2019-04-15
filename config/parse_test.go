@@ -5,6 +5,7 @@ import (
 
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/testutil"
+	"github.com/boz/ephemerald/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,12 @@ func doReadTest(t *testing.T, path string, msg string) {
 	assert.Equal(t, 6379, cfg.Port, msg)
 	assert.Equal(t, 10, cfg.Size, msg)
 
-	m := cfg.Actions.ForContainer(testutil.ID(t))
+	m := cfg.Actions.ForInstance(types.Instance{
+		ID:     testutil.ID(t),
+		PoolID: testutil.ID(t),
+		Port:   cfg.Port,
+		Host:   "127.0.0.1",
+	})
 
 	assert.False(t, m.HasInitialize(), msg)
 	assert.True(t, m.HasHealthcheck(), msg)

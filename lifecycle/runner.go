@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/boz/ephemerald/params"
-	"github.com/boz/ephemerald/ui"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +20,6 @@ type actionRunner struct {
 	p          params.Params
 	ctx        context.Context
 	log        logrus.FieldLogger
-	uie        ui.ContainerEmitter
 }
 
 func newActionRunner(ctx context.Context, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
@@ -48,20 +46,20 @@ func (ar *actionRunner) Run() error {
 	timeout := ar.action.Config().Timeout
 	delay := ar.action.Config().Delay
 
-	maxAttempts := retries + 1
+	// maxAttempts := retries + 1
 
 	for {
 
 		if ar.ctx.Err() != nil {
-			ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
+			// ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
 			return ar.ctx.Err()
 		}
 
-		ar.uie.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
+		// ar.uie.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
 
 		err, ok := ar.doAttempt(attempt, timeout)
 
-		ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
+		// ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
 
 		if !ok {
 			return err

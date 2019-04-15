@@ -65,6 +65,7 @@ type pool struct {
 	bus       pubsub.Bus
 	id        types.ID
 	config    config.Pool
+	image     reference.Canonical
 	scheduler scheduler.Scheduler
 
 	instances map[types.ID]instance.Instance
@@ -147,7 +148,7 @@ func (p *pool) run() {
 		return
 	}
 
-	_, err = p.resolveImage()
+	p.image, err = p.resolveImage()
 	if err != nil {
 		p.lc.ShutdownInitiated(err)
 		goto done
@@ -277,6 +278,7 @@ func (p *pool) fill() error {
 
 	for len(p.instances) < p.config.Size {
 		instance, err := p.scheduler.CreateInstance(p.ctx, instance.Config{
+			Image:     p.image,
 			PoolID:    p.id,
 			Port:      p.config.Port,
 			Container: p.config.Container,
