@@ -73,7 +73,7 @@ func ParseAll(log logrus.FieldLogger, buf []byte) ([]*Pool, error) {
 
 func Parse(log logrus.FieldLogger, name string, buf []byte) (*Pool, error) {
 
-	log = log.WithField("pool", name).WithField("component", "config.Parse")
+	log = log.WithField("pool", name).WithField("cmp", "config.parse")
 
 	size, err := jsonparser.GetInt(buf, "size")
 	if err != nil {

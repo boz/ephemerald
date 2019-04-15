@@ -29,6 +29,8 @@ func newActionRunner(ctx context.Context, log logrus.FieldLogger, action Action,
 	log = log.WithField("action", actionName).
 		WithField("type", actionType)
 
+	log.Infof("running action %#v", action)
+
 	return &actionRunner{
 		action:     action,
 		actionType: actionType,

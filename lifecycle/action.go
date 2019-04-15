@@ -69,6 +69,7 @@ func (ac *ActionConfig) UnmarshalJSON(buf []byte) error {
 		Delay   string
 	}{Retries: ac.Retries}
 
+	fmt.Printf("ac before: %#v\n", ac)
 	err := json.Unmarshal(buf, &other)
 	if err != nil {
 		return err
@@ -92,6 +93,7 @@ func (ac *ActionConfig) UnmarshalJSON(buf []byte) error {
 		}
 		ac.Delay = val
 	}
+	fmt.Printf("ac after: %#v\n", ac)
 
 	return nil
 }

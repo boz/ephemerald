@@ -16,5 +16,5 @@ type Instance struct {
 
 func NewID() (ID, error) {
 	id := rand.Uint64()
-	return ID(strconv.FormatUint(id, 8)), nil
+	return ID(strconv.FormatUint(id, 16)), nil
 }

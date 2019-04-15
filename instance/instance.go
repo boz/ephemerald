@@ -5,9 +5,9 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/lifecycle"
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pubsub"
@@ -19,6 +19,7 @@ import (
 	dcontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
+	"github.com/sirupsen/logrus"
 )
 
 type Instance interface {
@@ -45,7 +46,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 		return nil, err
 	}
 
-	l := logrus.StandardLogger().
+	l := log.New().
 		WithField("cmp", "instance").
 		WithField("pid", config.PoolID).
 		WithField("iid", id)
@@ -191,12 +192,14 @@ func (i *instance) run() {
 		Host:   i.node.Endpoint(),
 	}
 
-	iparams, err = params.ParamsFor(model, cinfo, 80)
+	iparams, err = params.ParamsFor(model, cinfo, i.config.Port)
 
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
 		goto kill
 	}
+
+	i.l.Debugf("iparams: %#v", iparams)
 
 	manager = i.config.Actions.ForInstance(model)
 
@@ -354,7 +357,7 @@ func (i *instance) doCreate(ctx context.Context) (string, error) {
 		AttachStdout: false,
 		AttachStderr: false,
 		ExposedPorts: nat.PortSet{
-			nat.Port(strconv.Itoa(i.config.Port)): struct{}{},
+			nat.Port(strconv.Itoa(i.config.Port) + "/tcp"): struct{}{},
 		},
 	}
 

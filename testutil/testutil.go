@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pool"
@@ -26,9 +27,7 @@ func ID(t *testing.T) types.ID {
 }
 
 func Log() logrus.FieldLogger {
-	log := logrus.New()
-	log.Level = logrus.DebugLevel
-	return log
+	return log.New()
 }
 
 func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {

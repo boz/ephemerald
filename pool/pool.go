@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/instance"
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/runner"
@@ -14,6 +14,7 @@ import (
 	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 )
 
 type Pool interface {
@@ -33,7 +34,7 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		return nil, err
 	}
 
-	l := logrus.StandardLogger().
+	l := log.New().
 		WithField("cmp", "pool").
 		WithField("pid", id)
 

@@ -26,6 +26,7 @@ func (a *actionTCPConnect) Do(e Env, p params.Params) error {
 	address := net.JoinHostPort(p.Host, p.Port)
 	con, err := net.DialTimeout("tcp", address, a.Timeout)
 	if err != nil {
+		e.Log().WithError(err).Info("connect failed")
 		return err
 	}
 	con.Close()

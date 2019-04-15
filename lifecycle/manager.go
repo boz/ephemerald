@@ -134,7 +134,7 @@ func (m *containerManager) HasInitialize() bool {
 
 func (m *containerManager) DoInitialize(ctx context.Context, p params.Params) error {
 	if !m.HasInitialize() {
-		return m.runAction(ctx, &actionNoop{}, p, "initialize")
+		return m.runAction(ctx, newActionNoop(), p, "initialize")
 	}
 	return m.runAction(ctx, m.initializeAction, p, "initialize")
 }
@@ -145,7 +145,7 @@ func (m *containerManager) HasHealthcheck() bool {
 
 func (m *containerManager) DoHealthcheck(ctx context.Context, p params.Params) error {
 	if !m.HasHealthcheck() {
-		return m.runAction(ctx, &actionNoop{}, p, "healthcheck")
+		return m.runAction(ctx, newActionNoop(), p, "healthcheck")
 	}
 	return m.runAction(ctx, m.healthcheckAction, p, "healthcheck")
 }
@@ -156,7 +156,7 @@ func (m *containerManager) HasReset() bool {
 
 func (m *containerManager) DoReset(ctx context.Context, p params.Params) error {
 	if !m.HasReset() {
-		return m.runAction(ctx, &actionNoop{}, p, "reset")
+		return m.runAction(ctx, newActionNoop(), p, "reset")
 	}
 	return m.runAction(ctx, m.resetAction, p, "reset")
 }

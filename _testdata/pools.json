@@ -12,7 +12,9 @@
       },
       "actions": {
         "healthcheck": {
-          "type": "tcp.connect"
+          "type": "tcp.connect",
+          "retries": 10,
+          "delay": "2s"
         },
         "reset": {
           "type": "noop"

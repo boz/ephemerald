@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/boz/ephemerald/params"
 )
@@ -14,8 +15,17 @@ type actionNoop struct {
 	ActionConfig
 }
 
+func newActionNoop() *actionNoop {
+	return &actionNoop{
+		ActionConfig: ActionConfig{
+			Type:    "noop",
+			Timeout: time.Second,
+		},
+	}
+}
+
 func actionNoopParse(buf []byte) (Action, error) {
-	ac := &actionNoop{}
+	ac := newActionNoop()
 	return ac, json.Unmarshal(buf, ac)
 }
 
