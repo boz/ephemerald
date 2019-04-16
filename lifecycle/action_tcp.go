@@ -22,12 +22,12 @@ func actionTCPConnectParse(buf []byte) (Generator, error) {
 	return action, json.Unmarshal(buf, action)
 }
 
-func (a *actionTCPConnect) Create() (Action, error) {
-	return &(*a), nil
+func (a actionTCPConnect) Create() (Action, error) {
+	return &a, nil
 }
 
 func (a *actionTCPConnect) Do(e Env, p params.Params) error {
-	address := net.JoinHostPort(p.Host, p.Port)
+	address := net.JoinHostPort(p.Host(), p.Port())
 	con, err := net.DialTimeout("tcp", address, a.Timeout)
 	if err != nil {
 		e.Log().WithError(err).Info("connect failed")

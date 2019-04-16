@@ -25,7 +25,7 @@ func pgURL(p params.Params) string {
 	ui := url.UserPassword("postgres", "postgres")
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(),
-		url.QueryEscape(p.Host),
-		url.QueryEscape(p.Port),
+		url.QueryEscape(p.Host()),
+		url.QueryEscape(p.Port()),
 		url.QueryEscape("postgres"))
 }

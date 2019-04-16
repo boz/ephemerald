@@ -102,17 +102,17 @@ func (p *pool) Checkout(ctx context.Context) (params.Params, error) {
 
 	select {
 	case <-ctx.Done():
-		return params.Params{}, ctx.Err()
+		return nil, ctx.Err()
 	case <-p.lc.ShuttingDown():
-		return params.Params{}, errors.New("not running")
+		return nil, errors.New("not running")
 	case p.checkoutch <- req:
 	}
 
 	select {
 	case <-ctx.Done():
-		return params.Params{}, ctx.Err()
+		return nil, ctx.Err()
 	case <-p.lc.ShuttingDown():
-		return params.Params{}, errors.New("not running")
+		return nil, errors.New("not running")
 	case val := <-ch:
 		return val, nil
 	}

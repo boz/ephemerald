@@ -1,15 +1,10 @@
 package net
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"strconv"
-
-	"github.com/boz/ephemerald/params"
 )
 
 type ClientBuilder struct {
@@ -39,67 +34,67 @@ func (b *ClientBuilder) Create() (*Client, error) {
 	return &Client{b.address}, nil
 }
 
-func (c *Client) CheckoutBatch(names ...string) (params.Set, error) {
-	ps := params.Set{}
+// func (c *Client) CheckoutBatch(names ...string) (params.Set, error) {
+// 	ps := params.Set{}
 
-	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath), &bytes.Buffer{})
-	if err != nil {
-		return ps, err
-	}
-	req.Header.Add("Content-Type", rpcContentType)
+// 	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath), &bytes.Buffer{})
+// 	if err != nil {
+// 		return ps, err
+// 	}
+// 	req.Header.Add("Content-Type", rpcContentType)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return ps, err
-	}
-	defer resp.Body.Close()
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return ps, err
+// 	}
+// 	defer resp.Body.Close()
 
-	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(&ps)
-	return ps, err
-}
+// 	dec := json.NewDecoder(resp.Body)
+// 	err = dec.Decode(&ps)
+// 	return ps, err
+// }
 
-func (c *Client) Checkout(name string) (params.Params, error) {
-	params := params.Params{}
+// func (c *Client) Checkout(name string) (params.Params, error) {
+// 	params := params.Params{}
 
-	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath, name), &bytes.Buffer{})
-	if err != nil {
-		return params, err
-	}
-	req.Header.Add("Content-Type", rpcContentType)
+// 	req, err := http.NewRequest("POST", c.url(rpcCheckoutPath, name), &bytes.Buffer{})
+// 	if err != nil {
+// 		return params, err
+// 	}
+// 	req.Header.Add("Content-Type", rpcContentType)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return params, err
-	}
-	defer resp.Body.Close()
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return params, err
+// 	}
+// 	defer resp.Body.Close()
 
-	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(&params)
-	return params, err
-}
+// 	dec := json.NewDecoder(resp.Body)
+// 	err = dec.Decode(&params)
+// 	return params, err
+// }
 
-func (c *Client) ReturnBatch(ps params.Set) error {
-	buf, err := json.Marshal(ps)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("DELETE", c.url(rpcReturnPath), bytes.NewBuffer(buf))
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Content-Type", rpcContentType)
+// func (c *Client) ReturnBatch(ps params.Set) error {
+// 	buf, err := json.Marshal(ps)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	req, err := http.NewRequest("DELETE", c.url(rpcReturnPath), bytes.NewBuffer(buf))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	req.Header.Add("Content-Type", rpcContentType)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return nil
-}
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer resp.Body.Close()
+// 	return nil
+// }
 
 // func (c *Client) Return(name string, item ephemerald.Item) error {
 

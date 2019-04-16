@@ -36,7 +36,9 @@ type Config struct {
 	Image     reference.Canonical
 	Port      int
 	Container config.Container
+	Params    params.Config
 	Actions   lifecycle.Config
+	MaxResets int // TODO
 }
 
 func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
@@ -107,19 +109,19 @@ func (i *instance) Checkout(ctx context.Context) (params.Params, error) {
 
 	select {
 	case <-ctx.Done():
-		return params.Params{}, ctx.Err()
+		return nil, ctx.Err()
 	case <-i.lc.ShuttingDown():
-		return params.Params{}, errors.New("not running")
+		return nil, errors.New("not running")
 	case i.checkoutch <- req:
 	}
 
 	select {
 	case <-ctx.Done():
-		return params.Params{}, ctx.Err()
+		return nil, ctx.Err()
 	case <-i.lc.ShuttingDown():
-		return params.Params{}, errors.New("not running")
+		return nil, errors.New("not running")
 	case err := <-ech:
-		return params.Params{}, err
+		return nil, err
 	case params := <-pch:
 		return params, nil
 	}
@@ -161,7 +163,6 @@ func (i *instance) run() {
 		iparams  params.Params
 		cid      string
 		cinfo    dtypes.ContainerJSON
-		model    types.Instance
 		manager  lifecycle.Actions
 		actionch <-chan error
 	)
@@ -186,20 +187,16 @@ func (i *instance) run() {
 		goto kill
 	}
 
-	model = types.Instance{
-		ID:     i.id,
-		PoolID: i.PoolID(),
-		Host:   i.node.Endpoint(),
-	}
-
-	iparams, err = params.ParamsFor(model, cinfo, i.config.Port)
+	iparams, err = params.Create(params.State{
+		ID:   i.id,
+		Host: i.node.Endpoint(),
+		Port: tcpPortFor(cinfo, i.config.Port),
+	}, i.config.Params)
 
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
 		goto kill
 	}
-
-	i.l.Debugf("iparams: %#v", iparams)
 
 	i.enterState(types.EventActionCheck)
 	actionch = i.runAction(ctx, iparams, manager.DoReady)

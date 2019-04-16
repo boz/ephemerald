@@ -41,7 +41,7 @@ func (a *actionRedisExec) Create() (lifecycle.Action, error) {
 
 func (a *actionRedisExec) Do(e lifecycle.Env, p params.Params) error {
 
-	address := net.JoinHostPort(p.Host, p.Port)
+	address := net.JoinHostPort(p.Host(), p.Port())
 
 	e.Log().WithField("address", address).Debug("dialing")
 

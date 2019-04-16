@@ -111,9 +111,9 @@ func (a *actionExec) Create() (Action, error) {
 func (a *actionExec) Do(e Env, p params.Params) error {
 
 	env := []string{
-		fmt.Sprintf("EPHEMERALD_ID=%v", p.ID),
-		fmt.Sprintf("EPHEMERALD_HOST=%v", p.Host),
-		fmt.Sprintf("EPHEMERALD_PORT=%v", p.Port),
+		fmt.Sprintf("EPHEMERALD_ID=%v", p.ID()),
+		fmt.Sprintf("EPHEMERALD_HOST=%v", p.Host()),
+		fmt.Sprintf("EPHEMERALD_PORT=%v", p.Port()),
 		// fmt.Sprintf("EPHEMERALD_USERNAME=%v", p.Username),
 		// fmt.Sprintf("EPHEMERALD_PASSWORD=%v", p.Password),
 		// fmt.Sprintf("EPHEMERALD_DATABASE=%v", p.Database),
@@ -121,7 +121,7 @@ func (a *actionExec) Do(e Env, p params.Params) error {
 	}
 
 	for _, text := range a.Env {
-		val, err := p.Interpolate(text)
+		val, err := p.Render(text)
 		if err != nil {
 			// TODO: unrecoverable errors
 			return err

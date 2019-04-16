@@ -65,7 +65,7 @@ func (a *actionHttpGet) Do(e Env, p params.Params) error {
 	// url = p.Url
 
 	if a.tmpl != nil {
-		url, err = p.ExecuteTemplate(a.tmpl)
+		url, err = p.RenderTemplate(a.tmpl)
 		if err != nil {
 			return err
 		}

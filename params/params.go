@@ -2,31 +2,133 @@ package params
 
 import (
 	"bytes"
-	"net/url"
-	"strconv"
+	"errors"
+	"sync"
+	"sync/atomic"
 	"text/template"
-
-	"github.com/boz/ephemerald/types"
-	dtypes "github.com/docker/docker/api/types"
 )
 
-type Params struct {
-	ID   string `json:"id"`
-	Host string `json:"host"`
-	Port string `json:"port"`
+type Params interface {
+	Get(string) (string, error)
+	Render(string) (string, error)
+	RenderTemplate(*template.Template) (string, error)
+
+	State() State
+	ID() string
+	Host() string
+	Port() string
+
+	// MergeConfig(Config) Params
+
+	// MergeVars(Params) Params
+	// WithState(State) Params
+	// Clone() Params
 }
 
-type Set map[string]Params
-
-func ParamsFor(c types.Instance, status dtypes.ContainerJSON, port int) (Params, error) {
-	return Params{
-		ID:   string(c.ID),
-		Host: c.Host,
-		Port: TCPPortFor(status, port),
-	}, nil
+func New() Params {
+	return &params{
+		rctx: renderContext{
+			templates: make(map[string]*ptemplate),
+			values:    make(map[string]string),
+			mtx:       sync.Mutex{},
+		},
+	}
 }
 
-func (p Params) ExecuteTemplate(tmpl *template.Template) (string, error) {
+func Create(state State, config Config) (Params, error) {
+	params := &params{
+		rctx: renderContext{
+			State:     state,
+			templates: make(map[string]*ptemplate),
+			values:    make(map[string]string),
+			mtx:       sync.Mutex{},
+		},
+	}
+	for k, v := range config {
+		params.rctx.templates[k] = &ptemplate{text: v}
+	}
+	return params, nil
+}
+
+type params struct {
+	rctx renderContext
+	mtx  sync.Mutex
+}
+
+type renderContext struct {
+	State
+	templates map[string]*ptemplate
+	values    map[string]string
+	mtx       sync.Mutex
+}
+
+type ptemplate struct {
+	text       string
+	evaluating int32
+}
+
+func (p *params) State() State {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.rctx.State
+}
+
+func (p *params) ID() string   { return string(p.State().ID) }
+func (p *params) Host() string { return p.State().Host }
+func (p *params) Port() string { return p.State().Port }
+
+func (p *params) RenderTemplate(tmpl *template.Template) (string, error) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.rctx.renderTemplate(tmpl)
+}
+
+func (p *params) Render(text string) (string, error) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.rctx.render(text)
+}
+
+func (p *params) Get(key string) (string, error) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.rctx.Get(key)
+}
+
+func (p *renderContext) Get(key string) (string, error) {
+	var template *ptemplate
+
+	p.mtx.Lock()
+	if val, ok := p.values[key]; ok {
+		p.mtx.Unlock()
+		return val, nil
+	}
+
+	template, ok := p.templates[key]
+	if !ok {
+		p.mtx.Unlock()
+		return "", errors.New("key not found: " + key)
+	}
+
+	p.mtx.Unlock()
+
+	if !atomic.CompareAndSwapInt32(&template.evaluating, 0, 1) {
+		p.mtx.Unlock()
+		return "", errors.New("cyclical dependency found: " + key)
+	}
+
+	val, err := p.render(template.text)
+	if err != nil {
+		return "", err
+	}
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	p.values[key] = val
+	return val, nil
+}
+
+func (p *renderContext) renderTemplate(tmpl *template.Template) (string, error) {
 	buf := new(bytes.Buffer)
 	err := tmpl.Execute(buf, p)
 	if err != nil {
@@ -35,50 +137,52 @@ func (p Params) ExecuteTemplate(tmpl *template.Template) (string, error) {
 	return buf.String(), nil
 }
 
-func (p Params) Interpolate(text string) (string, error) {
+func (p *renderContext) render(text string) (string, error) {
 	tmpl, err := template.New("params-interpolate").Parse(text)
 	if err != nil {
 		return "", err
 	}
-	return p.ExecuteTemplate(tmpl)
+	return p.renderTemplate(tmpl)
 }
 
-func (p Params) queryEscape() Params {
-	return Params{
-		ID:   url.QueryEscape(p.ID),
-		Host: url.QueryEscape(p.Host),
-		Port: url.QueryEscape(p.Port),
-	}
-}
+// func (p *Params) Reset() {
+// 	p.mtx.Lock()
+// 	defer p.mtx.Unlock()
+
+// 	p.values = make(map[string]string)
+// 	for _, val := range p.templates {
+// 		atomic.StoreInt32(&val.evaluating, 0)
+// 	}
+// }
+
+// func (p *Params) Merge(other Params) {
+// }
+
+// type Set map[string]Params
 
 // TODO: move these.
 // TODO: UDP
 
-func TCPPortFor(status dtypes.ContainerJSON, port int) string {
-	ports := TCPPortsFor(status)
-	return ports[strconv.Itoa(port)]
-}
+/*
 
-func TCPPortsFor(status dtypes.ContainerJSON) map[string]string {
-	ports := make(map[string]string)
+username: u{{randhex 8}}
+password: {{randhex 8}}
+url: {{.Get "username"}}:{{.Get "password"}}@{{.Host}}:{{.Port}}
 
-	if status.Config == nil {
-		return ports
-	}
-	if status.NetworkSettings == nil {
-		return ports
-	}
+env:
+	- PG_USERNAME={{.Get "username"}}
+	- PG_PASSWORD={{.Get "password"}}
 
-	for port := range status.Config.ExposedPorts {
-		if port.Proto() != "tcp" {
-			continue
-		}
-		eport, ok := status.NetworkSettings.Ports[port]
-		if !ok || len(eport) == 0 {
-			continue
-		}
-		ports[port.Port()] = eport[0].HostPort
-	}
+pre-exec:
+- id
+- host
+- reset-count
 
-	return ports
-}
+- user-args:
+- postgres-username
+- postgres-database
+
+post-exec:
+- port
+- docker-id
+*/
