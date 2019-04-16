@@ -1,13 +1,12 @@
-pools:
-  redis:
-    size: 10
-    image: redis
-    port: 6379
-    params:
-      database: "0"
-      url: "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
-    actions:
-      healthcheck:
-        type: noop
-      reset:
-        type: noop
+name: redis
+size: 10
+image: redis
+port: 6379
+params:
+  database: "0"
+  url: "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
+actions:
+  healthcheck:
+    type: noop
+  reset:
+    type: noop

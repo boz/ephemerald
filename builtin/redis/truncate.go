@@ -6,7 +6,7 @@ func init() {
 	lifecycle.MakeActionPlugin("redis.truncate", actionRedisTruncateParse)
 }
 
-func actionRedisTruncateParse(buf []byte) (lifecycle.Action, error) {
+func actionRedisTruncateParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionRedisExec{
 		ActionConfig: lifecycle.DefaultActionConfig(),
 		Command:      "FLUSHALL",

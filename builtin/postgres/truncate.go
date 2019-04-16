@@ -14,7 +14,7 @@ func init() {
 	lifecycle.MakeActionPlugin("postgres.truncate", actionPGTruncateParse)
 }
 
-func actionPGTruncateParse(buf []byte) (lifecycle.Action, error) {
+func actionPGTruncateParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionPGTruncate{
 		ActionConfig: lifecycle.ActionConfig{
 			Retries: defaultRetries,
@@ -55,6 +55,10 @@ func actionPGTruncateParse(buf []byte) (lifecycle.Action, error) {
 type actionPGTruncate struct {
 	lifecycle.ActionConfig
 	Exclude []string
+}
+
+func (a *actionPGTruncate) Create() (lifecycle.Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionPGTruncate) Do(e lifecycle.Env, p params.Params) error {

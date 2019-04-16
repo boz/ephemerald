@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/boz/ephemerald"
 	"github.com/boz/ephemerald/params"
 )
 
@@ -102,24 +101,24 @@ func (c *Client) ReturnBatch(ps params.Set) error {
 	return nil
 }
 
-func (c *Client) Return(name string, item ephemerald.Item) error {
+// func (c *Client) Return(name string, item ephemerald.Item) error {
 
-	url := c.url(rpcReturnPath, name, item.ID())
+// 	url := c.url(rpcReturnPath, name, item.ID())
 
-	req, err := http.NewRequest("DELETE", url, &bytes.Buffer{})
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Content-Type", rpcContentType)
+// 	req, err := http.NewRequest("DELETE", url, &bytes.Buffer{})
+// 	if err != nil {
+// 		return err
+// 	}
+// 	req.Header.Add("Content-Type", rpcContentType)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return nil
-}
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer resp.Body.Close()
+// 	return nil
+// }
 
 func (c *Client) url(path string, parts ...string) string {
 	for _, part := range parts {

@@ -19,7 +19,7 @@ type actionRedisExec struct {
 	Command string
 }
 
-func actionRedisExecParse(buf []byte) (lifecycle.Action, error) {
+func actionRedisExecParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionRedisExec{
 		ActionConfig: lifecycle.DefaultActionConfig(),
 		Command:      "PING",
@@ -33,6 +33,10 @@ func parseRedisExec(action *actionRedisExec, buf []byte) error {
 		return err
 	}
 	return err
+}
+
+func (a *actionRedisExec) Create() (lifecycle.Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionRedisExec) Do(e lifecycle.Env, p params.Params) error {

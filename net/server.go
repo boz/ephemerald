@@ -1,14 +1,10 @@
 package net
 
 import (
-	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
 
-	"github.com/boz/ephemerald"
-	"github.com/boz/ephemerald/params"
 	"github.com/gorilla/mux"
 )
 
@@ -16,14 +12,14 @@ type Server struct {
 	l   *net.TCPListener
 	srv *http.Server
 
-	pools ephemerald.PoolSet
+	// pools ephemerald.PoolSet
 
 	closech chan bool
 }
 
 type ServerBuilder struct {
 	address string
-	pools   ephemerald.PoolSet
+	// pools   ephemerald.PoolSet
 }
 
 func NewServerBuilder() *ServerBuilder {
@@ -32,10 +28,10 @@ func NewServerBuilder() *ServerBuilder {
 	}
 }
 
-func (sb *ServerBuilder) WithPoolSet(pools ephemerald.PoolSet) *ServerBuilder {
-	sb.pools = pools
-	return sb
-}
+// func (sb *ServerBuilder) WithPoolSet(pools ephemerald.PoolSet) *ServerBuilder {
+// 	sb.pools = pools
+// 	return sb
+// }
 
 func (sb *ServerBuilder) WithAddress(address string) *ServerBuilder {
 	sb.address = address
@@ -51,7 +47,7 @@ func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
 func (sb *ServerBuilder) Create() (*Server, error) {
 	server := &Server{
 		closech: make(chan bool),
-		pools:   sb.pools,
+		// pools:   sb.pools,
 	}
 
 	r := mux.NewRouter()
@@ -106,42 +102,42 @@ func (s *Server) Port() int {
 }
 
 func (s *Server) stopPools() {
-	s.pools.Stop()
+	// s.pools.Stop()
 }
 
 func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
-	_, _, err := net.SplitHostPort(r.Host)
-	if err != nil {
-		http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
-		return
-	}
-
-	ps, err := s.pools.CheckoutWith(r.Context())
-
-	// for name, p := range ps {
-	// 	// p2, e := p.ForHost(host)
-	// 	// if e != nil {
-	// 	// 	err = e
-	// 	// 	break
-	// 	// }
-	// 	// ps[name] = p2
+	// _, _, err := net.SplitHostPort(r.Host)
+	// if err != nil {
+	// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+	// 	return
 	// }
 
-	if err != nil {
-		s.pools.ReturnAll(ps)
-		http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
-		return
-	}
+	// // ps, err := s.pools.CheckoutWith(r.Context())
 
-	buf, err := json.Marshal(ps)
-	if err != nil {
-		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-		s.pools.ReturnAll(ps)
-		return
-	}
+	// // for name, p := range ps {
+	// // 	// p2, e := p.ForHost(host)
+	// // 	// if e != nil {
+	// // 	// 	err = e
+	// // 	// 	break
+	// // 	// }
+	// // 	// ps[name] = p2
+	// // }
 
-	w.Header().Set("Content-Type", rpcContentType)
-	w.Write(buf)
+	// if err != nil {
+	// 	// s.pools.ReturnAll(ps)
+	// 	// http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+	// 	return
+	// }
+
+	// // buf, err := json.Marshal(ps)
+	// if err != nil {
+	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+	// 	s.pools.ReturnAll(ps)
+	// 	return
+	// }
+
+	// w.Header().Set("Content-Type", rpcContentType)
+	// w.Write(buf)
 }
 
 func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
@@ -189,37 +185,37 @@ func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReturnBatch(w http.ResponseWriter, r *http.Request) {
-	ps := params.Set{}
+	// ps := params.Set{}
 
-	dec := json.NewDecoder(r.Body)
+	// dec := json.NewDecoder(r.Body)
 
-	if err := dec.Decode(&ps); err != nil {
-		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-		return
-	}
-	s.pools.ReturnAll(ps)
+	// if err := dec.Decode(&ps); err != nil {
+	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+	// 	return
+	// }
+	// s.pools.ReturnAll(ps)
 
-	w.Header().Set("Content-Type", rpcContentType)
-	w.WriteHeader(http.StatusOK)
+	// w.Header().Set("Content-Type", rpcContentType)
+	// w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
-	pool := mux.Vars(r)["pool"]
-	if pool == "" {
-		http.Error(w, "Invalid pool name", http.StatusBadRequest)
-		return
-	}
+	// pool := mux.Vars(r)["pool"]
+	// if pool == "" {
+	// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
+	// 	return
+	// }
 
-	id := mux.Vars(r)["id"]
-	if id == "" {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
+	// id := mux.Vars(r)["id"]
+	// if id == "" {
+	// 	http.Error(w, "Invalid ID", http.StatusBadRequest)
+	// 	return
+	// }
 
-	s.pools.Return(pool, itemID(id))
+	// s.pools.Return(pool, itemID(id))
 
-	w.Header().Set("Content-Type", rpcContentType)
-	w.WriteHeader(http.StatusOK)
+	// w.Header().Set("Content-Type", rpcContentType)
+	// w.WriteHeader(http.StatusOK)
 }
 
 type itemID string

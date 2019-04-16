@@ -19,7 +19,7 @@ func init() {
 	lifecycle.MakeActionPlugin("postgres.exec", actionPGExecParse)
 }
 
-func actionPGExecParse(buf []byte) (lifecycle.Action, error) {
+func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionPGExec{
 		ActionConfig: lifecycle.ActionConfig{
 			Retries: defaultRetries,
@@ -68,6 +68,10 @@ type actionPGExec struct {
 	lifecycle.ActionConfig
 	Query  string
 	Params []string
+}
+
+func (a *actionPGExec) Create() (lifecycle.Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionPGExec) Do(e lifecycle.Env, p params.Params) error {

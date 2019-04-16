@@ -1,17 +1,12 @@
 package main
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
-	"github.com/boz/ephemerald"
-	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
-	"github.com/boz/ephemerald/ui"
-	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
@@ -42,56 +37,58 @@ var (
 )
 
 func main() {
-	kingpin.Parse()
+	// kingpin.Parse()
 
-	level, err := logrus.ParseLevel(*logLevel)
-	kingpin.FatalIfError(err, "invalid log level")
+	// level, err := logrus.ParseLevel(*logLevel)
+	// kingpin.FatalIfError(err, "invalid log level")
 
-	log := logrus.New()
-	log.Level = level
-	log.Out = *logFile
+	// log := logrus.New()
+	// log.Level = level
+	// log.Out = *logFile
 
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	uishutdown := make(chan bool)
+	// uishutdown := make(chan bool)
 
-	var appui ui.UI
+	// var appui ui.UI
 
-	switch *uiType {
-	case "tui":
-		appui, err = ui.NewTUI(uishutdown)
-	case "stream":
-		appui, err = ui.NewIOUI(os.Stdout)
-	default:
-		appui = ui.NewNoopUI()
-	}
-	kingpin.FatalIfError(err, "Can't start UI")
+	// switch *uiType {
+	// case "tui":
+	// 	appui, err = ui.NewTUI(uishutdown)
+	// case "stream":
+	// 	appui, err = ui.NewIOUI(os.Stdout)
+	// default:
+	// 	appui = ui.NewNoopUI()
+	// }
+	// kingpin.FatalIfError(err, "Can't start UI")
 
-	configs, err := config.ReadFile(log, appui.Emitter(), *configFile)
-	kingpin.FatalIfError(err, "invalid config file")
+	// var configs []*config.Pool
 
-	pools, err := ephemerald.NewPoolSet(log, ctx, configs)
-	kingpin.FatalIfError(err, "creating pools")
+	// err = config.ReadFile(*configFile, &pools)
+	// kingpin.FatalIfError(err, "invalid config file")
 
-	builder := net.NewServerBuilder()
+	// pools, err := ephemerald.NewPoolSet(log, ctx, configs)
+	// kingpin.FatalIfError(err, "creating pools")
 
-	builder.WithPort(*listenPort)
-	builder.WithPoolSet(pools)
+	// builder := net.NewServerBuilder()
 
-	server, err := builder.Create()
-	if err != nil {
-		pools.Stop()
-		kingpin.FatalIfError(err, "can't create server")
-	}
+	// builder.WithPort(*listenPort)
+	// builder.WithPoolSet(pools)
 
-	donech := server.ServerCloseNotify()
+	// server, err := builder.Create()
+	// if err != nil {
+	// 	pools.Stop()
+	// 	kingpin.FatalIfError(err, "can't create server")
+	// }
 
-	handleSignals(server, donech, uishutdown)
+	// donech := server.ServerCloseNotify()
 
-	go server.Run()
+	// handleSignals(server, donech, uishutdown)
 
-	<-donech
-	appui.Stop()
+	// go server.Run()
+
+	// <-donech
+	// appui.Stop()
 }
 
 func handleSignals(server *net.Server, donech chan bool, uishutdown chan bool) {

@@ -15,11 +15,15 @@ type actionTCPConnect struct {
 	ActionConfig
 }
 
-func actionTCPConnectParse(buf []byte) (Action, error) {
+func actionTCPConnectParse(buf []byte) (Generator, error) {
 	action := &actionTCPConnect{
 		ActionConfig: DefaultActionConfig(),
 	}
 	return action, json.Unmarshal(buf, action)
+}
+
+func (a *actionTCPConnect) Create() (Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionTCPConnect) Do(e Env, p params.Params) error {

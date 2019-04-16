@@ -1,3 +1,4 @@
+name: postgres-test
 size: 1
 image: postgres
 port: 5432

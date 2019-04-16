@@ -36,7 +36,7 @@ type Config struct {
 	Image     reference.Canonical
 	Port      int
 	Container config.Container
-	Actions   lifecycle.Manager
+	Actions   lifecycle.Config
 }
 
 func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
@@ -162,7 +162,7 @@ func (i *instance) run() {
 		cid      string
 		cinfo    dtypes.ContainerJSON
 		model    types.Instance
-		manager  lifecycle.ContainerManager
+		manager  lifecycle.Actions
 		actionch <-chan error
 	)
 
@@ -201,10 +201,8 @@ func (i *instance) run() {
 
 	i.l.Debugf("iparams: %#v", iparams)
 
-	manager = i.config.Actions.ForInstance(model)
-
 	i.enterState(types.EventActionCheck)
-	actionch = i.runAction(ctx, iparams, manager.DoHealthcheck)
+	actionch = i.runAction(ctx, iparams, manager.DoReady)
 
 loop:
 	for {
@@ -257,7 +255,7 @@ loop:
 				}
 
 				i.enterState(types.EventActionInitialize)
-				actionch = i.runAction(ctx, iparams, manager.DoInitialize)
+				actionch = i.runAction(ctx, iparams, manager.DoInit)
 
 			case types.EventActionInitialize:
 				if err != nil {
@@ -274,7 +272,7 @@ loop:
 				}
 
 				i.enterState(types.EventActionInitialize)
-				actionch = i.runAction(ctx, iparams, manager.DoHealthcheck)
+				actionch = i.runAction(ctx, iparams, manager.DoInit)
 			}
 		}
 	}

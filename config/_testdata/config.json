@@ -1,18 +1,15 @@
 {
-  "pools": {
-    "redis": {
-      "size": 10,
-      "image": "redis",
-      "port": 6379,
+  "name": "redis",
+  "size": 10,
+  "image": "redis",
+  "port": 6379,
 
-      "actions": {
-        "healthcheck": {
-          "type": "noop"
-        },
-        "reset": {
-          "type": "noop"
-        }
-      }
+  "actions": {
+    "healthcheck": {
+      "type": "noop"
+    },
+    "reset": {
+      "type": "noop"
     }
   }
 }

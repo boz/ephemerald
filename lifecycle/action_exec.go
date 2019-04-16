@@ -28,7 +28,7 @@ type actionExec struct {
 	Dir  string
 }
 
-func actionExecParse(buf []byte) (Action, error) {
+func actionExecParse(buf []byte) (Generator, error) {
 	ac := DefaultActionConfig()
 	ac.Timeout = actionExecDefaultTimeout
 
@@ -102,6 +102,10 @@ func actionExecParse(buf []byte) (Action, error) {
 	}
 
 	return action, nil
+}
+
+func (a *actionExec) Create() (Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionExec) Do(e Env, p params.Params) error {

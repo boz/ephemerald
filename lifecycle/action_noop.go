@@ -24,9 +24,13 @@ func newActionNoop() *actionNoop {
 	}
 }
 
-func actionNoopParse(buf []byte) (Action, error) {
+func actionNoopParse(buf []byte) (Generator, error) {
 	ac := newActionNoop()
 	return ac, json.Unmarshal(buf, ac)
+}
+
+func (a *actionNoop) Create() (Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionNoop) Do(e Env, p params.Params) error {

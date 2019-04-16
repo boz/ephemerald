@@ -279,11 +279,11 @@ func (p *pool) fill() error {
 
 	for len(p.instances) < p.config.Size {
 		instance, err := p.scheduler.CreateInstance(p.ctx, instance.Config{
-			Image:     p.image,
-			PoolID:    p.id,
-			Port:      p.config.Port,
-			Container: p.config.Container,
-			Actions:   p.config.Actions,
+			Image:  p.image,
+			PoolID: p.id,
+			Port:   p.config.Port,
+			// Container: p.config.Container,
+			Actions: p.config.Actions,
 		})
 		if err != nil {
 			p.l.WithError(err).Error("create-instance")

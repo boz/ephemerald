@@ -11,7 +11,7 @@ func init() {
 	lifecycle.MakeActionPlugin("postgres.ping", actionPGPingParse)
 }
 
-func actionPGPingParse(buf []byte) (lifecycle.Action, error) {
+func actionPGPingParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionPGPing{
 		ActionConfig: lifecycle.ActionConfig{
 			Retries: defaultRetries,
@@ -24,6 +24,10 @@ func actionPGPingParse(buf []byte) (lifecycle.Action, error) {
 
 type actionPGPing struct {
 	lifecycle.ActionConfig
+}
+
+func (a *actionPGPing) Create() (lifecycle.Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionPGPing) Do(e lifecycle.Env, p params.Params) error {

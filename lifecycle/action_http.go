@@ -22,7 +22,7 @@ type actionHttpGet struct {
 	tmpl *template.Template
 }
 
-func actionHttpGetParse(buf []byte) (Action, error) {
+func actionHttpGetParse(buf []byte) (Generator, error) {
 	action := &actionHttpGet{
 		ActionConfig: DefaultActionConfig(),
 	}
@@ -51,6 +51,10 @@ func actionHttpGetParse(buf []byte) (Action, error) {
 	}
 
 	return action, nil
+}
+
+func (a *actionHttpGet) Create() (Action, error) {
+	return &(*a), nil
 }
 
 func (a *actionHttpGet) Do(e Env, p params.Params) error {

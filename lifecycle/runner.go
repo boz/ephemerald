@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/params"
 	"github.com/sirupsen/logrus"
 )
@@ -22,10 +23,11 @@ type actionRunner struct {
 	log        logrus.FieldLogger
 }
 
-func newActionRunner(ctx context.Context, log logrus.FieldLogger, action Action, p params.Params, actionName string) *actionRunner {
+func newActionRunner(ctx context.Context, action Action, p params.Params, actionName string) *actionRunner {
 
 	actionType := action.Config().Type
 
+	log := log.New()
 	log = log.WithField("action", actionName).
 		WithField("type", actionType)
 
