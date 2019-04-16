@@ -25,6 +25,9 @@ func doReadTest(t *testing.T, path string, msg string) {
 	assert.Equal(t, 6379, cfg.Port, msg)
 	assert.Equal(t, 10, cfg.Size, msg)
 
+	assert.NotNil(t, cfg.Params)
+	assert.Equal(t, "bar", cfg.Params["foo"])
+
 	assert.Nil(t, cfg.Actions.Init, msg)
 	assert.NotNil(t, cfg.Actions.Ready, msg)
 	assert.NotNil(t, cfg.Actions.Reset, msg)

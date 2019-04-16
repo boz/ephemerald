@@ -4,6 +4,10 @@
   "image": "redis",
   "port": 6379,
 
+  "params": {
+    "foo": "bar"
+  },
+
   "actions": {
     "ready": {
       "type": "noop"
