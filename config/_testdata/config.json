@@ -5,7 +5,7 @@
   "port": 6379,
 
   "actions": {
-    "healthcheck": {
+    "ready": {
       "type": "noop"
     },
     "reset": {

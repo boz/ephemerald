@@ -6,7 +6,7 @@ params:
   database: "0"
   url: "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
 actions:
-  healthcheck:
+  ready:
     type: noop
   reset:
     type: noop
