@@ -113,7 +113,6 @@ func (p *renderContext) Get(key string) (string, error) {
 	p.mtx.Unlock()
 
 	if !atomic.CompareAndSwapInt32(&template.evaluating, 0, 1) {
-		p.mtx.Unlock()
 		return "", errors.New("cyclical dependency found: " + key)
 	}
 
