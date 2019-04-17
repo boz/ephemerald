@@ -17,14 +17,13 @@ func init() {
 
 type actionRedisExec struct {
 	lifecycle.ActionConfig
-	Database string
-	Command  string
+	redisParams
+	Command string
 }
 
 func actionRedisExecParse(buf []byte) (lifecycle.Generator, error) {
 	action := &actionRedisExec{
 		ActionConfig: lifecycle.DefaultActionConfig(),
-		Database:     "0",
 		Command:      "PING",
 	}
 	return action, parseRedisExec(action, buf)
@@ -42,13 +41,11 @@ func (a actionRedisExec) Create() (lifecycle.Action, error) {
 	return &a, nil
 }
 
-// action-user-defined.merge(instance-user-defined).merge(action-defaults)
-
 func (a *actionRedisExec) Do(e lifecycle.Env, p params.Params) error {
 
-	address := net.JoinHostPort(p.Host(), p.Port())
+	p = params.MergeDefaultsWithOverride(p, a.redisParams.ParamConfig(), defaultParamConfig())
 
-	p = p.MergeConfig(map[string]string{"database": "0"})
+	address := net.JoinHostPort(p.Host(), p.Port())
 
 	dbs, err := p.Get("database")
 	if err != nil {

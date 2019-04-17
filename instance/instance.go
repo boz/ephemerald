@@ -192,16 +192,11 @@ func (i *instance) run() {
 		goto kill
 	}
 
-	iparams, err = params.Create(params.State{
+	iparams = params.Create(params.State{
 		ID:   i.id,
 		Host: i.node.Endpoint(),
 		Port: tcpPortFor(cinfo, i.config.Port),
 	}, i.config.Params)
-
-	if err != nil {
-		i.lc.ShutdownInitiated(err)
-		goto kill
-	}
 
 	i.enterState(types.EventActionCheck)
 	actionch = i.runAction(ctx, iparams, actions.DoReady)
