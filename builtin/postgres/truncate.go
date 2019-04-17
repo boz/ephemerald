@@ -54,14 +54,16 @@ func actionPGTruncateParse(buf []byte) (lifecycle.Generator, error) {
 
 type actionPGTruncate struct {
 	lifecycle.ActionConfig
+	pgParams
 	Exclude []string
 }
 
-func (a *actionPGTruncate) Create() (lifecycle.Action, error) {
-	return &(*a), nil
+func (a actionPGTruncate) Create() (lifecycle.Action, error) {
+	return &a, nil
 }
 
 func (a *actionPGTruncate) Do(e lifecycle.Env, p params.Params) error {
+	p = params.MergeDefaultsWithOverride(p, a.pgParams.ParamConfig(), defaultParamConfig())
 	db, err := openDB(e, p)
 	if err != nil {
 		return err

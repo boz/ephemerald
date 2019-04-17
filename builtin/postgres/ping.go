@@ -24,13 +24,15 @@ func actionPGPingParse(buf []byte) (lifecycle.Generator, error) {
 
 type actionPGPing struct {
 	lifecycle.ActionConfig
+	pgParams
 }
 
-func (a *actionPGPing) Create() (lifecycle.Action, error) {
-	return &(*a), nil
+func (a actionPGPing) Create() (lifecycle.Action, error) {
+	return &a, nil
 }
 
 func (a *actionPGPing) Do(e lifecycle.Env, p params.Params) error {
+	p = params.MergeDefaultsWithOverride(p, a.pgParams.ParamConfig(), defaultParamConfig())
 	db, err := openDB(e, p)
 	if err != nil {
 		return err

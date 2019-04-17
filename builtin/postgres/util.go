@@ -38,7 +38,6 @@ func pgURL(p params.Params) (string, error) {
 	}
 
 	// TODO: make a param
-
 	ui := url.UserPassword(username, password)
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(),

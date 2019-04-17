@@ -20,7 +20,9 @@ type Params interface {
 	Host() string
 	Port() string
 
+	Config() Config
 	MergeConfig(Config) Params
+	Merge(Params) Params
 
 	// MergeVars(Params) Params
 	// WithState(State) Params
@@ -37,7 +39,7 @@ func New() Params {
 	}
 }
 
-func Create(state State, config Config) (Params, error) {
+func Create(state State, config Config) Params {
 	params := &params{
 		rctx: renderContext{
 			State:     state,
@@ -49,7 +51,7 @@ func Create(state State, config Config) (Params, error) {
 	for k, v := range config {
 		params.rctx.templates[k] = &ptemplate{text: v}
 	}
-	return params, nil
+	return params
 }
 
 type params struct {
@@ -97,6 +99,15 @@ func (p *params) Get(key string) (string, error) {
 	return p.rctx.Get(key)
 }
 
+func (p *params) Config() Config {
+	cfg := make(map[string]string, len(p.rctx.templates))
+
+	for k, v := range p.rctx.templates {
+		cfg[k] = v.text
+	}
+	return cfg
+}
+
 func (p *params) MergeConfig(cfg Config) Params {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -125,6 +136,48 @@ func (p *params) MergeConfig(cfg Config) Params {
 	}
 
 	return next
+}
+
+func (p *params) Merge(other Params) Params {
+	them, ok := other.(*params)
+	if !ok {
+		return p.MergeConfig(other.Config())
+	}
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	next := &params{
+		rctx: renderContext{
+			State:     p.rctx.State,
+			templates: make(map[string]*ptemplate),
+			values:    make(map[string]string),
+			mtx:       sync.Mutex{},
+		},
+	}
+
+	for k, v := range p.rctx.templates {
+		next.rctx.templates[k] = &ptemplate{text: v.text}
+	}
+
+	for k, v := range p.rctx.values {
+		next.rctx.values[k] = v
+	}
+
+	for k, v := range them.rctx.templates {
+		if _, ok := next.rctx.templates[k]; !ok {
+			next.rctx.templates[k] = &ptemplate{text: v.text}
+		} else {
+			continue
+		}
+
+		if v, ok := them.rctx.values[k]; ok {
+			next.rctx.values[k] = v
+		}
+	}
+
+	return next
+
 }
 
 func (p *renderContext) Get(key string) (string, error) {
