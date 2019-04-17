@@ -55,7 +55,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 	i := &instance{
 		id:         id,
-		state:      types.EventActionStart,
+		state:      types.InstanceStateStart,
 		node:       node,
 		config:     config,
 		bus:        bus,
@@ -72,7 +72,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 type instance struct {
 	id    types.ID
-	state types.EventAction
+	state types.InstanceState
 
 	node   node.Node
 	config Config
@@ -198,7 +198,7 @@ func (i *instance) run() {
 		Port: tcpPortFor(cinfo, i.config.Port),
 	}, i.config.Params)
 
-	i.enterState(types.EventActionCheck)
+	i.enterState(types.InstanceStateCheck)
 	actionch = i.runAction(ctx, iparams, actions.DoReady)
 
 loop:
@@ -210,7 +210,7 @@ loop:
 
 		case req := <-i.checkoutch:
 
-			if i.state != types.EventActionReady {
+			if i.state != types.InstanceStateReady {
 				i.l.Warn("checkout: invalid state")
 				req.ech <- errors.New("invalid state")
 				continue loop
@@ -223,11 +223,11 @@ loop:
 			case req.pch <- iparams:
 			}
 
-			i.enterState(types.EventActionCheckout)
+			i.enterState(types.InstanceStateCheckout)
 
 		case req := <-i.releasech:
 
-			if i.state != types.EventActionCheckout {
+			if i.state != types.InstanceStateCheckout {
 				i.l.Warn("release: invalid state")
 				req <- errors.New("invalid state")
 				continue loop
@@ -239,36 +239,36 @@ loop:
 				break loop
 			}
 
-			i.enterState(types.EventActionReset)
+			i.enterState(types.InstanceStateReset)
 			actionch = i.runAction(ctx, iparams, actions.DoReset)
 
 		case err := <-actionch:
 			actionch = nil
 			switch i.state {
-			case types.EventActionCheck:
+			case types.InstanceStateCheck:
 				if err != nil {
 					i.lc.ShutdownInitiated(err)
 					break loop
 				}
 
-				i.enterState(types.EventActionInitialize)
+				i.enterState(types.InstanceStateInitialize)
 				actionch = i.runAction(ctx, iparams, actions.DoInit)
 
-			case types.EventActionInitialize:
+			case types.InstanceStateInitialize:
 				if err != nil {
 					i.lc.ShutdownInitiated(err)
 					break loop
 				}
 
-				i.enterState(types.EventActionReady)
+				i.enterState(types.InstanceStateReady)
 
-			case types.EventActionReset:
+			case types.InstanceStateReset:
 				if err != nil {
 					i.lc.ShutdownInitiated(err)
 					break loop
 				}
 
-				i.enterState(types.EventActionInitialize)
+				i.enterState(types.InstanceStateInitialize)
 				actionch = i.runAction(ctx, iparams, actions.DoInit)
 			}
 		}
@@ -285,16 +285,16 @@ kill:
 		<-actionch
 	}
 
-	i.enterState(types.EventActionDone)
+	i.enterState(types.InstanceStateDone)
 
 	<-sub.Done()
 }
 
-func (i *instance) enterState(state types.EventAction) {
+func (i *instance) enterState(state types.InstanceState) {
 	i.state = state
 	err := i.bus.Publish(types.Event{
 		Type:     types.EventTypeInstance,
-		Action:   state,
+		Action:   types.EventActionEnterState,
 		Pool:     i.PoolID(),
 		Instance: i.id,
 	})
@@ -307,8 +307,8 @@ func (i *instance) enterState(state types.EventAction) {
 
 func (i *instance) subscribe() (pubsub.Subscription, error) {
 	filter := func(ev types.BusEvent) bool {
-		return ev.GetInstance() == i.id &&
-			ev.GetPool() == i.PoolID() &&
+		return ev.GetInstanceID() == i.id &&
+			ev.GetPoolID() == i.PoolID() &&
 			ev.GetType() != types.EventTypeInstance
 	}
 	sub, err := i.bus.Subscribe(filter)
@@ -319,7 +319,7 @@ func (i *instance) subscribe() (pubsub.Subscription, error) {
 }
 
 func (i *instance) create() (string, error) {
-	i.enterState(types.EventActionCreate)
+	i.enterState(types.InstanceStateCreate)
 
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
@@ -374,7 +374,7 @@ func (i *instance) doCreate(ctx context.Context) (string, error) {
 }
 
 func (i *instance) start(cid string) (dtypes.ContainerJSON, error) {
-	i.enterState(types.EventActionStart)
+	i.enterState(types.InstanceStateStart)
 
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())
@@ -416,7 +416,7 @@ func (i *instance) doStart(ctx context.Context, cid string) (dtypes.ContainerJSO
 }
 
 func (i *instance) kill(cid string) error {
-	i.enterState(types.EventActionKill)
+	i.enterState(types.InstanceStateKill)
 
 	// todo: timeout
 	ctx, cancel := context.WithCancel(context.Background())

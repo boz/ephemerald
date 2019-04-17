@@ -1,13 +1,5 @@
 package lifecycle_test
 
-import (
-	"testing"
-
-	"github.com/boz/ephemerald/lifecycle"
-	"github.com/boz/ephemerald/testutil"
-	"github.com/stretchr/testify/require"
-)
-
 // func TestParseManager_full(t *testing.T) {
 // 	ms := map[string]lifecycle.Manager{
 // 		"json": managerFromFile(t, "manager.full.json"),
@@ -37,11 +29,11 @@ import (
 // 	// }
 // }
 
-func managerFromFile(t *testing.T, fpath string) lifecycle.Manager {
-	buf := testutil.ReadJSON(t, fpath)
-	log := testutil.Log()
+// func managerFromFile(t *testing.T, fpath string) lifecycle.Manager {
+// 	buf := testutil.ReadJSON(t, fpath)
+// 	log := testutil.Log()
 
-	m := lifecycle.NewManager(log)
-	require.NoError(t, m.ParseConfig(buf))
-	return m
-}
+// 	m := lifecycle.NewManager(log)
+// 	require.NoError(t, m.ParseConfig(buf))
+// 	return m
+// }

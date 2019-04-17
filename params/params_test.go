@@ -5,7 +5,6 @@ import (
 
 	"github.com/boz/ephemerald/params"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_Get(t *testing.T) {
@@ -19,10 +18,9 @@ func Test_Get(t *testing.T) {
 		"f": `{{.Get "e"}}`,
 	}
 
-	p, err := params.Create(params.State{
+	p := params.Create(params.State{
 		Host: "foo",
 	}, cfg)
-	require.NoError(t, err)
 
 	{
 		val, err := p.Get("a")

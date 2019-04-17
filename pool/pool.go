@@ -169,14 +169,14 @@ loop:
 
 			l := p.l.WithField("ev:action", ev.GetAction()).
 				WithField("ev:type", ev.GetType()).
-				WithField("ev:iid", ev.GetInstance())
+				WithField("ev:iid", ev.GetInstanceID())
 
 			l.Debug("event received")
 
 			switch ev.GetAction() {
-			case types.EventActionReady:
+			case types.InstanceStateReady:
 
-				instance, ok := p.instances[ev.GetInstance()]
+				instance, ok := p.instances[ev.GetInstanceID()]
 				if !ok {
 					l.Warn("unknown instance")
 					continue loop
@@ -191,10 +191,10 @@ loop:
 
 				p.fulfillRequests()
 
-			case types.EventActionDone:
+			case types.InstanceStateDone:
 
-				delete(p.instances, ev.GetInstance())
-				delete(p.iready, ev.GetInstance())
+				delete(p.instances, ev.GetInstanceID())
+				delete(p.iready, ev.GetInstanceID())
 
 			}
 
@@ -240,7 +240,7 @@ done:
 
 func (p *pool) subscribe() (pubsub.Subscription, error) {
 	filter := func(ev types.BusEvent) bool {
-		return ev.GetPool() == p.id &&
+		return ev.GetPoolID() == p.id &&
 			ev.GetType() == types.EventTypeInstance
 	}
 	sub, err := p.bus.Subscribe(filter)
