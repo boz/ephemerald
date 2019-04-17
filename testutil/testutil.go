@@ -1,13 +1,18 @@
 package testutil
 
 import (
+	"context"
 	"io/ioutil"
 	"path"
 	"testing"
 
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/log"
+	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pool"
+	"github.com/boz/ephemerald/pubsub"
+	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/types"
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
@@ -40,41 +45,39 @@ func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {
 }
 
 func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
-	// log := Log()
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// bus, err := pubsub.NewBus(ctx)
-	// require.NoError(t, err)
-	// defer func() {
-	// 	require.NoError(t, bus.Shutdown())
-	// }()
+	bus, err := pubsub.NewBus(ctx)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, bus.Shutdown())
+	}()
 
-	// node, err := node.NewFromEnv(ctx)
-	// require.NoError(t, err)
+	node, err := node.NewFromEnv(ctx)
+	require.NoError(t, err)
 
-	// sched := scheduler.New(bus, node)
+	sched := scheduler.New(bus, node)
 
-	// configs, err := config.ReadFile(log, basename)
-	// require.NoError(t, err)
+	var cfg config.Pool
 
-	// require.NotEmpty(t, configs)
+	err = config.ReadFile(basename, &cfg)
 
-	// config := configs[0]
+	require.NoError(t, err)
 
-	// pool, err := pool.Create(ctx, bus, sched, *config)
-	// require.NoError(t, err)
+	pool, err := pool.Create(ctx, bus, sched, cfg)
+	require.NoError(t, err)
 
-	// defer func() {
-	// 	pool.Shutdown()
-	// 	<-pool.Done()
-	// }()
+	defer func() {
+		pool.Shutdown()
+		<-pool.Done()
+	}()
 
-	// // require.NoError(t, pool.WaitReady())
+	// require.NoError(t, pool.WaitReady())
 
-	// if fn != nil {
-	// 	fn(pool)
-	// }
+	if fn != nil {
+		fn(pool)
+	}
 }
 
 func ReadJSON(t *testing.T, fpath string) []byte {

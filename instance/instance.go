@@ -163,9 +163,14 @@ func (i *instance) run() {
 		iparams  params.Params
 		cid      string
 		cinfo    dtypes.ContainerJSON
-		manager  lifecycle.Actions
 		actionch <-chan error
 	)
+
+	actions, err := lifecycle.CreateActions(&i.config.Actions)
+	if err != nil {
+		i.lc.ShutdownInitiated(err)
+		return
+	}
 
 	sub, err := i.subscribe()
 	if err != nil {
@@ -199,7 +204,7 @@ func (i *instance) run() {
 	}
 
 	i.enterState(types.EventActionCheck)
-	actionch = i.runAction(ctx, iparams, manager.DoReady)
+	actionch = i.runAction(ctx, iparams, actions.DoReady)
 
 loop:
 	for {
@@ -234,13 +239,13 @@ loop:
 			}
 			req <- nil
 
-			if !manager.HasReset() {
+			if !actions.HasReset() {
 				i.lc.ShutdownInitiated(err)
 				break loop
 			}
 
 			i.enterState(types.EventActionReset)
-			actionch = i.runAction(ctx, iparams, manager.DoReset)
+			actionch = i.runAction(ctx, iparams, actions.DoReset)
 
 		case err := <-actionch:
 			actionch = nil
@@ -252,7 +257,7 @@ loop:
 				}
 
 				i.enterState(types.EventActionInitialize)
-				actionch = i.runAction(ctx, iparams, manager.DoInit)
+				actionch = i.runAction(ctx, iparams, actions.DoInit)
 
 			case types.EventActionInitialize:
 				if err != nil {
@@ -269,7 +274,7 @@ loop:
 				}
 
 				i.enterState(types.EventActionInitialize)
-				actionch = i.runAction(ctx, iparams, manager.DoInit)
+				actionch = i.runAction(ctx, iparams, actions.DoInit)
 			}
 		}
 	}
