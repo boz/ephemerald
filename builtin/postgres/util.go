@@ -11,7 +11,10 @@ import (
 )
 
 func openDB(e lifecycle.Env, p params.Params) (*sql.DB, error) {
-	url := pgURL(p)
+	url, err := pgURL(p)
+	if err != nil {
+		return nil, err
+	}
 	e.Log().WithField("url", url).Debug("open")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
@@ -20,12 +23,26 @@ func openDB(e lifecycle.Env, p params.Params) (*sql.DB, error) {
 	return db, err
 }
 
-func pgURL(p params.Params) string {
-	// ui := url.UserPassword(p.Username, p.Password)
-	ui := url.UserPassword("postgres", "postgres")
+func pgURL(p params.Params) (string, error) {
+	username, err := p.Get("username")
+	if err != nil {
+		return "", err
+	}
+	password, err := p.Get("password")
+	if err != nil {
+		return "", err
+	}
+	database, err := p.Get("database")
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: make a param
+
+	ui := url.UserPassword(username, password)
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(),
 		url.QueryEscape(p.Host()),
 		url.QueryEscape(p.Port()),
-		url.QueryEscape("postgres"))
+		url.QueryEscape(database)), nil
 }

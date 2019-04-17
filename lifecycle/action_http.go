@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"text/template"
 
 	"github.com/boz/ephemerald/params"
 	"github.com/buger/jsonparser"
@@ -18,8 +17,7 @@ func init() {
 
 type actionHttpGet struct {
 	ActionConfig
-	Url  string
-	tmpl *template.Template
+	Url string
 }
 
 func actionHttpGetParse(buf []byte) (Generator, error) {
@@ -37,17 +35,10 @@ func actionHttpGetParse(buf []byte) (Generator, error) {
 		case err == nil:
 			action.Url = val
 		case err == jsonparser.KeyPathNotFoundError:
+			action.Url = "http://{{.Host}:{{.Port}}"
 		default:
 			return nil, err
 		}
-	}
-
-	if action.Url != "" {
-		tmpl, err := template.New("http-get-url").Parse(action.Url)
-		if err != nil {
-			return nil, err
-		}
-		action.tmpl = tmpl
 	}
 
 	return action, nil
@@ -59,16 +50,11 @@ func (a *actionHttpGet) Create() (Action, error) {
 
 func (a *actionHttpGet) Do(e Env, p params.Params) error {
 
-	var url string
-	var err error
+	p = p.MergeConfig(map[string]string{"url": a.Url})
 
-	// url = p.Url
-
-	if a.tmpl != nil {
-		url, err = p.RenderTemplate(a.tmpl)
-		if err != nil {
-			return err
-		}
+	url, err := p.Get("url")
+	if err != nil {
+		return err
 	}
 
 	if url == "" {

@@ -26,7 +26,10 @@ func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 			Timeout: defaultTimeout,
 			Delay:   defaultDelay,
 		},
-		Query: "SELECT 1 = 1",
+		Username: "postgres",
+		Password: "postgres",
+		Database: "postgres",
+		Query:    "SELECT 1 = 1",
 	}
 	err := json.Unmarshal(buf, action)
 	if err != nil {
@@ -66,15 +69,25 @@ func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 
 type actionPGExec struct {
 	lifecycle.ActionConfig
-	Query  string
-	Params []string
+	Username string
+	Password string
+	Database string
+	Query    string
+	Params   []string
 }
 
-func (a *actionPGExec) Create() (lifecycle.Action, error) {
-	return &(*a), nil
+func (a actionPGExec) Create() (lifecycle.Action, error) {
+	return &a, nil
 }
 
 func (a *actionPGExec) Do(e lifecycle.Env, p params.Params) error {
+
+	p = p.MergeConfig(map[string]string{
+		"username": a.Username,
+		"password": a.Password,
+		"database": a.Database,
+	})
+
 	db, err := openDB(e, p)
 	if err != nil {
 		return err
