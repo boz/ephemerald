@@ -178,7 +178,7 @@ func (i *instance) run() {
 
 	defer i.publishResult()
 
-	actions, err := lifecycle.CreateActions(&i.config.Actions)
+	actions, err := lifecycle.CreateActions(*i.model, i.bus, &i.config.Actions)
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
 		return
@@ -278,7 +278,7 @@ loop:
 					i.lc.ShutdownInitiated(err)
 					break loop
 				}
-
+				i.model.Resets++
 				i.enterState(types.InstanceStateInitialize)
 				actionch = i.runAction(types.InstanceStateInitialize, ctx, iparams, actions.DoInit)
 			}

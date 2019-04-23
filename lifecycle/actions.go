@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/pubsub"
+	"github.com/boz/ephemerald/types"
 )
 
 var (
@@ -22,9 +24,9 @@ type Actions interface {
 	DoReset(context.Context, params.Params) error
 }
 
-func CreateActions(config *Config) (Actions, error) {
+func CreateActions(instance types.Instance, bus pubsub.Bus, config *Config) (Actions, error) {
 
-	a := &actions{}
+	a := &actions{instance: instance, bus: bus}
 
 	if config.Ready != nil {
 		action, err := config.Ready.Create()
@@ -54,9 +56,11 @@ func CreateActions(config *Config) (Actions, error) {
 }
 
 type actions struct {
-	ready Action
-	init  Action
-	reset Action
+	instance types.Instance
+	bus      pubsub.Bus
+	ready    Action
+	init     Action
+	reset    Action
 }
 
 func (m *actions) HasReady() bool {
@@ -91,5 +95,5 @@ func (m *actions) DoReset(ctx context.Context, p params.Params) error {
 }
 
 func (m *actions) runAction(ctx context.Context, action Action, p params.Params, name string) error {
-	return newActionRunner(ctx, action, p, name).Run()
+	return newActionRunner(m.bus, m.instance, ctx, action, p, name).Run()
 }

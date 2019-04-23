@@ -39,14 +39,16 @@ type Instance struct {
 type LifecycleActionState string
 
 const (
-	LifecycleActionStateRunning LifecycleActionState = "running"
-	LifecycleActionStateDone                         = "done"
+	LifecycleActionStateRunning   LifecycleActionState = "running"
+	LifecycleActionStateRetryWait                      = "retry-wait"
+	LifecycleActionStateDone                           = "done"
 )
 
 type LifecycleAction struct {
 	PoolID     ID
 	InstanceID ID
 	Name       string
+	Type       string
 	State      LifecycleActionState
 	Retries    uint
 	MaxRetries uint

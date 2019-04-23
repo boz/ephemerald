@@ -7,6 +7,8 @@ import (
 
 	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/pubsub"
+	"github.com/boz/ephemerald/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,15 +17,16 @@ var (
 )
 
 type actionRunner struct {
-	action     Action
-	actionType string
-	actionName string
-	p          params.Params
-	ctx        context.Context
-	log        logrus.FieldLogger
+	bus      pubsub.Bus
+	instance types.Instance
+	action   Action
+	model    *types.LifecycleAction
+	p        params.Params
+	ctx      context.Context
+	log      logrus.FieldLogger
 }
 
-func newActionRunner(ctx context.Context, action Action, p params.Params, actionName string) *actionRunner {
+func newActionRunner(bus pubsub.Bus, instance types.Instance, ctx context.Context, action Action, p params.Params, actionName string) *actionRunner {
 
 	actionType := action.Config().Type
 
@@ -34,68 +37,101 @@ func newActionRunner(ctx context.Context, action Action, p params.Params, action
 	log.Infof("running action %#v", action)
 
 	return &actionRunner{
-		action:     action,
-		actionType: actionType,
-		actionName: actionName,
-		p:          p,
-		ctx:        ctx,
-		log:        log,
+		bus:    bus,
+		action: action,
+		model: &types.LifecycleAction{
+			PoolID:     instance.PoolID,
+			InstanceID: instance.ID,
+			Name:       actionName,
+			Type:       actionType,
+			MaxRetries: uint(action.Config().Retries),
+		},
+		p:   p,
+		ctx: ctx,
+		log: log,
 	}
 }
 
 func (ar *actionRunner) Run() error {
 
-	attempt := 1
-	retries := ar.action.Config().Retries
 	timeout := ar.action.Config().Timeout
 	delay := ar.action.Config().Delay
 
-	// maxAttempts := retries + 1
+	var (
+		err error
+		ok  bool
+	)
 
 	for {
 
 		if ar.ctx.Err() != nil {
-			// ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, ar.ctx.Err())
-			return ar.ctx.Err()
+			return ar.publishResult(ar.ctx.Err())
 		}
 
-		// ar.uie.EmitActionAttempt(ar.actionName, ar.actionType, attempt, maxAttempts)
+		ar.bus.Publish(types.Event{
+			Type:            types.EventTypeLifecycleAction,
+			Action:          types.EventActionStart,
+			LifecycleAction: &(*ar.model),
+			Status:          types.StatusInProgress,
+		})
 
-		err, ok := ar.doAttempt(attempt, timeout)
+		err, ok = ar.doAttempt(timeout)
 
-		// ar.uie.EmitActionResult(ar.actionName, ar.actionType, attempt, maxAttempts, err)
-
-		if !ok {
-			return err
+		if !ok || err == nil {
+			return ar.publishResult(err)
 		}
 
-		if err == nil {
-			return nil
-		}
-
-		if attempt > retries {
+		if ar.model.Retries >= ar.model.MaxRetries {
 			ar.log.WithError(err).Warn("retry count exceeded")
-			return ErrRetryCountExceeded
+			return ar.publishResult(err)
 		}
 
-		attempt++
+		ar.model.State = types.LifecycleActionStateRetryWait
+
+		ar.bus.Publish(types.Event{
+			Type:            types.EventTypeLifecycleAction,
+			Action:          types.EventActionAttemptFailed,
+			LifecycleAction: &(*ar.model),
+			Status:          types.StatusInProgress,
+			Message:         err.Error(),
+		})
 
 		select {
 		case <-ar.ctx.Done():
-			return ar.ctx.Err()
+			return ar.publishResult(ar.ctx.Err())
 		case <-time.After(delay):
-			// retry
+			ar.model.Retries++
 		}
 	}
 }
 
-func (ar *actionRunner) doAttempt(attempt int, timeout time.Duration) (error, bool) {
+func (ar *actionRunner) publishResult(err error) error {
+
+	ev := types.Event{
+		Type:            types.EventTypeLifecycleAction,
+		Action:          types.EventActionAttemptFailed,
+		LifecycleAction: &(*ar.model),
+	}
+
+	if err == nil {
+		ev.Status = types.StatusSuccess
+	} else {
+		ev.Status = types.StatusFailure
+		ev.Message = err.Error()
+	}
+
+	ar.bus.Publish(ev)
+
+	return err
+}
+
+func (ar *actionRunner) doAttempt(timeout time.Duration) (error, bool) {
 	ch := make(chan error)
 
 	ctx, cancel := context.WithTimeout(ar.ctx, timeout)
 	defer cancel()
 
-	env := NewEnv(ctx, ar.log.WithField("attempt", attempt))
+	env := NewEnv(ctx, ar.log.WithField("attempt", ar.model.Retries+1))
 
 	go func() {
 		err := ar.action.Do(env, ar.p)
