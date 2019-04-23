@@ -16,6 +16,7 @@ type EventAction string
 const (
 	EventActionStart         EventAction = "start"
 	EventActionEnterState                = "enter-state"
+	EventActionReady                     = "ready"
 	EventActionUpdate                    = "update"
 	EventActionDone                      = "done"
 	EventActionAttemptFailed             = "attempt-failed"

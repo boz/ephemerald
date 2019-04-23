@@ -31,7 +31,7 @@ type Instance struct {
 	PoolID    ID
 	State     InstanceState
 	Host      string
-	Port      int
+	Port      string
 	Resets    int
 	MaxResets int
 }

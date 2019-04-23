@@ -174,7 +174,7 @@ loop:
 			l.Debug("event received")
 
 			switch ev.GetAction() {
-			case types.InstanceStateReady:
+			case types.EventActionReady:
 
 				instance, ok := p.instances[ev.GetInstanceID()]
 				if !ok {
@@ -191,7 +191,7 @@ loop:
 
 				p.fulfillRequests()
 
-			case types.InstanceStateDone:
+			case types.EventActionDone:
 
 				delete(p.instances, ev.GetInstanceID())
 				delete(p.iready, ev.GetInstanceID())

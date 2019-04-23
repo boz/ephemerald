@@ -54,8 +54,13 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 		WithField("iid", id)
 
 	i := &instance{
-		id:         id,
-		state:      types.InstanceStateStart,
+		id: id,
+		model: &types.Instance{
+			ID:     id,
+			PoolID: config.PoolID,
+			State:  types.InstanceStateCreate,
+			Host:   node.Endpoint(),
+		},
 		node:       node,
 		config:     config,
 		bus:        bus,
@@ -72,7 +77,7 @@ func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 type instance struct {
 	id    types.ID
-	state types.InstanceState
+	model *types.Instance
 
 	node   node.Node
 	config Config
@@ -166,6 +171,13 @@ func (i *instance) run() {
 		actionch <-chan error
 	)
 
+	if err := i.publishAction(types.EventActionStart); err != nil {
+		i.lc.ShutdownInitiated(err)
+		return
+	}
+
+	defer i.publishResult()
+
 	actions, err := lifecycle.CreateActions(&i.config.Actions)
 	if err != nil {
 		i.lc.ShutdownInitiated(err)
@@ -192,14 +204,15 @@ func (i *instance) run() {
 		goto kill
 	}
 
+	i.model.Port = tcpPortFor(cinfo, i.config.Port)
+
 	iparams = params.Create(params.State{
 		ID:   i.id,
 		Host: i.node.Endpoint(),
-		Port: tcpPortFor(cinfo, i.config.Port),
+		Port: i.model.Port,
 	}, i.config.Params)
 
-	i.enterState(types.InstanceStateCheck)
-	actionch = i.runAction(ctx, iparams, actions.DoReady)
+	actionch = i.runAction(types.InstanceStateCheck, ctx, iparams, actions.DoReady)
 
 loop:
 	for {
@@ -210,7 +223,7 @@ loop:
 
 		case req := <-i.checkoutch:
 
-			if i.state != types.InstanceStateReady {
+			if i.model.State != types.InstanceStateReady {
 				i.l.Warn("checkout: invalid state")
 				req.ech <- errors.New("invalid state")
 				continue loop
@@ -227,7 +240,7 @@ loop:
 
 		case req := <-i.releasech:
 
-			if i.state != types.InstanceStateCheckout {
+			if i.model.State != types.InstanceStateCheckout {
 				i.l.Warn("release: invalid state")
 				req <- errors.New("invalid state")
 				continue loop
@@ -239,20 +252,18 @@ loop:
 				break loop
 			}
 
-			i.enterState(types.InstanceStateReset)
-			actionch = i.runAction(ctx, iparams, actions.DoReset)
+			actionch = i.runAction(types.InstanceStateReset, ctx, iparams, actions.DoReset)
 
 		case err := <-actionch:
 			actionch = nil
-			switch i.state {
+			switch i.model.State {
 			case types.InstanceStateCheck:
 				if err != nil {
 					i.lc.ShutdownInitiated(err)
 					break loop
 				}
 
-				i.enterState(types.InstanceStateInitialize)
-				actionch = i.runAction(ctx, iparams, actions.DoInit)
+				actionch = i.runAction(types.InstanceStateInitialize, ctx, iparams, actions.DoInit)
 
 			case types.InstanceStateInitialize:
 				if err != nil {
@@ -269,7 +280,7 @@ loop:
 				}
 
 				i.enterState(types.InstanceStateInitialize)
-				actionch = i.runAction(ctx, iparams, actions.DoInit)
+				actionch = i.runAction(types.InstanceStateInitialize, ctx, iparams, actions.DoInit)
 			}
 		}
 	}
@@ -290,18 +301,68 @@ kill:
 	<-sub.Done()
 }
 
-func (i *instance) enterState(state types.InstanceState) {
-	i.state = state
+func (i *instance) runAction(state types.InstanceState, ctx context.Context, iparams params.Params, fn func(context.Context, params.Params) error) <-chan error {
+	i.enterState(state)
+	errch := make(chan error, 1)
+	go func() {
+		errch <- fn(ctx, iparams)
+	}()
+	return errch
+}
+
+func (i *instance) publishAction(action types.EventAction) error {
 	err := i.bus.Publish(types.Event{
 		Type:     types.EventTypeInstance,
-		Action:   types.EventActionEnterState,
-		Pool:     i.PoolID(),
-		Instance: i.id,
+		Action:   action,
+		Instance: &(*i.model),
+		Status:   types.StatusInProgress,
 	})
 	if err != nil {
 		i.l.WithError(err).
+			WithField("action", action).
+			Error("publish action")
+	}
+	return err
+}
+
+func (i *instance) publishResult() {
+
+	ev := types.Event{
+		Type:     types.EventTypeInstance,
+		Action:   types.EventActionDone,
+		Instance: &(*i.model),
+	}
+
+	if err := i.lc.Error(); err != nil {
+		ev.Status = types.StatusFailure
+		ev.Message = err.Error()
+	} else {
+		ev.Status = types.StatusSuccess
+	}
+
+	if err := i.bus.Publish(ev); err != nil {
+		i.l.WithError(err).
+			WithField("status", ev.Status).
+			WithField("message", ev.Message).
+			Error("publish result")
+	}
+}
+
+func (i *instance) enterState(state types.InstanceState) {
+	var err error
+
+	i.model.State = state
+
+	if state == types.InstanceStateReady {
+		err = i.publishAction(types.EventActionReady)
+	} else {
+		err = i.publishAction(types.EventActionEnterState)
+	}
+
+	if err != nil {
+		i.l.WithError(err).
 			WithField("state", state).
-			Error("entering state")
+			Error("publish enter state")
 	}
 }
 
@@ -427,12 +488,4 @@ func (i *instance) kill(cid string) error {
 		return err
 	}
 	return nil
-}
-
-func (i *instance) runAction(ctx context.Context, iparams params.Params, fn func(context.Context, params.Params) error) <-chan error {
-	errch := make(chan error, 1)
-	go func() {
-		errch <- fn(ctx, iparams)
-	}()
-	return errch
 }
