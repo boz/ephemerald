@@ -44,8 +44,16 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		scheduler: scheduler,
 		config:    config,
 
+		model: &types.Pool{
+			ID:    id,
+			Name:  config.Name,
+			State: types.PoolStateStart,
+			Size:  config.Size,
+		},
+
 		instances: make(map[types.ID]instance.Instance),
 		iready:    make(map[types.ID]instance.Instance),
+		icheckout: make(map[types.ID]instance.Instance),
 
 		checkoutch: make(chan checkoutReq),
 		releasech:  make(chan types.ID),
@@ -68,9 +76,11 @@ type pool struct {
 	config    config.Pool
 	image     reference.Canonical
 	scheduler scheduler.Scheduler
+	model     *types.Pool
 
 	instances map[types.ID]instance.Instance
 	iready    map[types.ID]instance.Instance
+	icheckout map[types.ID]instance.Instance
 
 	crequests  []checkoutReq
 	checkoutch chan checkoutReq
@@ -149,16 +159,24 @@ func (p *pool) run() {
 		return
 	}
 
+	p.model.State = types.PoolStateResolve
+	p.publishStats(types.EventActionStart)
+
+	defer p.publishStats(types.EventActionDone)
+
 	p.image, err = p.resolveImage()
 	if err != nil {
 		p.lc.ShutdownInitiated(err)
 		goto done
 	}
 
+	p.model.State = types.PoolStateRun
+
 loop:
 	for {
 
 		p.fill()
+		p.publishStats(types.EventActionUpdate)
 
 		select {
 		case err := <-p.lc.ShutdownRequest():
@@ -205,13 +223,13 @@ loop:
 
 		case id := <-p.releasech:
 
-			instance, ok := p.iready[id]
+			instance, ok := p.icheckout[id]
 			if !ok {
 				p.l.WithField("iid", id).Warn("release: unknown instance")
 				continue loop
 			}
 
-			delete(p.iready, id)
+			delete(p.icheckout, id)
 
 			if err := instance.Release(p.ctx); err != nil {
 				p.l.WithField("iid", id).
@@ -224,6 +242,9 @@ done:
 
 	p.l.WithField("num-instances", len(p.instances)).Info("shutting down")
 
+	p.model.State = types.PoolStateShutdown
+	p.publishStats(types.EventActionShutdown)
+
 	sub.Close()
 
 	// drain
@@ -231,8 +252,12 @@ done:
 		instance.Shutdown()
 	}
 
-	for _, instance := range p.instances {
+	for id, instance := range p.instances {
 		<-instance.Done()
+		delete(p.instances, id)
+		delete(p.iready, id)
+		delete(p.icheckout, id)
+		p.publishStats(types.EventActionUpdate)
 	}
 
 	<-sub.Done()
@@ -279,10 +304,9 @@ func (p *pool) fill() error {
 
 	for len(p.instances) < p.config.Size {
 		instance, err := p.scheduler.CreateInstance(p.ctx, instance.Config{
-			Image:  p.image,
-			PoolID: p.id,
-			Port:   p.config.Port,
-			// Container: p.config.Container,
+			Image:   p.image,
+			PoolID:  p.id,
+			Port:    p.config.Port,
 			Actions: p.config.Actions,
 		})
 		if err != nil {
@@ -299,7 +323,7 @@ func (p *pool) fulfillRequests() {
 	// clear out stale requests
 	for idx, req := range p.crequests {
 		if req.ctx.Err() != nil {
-			p.l.Debug("stale request dropped")
+			p.l.Info("stale request dropped")
 			p.crequests = append(p.crequests[:idx], p.crequests[idx+1:]...)
 		}
 	}
@@ -324,6 +348,7 @@ loop:
 					p.l.Warn("stale request")
 
 				case req.ch <- params:
+					p.icheckout[id] = instance
 					continue loop
 				}
 			}
@@ -336,4 +361,36 @@ loop:
 			}
 		}
 	}
+}
+
+func (p *pool) publishStats(action types.EventAction) {
+	p.updateStats()
+
+	ev := types.Event{
+		Type:   types.EventTypePool,
+		Action: action,
+		Pool:   &(*p.model),
+	}
+
+	if action == types.EventActionDone {
+		if err := p.lc.Error(); err != nil {
+			ev.Status = types.StatusFailure
+			ev.Message = err.Error()
+		} else {
+			ev.Status = types.StatusSuccess
+		}
+	} else {
+		ev.Status = types.StatusInProgress
+	}
+
+	if err := p.bus.Publish(ev); err != nil {
+		p.l.WithError(err).Error("publish result")
+	}
+}
+
+func (p *pool) updateStats() {
+	p.model.Stats.Total = len(p.instances)
+	p.model.Stats.Ready = len(p.iready)
+	p.model.Stats.Checkout = len(p.icheckout)
+	p.model.Stats.Requests = len(p.crequests)
 }

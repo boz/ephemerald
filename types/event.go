@@ -18,6 +18,7 @@ const (
 	EventActionEnterState                = "enter-state"
 	EventActionReady                     = "ready"
 	EventActionUpdate                    = "update"
+	EventActionShutdown                  = "shutting-down"
 	EventActionDone                      = "done"
 	EventActionAttemptFailed             = "attempt-failed"
 )

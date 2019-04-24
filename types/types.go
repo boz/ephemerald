@@ -7,9 +7,27 @@ import (
 
 type ID string
 
+type PoolState string
+
+const (
+	PoolStateStart    PoolState = "starting"
+	PoolStateResolve            = "image-pull"
+	PoolStateRun                = "running"
+	PoolStateShutdown           = "shutting-down"
+	PoolStateDone               = "done"
+)
+
 type Pool struct {
-	ID   ID
-	Name string
+	ID    ID
+	Name  string
+	State PoolState
+	Size  int
+	Stats struct {
+		Total    int
+		Ready    int
+		Checkout int
+		Requests int
+	}
 }
 
 type InstanceState string
