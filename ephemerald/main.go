@@ -78,15 +78,22 @@ func main() {
 	for _, pfile := range *poolFiles {
 		var pcfg config.Pool
 
-		err := config.ReadFile(pfile, &pcfg)
-		kingpin.FatalIfError(err, "reading pool config "+pfile)
+		if err := config.ReadFile(pfile, &pcfg); err != nil {
+			kingpin.Errorf("error reading pool config %v: %v", pfile, err)
+			continue
+		}
 
 		if _, ok := pools[pcfg.Name]; ok {
-			kingpin.Fatalf("creating pool %v: duplicate pool found", pcfg.Name)
+			kingpin.Errorf("error creating pool %v: duplicate pool found", pcfg.Name)
+			continue
 		}
 
 		pool, err := pool.Create(ctx, bus, scheduler, pcfg)
-		kingpin.FatalIfError(err, "creating pool "+pcfg.Name+" from "+pfile)
+		if err != nil {
+			kingpin.Errorf("error creating pool %v: %v", pcfg.Name, err)
+			continue
+		}
+
 		pools[pcfg.Name] = pool
 	}
 
