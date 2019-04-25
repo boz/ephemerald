@@ -43,11 +43,11 @@ type BusEvent interface {
 type Event struct {
 	Type            EventType
 	Action          EventAction
-	Pool            *Pool
-	Instance        *Instance
-	LifecycleAction *LifecycleAction
-	Status          Status
-	Message         string
+	Pool            *Pool            `json:",omitempty"`
+	Instance        *Instance        `json:",omitempty"`
+	LifecycleAction *LifecycleAction `json:",omitempty"`
+	Status          Status           `json:",omitempty"`
+	Message         string           `json:",omitempty"`
 }
 
 func (ev Event) GetType() EventType {

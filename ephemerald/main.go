@@ -29,7 +29,7 @@ var (
 			Default(strconv.Itoa(net.DefaultPort)).
 			Int()
 
-	poolFiles = kingpin.Flag("pool", "pool config file").Short('p').
+	poolFiles = kingpin.Flag("pool", "pool config file").Short('P').
 			ExistingFiles()
 
 	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
@@ -59,6 +59,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = log.NewContext(ctx, l)
+
+	log := l.WithField("cmp", "main")
 
 	stopch := handleSignals(ctx, cancel)
 
@@ -96,6 +98,8 @@ func main() {
 
 		pools[pcfg.Name] = pool
 	}
+
+	log.WithField("num-pools", len(pools)).Info("starting pools")
 
 	builder := net.NewServerBuilder()
 	builder.WithPort(*listenPort)
@@ -136,7 +140,7 @@ func handleSignals(ctx context.Context, cancel context.CancelFunc) <-chan struct
 		defer close(donech)
 
 		sigch := make(chan os.Signal, 1)
-		signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT)
+		signal.Notify(sigch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 		defer signal.Stop(sigch)
 
 		select {

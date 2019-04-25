@@ -42,6 +42,7 @@ func newActionRunner(bus pubsub.Bus, instance types.Instance, ctx context.Contex
 		model: &types.LifecycleAction{
 			PoolID:     instance.PoolID,
 			InstanceID: instance.ID,
+			State:      types.LifecycleActionStateRunning,
 			Name:       actionName,
 			Type:       actionType,
 			MaxRetries: uint(action.Config().Retries),
@@ -107,9 +108,11 @@ func (ar *actionRunner) Run() error {
 
 func (ar *actionRunner) publishResult(err error) error {
 
+	ar.model.State = types.LifecycleActionStateDone
+
 	ev := types.Event{
 		Type:            types.EventTypeLifecycleAction,
-		Action:          types.EventActionAttemptFailed,
+		Action:          types.EventActionDone,
 		LifecycleAction: &(*ar.model),
 	}
 
