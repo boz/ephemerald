@@ -7,14 +7,15 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/pool"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/ui"
+	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
@@ -52,11 +53,13 @@ func main() {
 	level, err := logrus.ParseLevel(*logLevel)
 	kingpin.FatalIfError(err, "invalid log level")
 
-	log := logrus.New()
-	log.Level = level
-	log.Out = *logFile
+	l := log.Default()
+	l.SetLevel(level)
+	l.SetOutput(*logFile)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx = log.NewContext(ctx, l)
+
 	donech := handleSignals(ctx, cancel)
 
 	bus, err := pubsub.NewBus(ctx)

@@ -80,5 +80,5 @@ done:
 }
 
 func (s *scheduler) CreateInstance(ctx context.Context, config instance.Config) (instance.Instance, error) {
-	return instance.Create(s.bus, s.node, config)
+	return instance.Create(ctx, s.bus, s.node, config)
 }

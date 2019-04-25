@@ -30,7 +30,7 @@ func newActionRunner(bus pubsub.Bus, instance types.Instance, ctx context.Contex
 
 	actionType := action.Config().Type
 
-	log := log.New()
+	log := log.FromContext(ctx)
 	log = log.WithField("action", actionName).
 		WithField("type", actionType)
 

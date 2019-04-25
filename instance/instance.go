@@ -41,14 +41,14 @@ type Config struct {
 	MaxResets int // TODO
 }
 
-func Create(bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
+func Create(ctx context.Context, bus pubsub.Bus, node node.Node, config Config) (Instance, error) {
 
 	id, err := types.NewID()
 	if err != nil {
 		return nil, err
 	}
 
-	l := log.New().
+	l := log.FromContext(ctx).
 		WithField("cmp", "instance").
 		WithField("pid", config.PoolID).
 		WithField("iid", id)

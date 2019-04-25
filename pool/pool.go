@@ -34,7 +34,7 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		return nil, err
 	}
 
-	l := log.New().
+	l := log.FromContext(ctx).
 		WithField("cmp", "pool").
 		WithField("pid", id)
 

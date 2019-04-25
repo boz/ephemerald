@@ -1,26 +1,29 @@
 package log
 
 import (
-	"sync"
+	"context"
 
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	logger *logrus.Logger
-	mtx    sync.Mutex
+	logger = logrus.New()
 )
 
-func New() logrus.FieldLogger {
-	mtx.Lock()
-	defer mtx.Unlock()
-	return get()
+func Default() *logrus.Logger {
+	return logger
 }
 
-func get() *logrus.Logger {
-	if logger == nil {
-		logger = logrus.New()
-		logger.SetLevel(logrus.DebugLevel)
+var ctxKey = struct{}{}
+
+func NewContext(ctx context.Context, log logrus.FieldLogger) context.Context {
+	return context.WithValue(ctx, ctxKey, log)
+}
+
+func FromContext(ctx context.Context) logrus.FieldLogger {
+	val := ctx.Value(ctxKey)
+	if log, ok := val.(logrus.FieldLogger); ok {
+		return log
 	}
-	return logger
+	return Default()
 }

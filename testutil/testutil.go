@@ -26,8 +26,14 @@ func ID(t *testing.T) types.ID {
 	return id
 }
 
+func Context() context.Context {
+	return log.NewContext(context.Background(), Log())
+}
+
 func Log() logrus.FieldLogger {
-	return log.New()
+	l := logrus.New()
+	l.SetLevel(logrus.DebugLevel)
+	return l
 }
 
 func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {
