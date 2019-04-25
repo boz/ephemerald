@@ -1,12 +1,20 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/net"
+	"github.com/boz/ephemerald/node"
+	"github.com/boz/ephemerald/pool"
+	"github.com/boz/ephemerald/pubsub"
+	"github.com/boz/ephemerald/scheduler"
+	"github.com/boz/ephemerald/ui"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
@@ -16,18 +24,20 @@ import (
 
 var (
 	listenPort = kingpin.Flag("port", "Listen port. Default: "+strconv.Itoa(net.DefaultPort)).Short('p').
+			Envar("EPHEMERALD_PORT").
 			Default(strconv.Itoa(net.DefaultPort)).
 			Int()
 
-	configFile = kingpin.Flag("config", "config file").Short('c').
-			Required().
-			ExistingFile()
+	poolFiles = kingpin.Flag("pool", "pool config file").Short('p').
+			ExistingFiles()
 
 	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
+			Envar("EPHEMERALD_LOG_LEVEL").
 			Default("info").
 			Enum("debug", "info", "warn", "error")
 
 	logFile = kingpin.Flag("log-file", "Log file.  Default: /dev/null").
+		Envar("EPHEMERALD_LOG_FILE").
 		Default("/dev/null").
 		OpenFile(os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 
@@ -37,75 +47,92 @@ var (
 )
 
 func main() {
-	// kingpin.Parse()
+	kingpin.Parse()
 
-	// level, err := logrus.ParseLevel(*logLevel)
-	// kingpin.FatalIfError(err, "invalid log level")
+	level, err := logrus.ParseLevel(*logLevel)
+	kingpin.FatalIfError(err, "invalid log level")
 
-	// log := logrus.New()
-	// log.Level = level
-	// log.Out = *logFile
+	log := logrus.New()
+	log.Level = level
+	log.Out = *logFile
 
-	// ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	donech := handleSignals(ctx, cancel)
 
-	// uishutdown := make(chan bool)
+	bus, err := pubsub.NewBus(ctx)
+	kingpin.FatalIfError(err, "pubsub bus")
 
-	// var appui ui.UI
+	node, err := node.NewFromEnv(ctx)
+	kingpin.FatalIfError(err, "node")
 
-	// switch *uiType {
-	// case "tui":
-	// 	appui, err = ui.NewTUI(uishutdown)
-	// case "stream":
-	// 	appui, err = ui.NewIOUI(os.Stdout)
-	// default:
-	// 	appui = ui.NewNoopUI()
-	// }
-	// kingpin.FatalIfError(err, "Can't start UI")
+	scheduler := scheduler.New(bus, node)
 
-	// var configs []*config.Pool
+	ui, err := ui.NewEVLog(ctx, bus, os.Stdout)
+	kingpin.FatalIfError(err, "ui")
 
-	// err = config.ReadFile(*configFile, &pools)
-	// kingpin.FatalIfError(err, "invalid config file")
+	pools := map[string]pool.Pool{}
 
-	// pools, err := ephemerald.NewPoolSet(log, ctx, configs)
-	// kingpin.FatalIfError(err, "creating pools")
+	for _, pfile := range *poolFiles {
+		var pcfg config.Pool
 
-	// builder := net.NewServerBuilder()
+		err := config.ReadFile(pfile, &pcfg)
+		kingpin.FatalIfError(err, "reading pool config "+pfile)
 
-	// builder.WithPort(*listenPort)
-	// builder.WithPoolSet(pools)
+		if _, ok := pools[pcfg.Name]; ok {
+			kingpin.Fatalf("creating pool %v: duplicate pool found", pcfg.Name)
+		}
 
-	// server, err := builder.Create()
-	// if err != nil {
-	// 	pools.Stop()
-	// 	kingpin.FatalIfError(err, "can't create server")
-	// }
+		pool, err := pool.Create(ctx, bus, scheduler, pcfg)
+		kingpin.FatalIfError(err, "creating pool "+pcfg.Name+" from "+pfile)
+		pools[pcfg.Name] = pool
+	}
 
-	// donech := server.ServerCloseNotify()
+	builder := net.NewServerBuilder()
+	builder.WithPort(*listenPort)
 
-	// handleSignals(server, donech, uishutdown)
+	server, err := builder.Create()
+	if err != nil {
+		kingpin.FatalIfError(err, "can't create server")
+	}
 
-	// go server.Run()
+	sdonech := server.ServerCloseNotify()
 
-	// <-donech
-	// appui.Stop()
+	go server.Run()
+
+	select {
+	case <-ctx.Done():
+	case <-sdonech:
+	}
+
+	for _, pool := range pools {
+		pool.Shutdown()
+	}
+
+	for _, pool := range pools {
+		<-pool.Done()
+	}
+
+	ui.Stop()
+	cancel()
+	bus.Shutdown()
+
+	<-donech
 }
 
-func handleSignals(server *net.Server, donech chan bool, uishutdown chan bool) {
+func handleSignals(ctx context.Context, cancel context.CancelFunc) <-chan struct{} {
+	donech := make(chan struct{})
 	go func() {
-		sigch := make(chan os.Signal, 1)
+		defer close(donech)
 
+		sigch := make(chan os.Signal, 1)
 		signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT)
 		defer signal.Stop(sigch)
 
 		select {
-		case <-uishutdown:
-			server.Close()
+		case <-ctx.Done():
 		case <-sigch:
-			server.Close()
-		case <-donech:
+			cancel()
 		}
-
-		<-donech
 	}()
+	return donech
 }

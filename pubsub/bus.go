@@ -8,8 +8,6 @@ import (
 	"github.com/boz/go-lifecycle"
 )
 
-type Filter func(types.BusEvent) bool
-
 type Writer interface {
 	Publish(types.BusEvent) error
 }

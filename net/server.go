@@ -217,9 +217,3 @@ func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
 	// w.Header().Set("Content-Type", rpcContentType)
 	// w.WriteHeader(http.StatusOK)
 }
-
-type itemID string
-
-func (i itemID) ID() string {
-	return string(i)
-}

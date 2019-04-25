@@ -3,7 +3,6 @@ package ui
 import "io"
 
 type UI interface {
-	Emitter() Emitter
 	Stop()
 }
 
