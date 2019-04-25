@@ -60,7 +60,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = log.NewContext(ctx, l)
 
-	donech := handleSignals(ctx, cancel)
+	stopch := handleSignals(ctx, cancel)
 
 	bus, err := pubsub.NewBus(ctx)
 	kingpin.FatalIfError(err, "pubsub bus")
@@ -110,8 +110,9 @@ func main() {
 	go server.Run()
 
 	select {
-	case <-ctx.Done():
 	case <-sdonech:
+	case <-stopch:
+		server.Close()
 	}
 
 	for _, pool := range pools {
@@ -126,7 +127,7 @@ func main() {
 	cancel()
 	bus.Shutdown()
 
-	<-donech
+	<-stopch
 }
 
 func handleSignals(ctx context.Context, cancel context.CancelFunc) <-chan struct{} {
@@ -141,7 +142,6 @@ func handleSignals(ctx context.Context, cancel context.CancelFunc) <-chan struct
 		select {
 		case <-ctx.Done():
 		case <-sigch:
-			cancel()
 		}
 	}()
 	return donech
