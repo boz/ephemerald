@@ -2,16 +2,13 @@ package scheduler_test
 
 import (
 	"testing"
-
-	"github.com/boz/ephemerald/scheduler"
-	"github.com/boz/ephemerald/testutil"
 )
 
 func Test_Scheduler_ResolveImage(t *testing.T) {
-	ctx := testutil.Context()
-	bus := testutil.Bus(t, ctx)
-	node := testutil.Node(t, ctx)
-	sched := scheduler.New(ctx, bus, node)
+	// ctx := testutil.Context()
+	// node := testutil.Node(t, ctx)
+	// bus := testutil.Bus(t, ctx)
+	// sched := scheduler.New(ctx, bus, node)
 
 	// ref, err := s.ResolveImage(context.Background(), "nginx:latest")
 	// assert.NoError(t, err)
