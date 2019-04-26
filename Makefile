@@ -13,7 +13,7 @@ vet:
 	$(GOCMD) vet ./...
 
 server:
-	(cd ephemerald && $(GOCMD) build)
+	(cd cmd/ephemerald && $(GOCMD) build)
 
 example:
 	(cd _example && $(GOCMD) build -o example)
@@ -22,7 +22,7 @@ install:
 	$(GOCMD) install ./ephemerald
 
 clean:
-	rm _example/example ephemerald/ephemerald 2>/dev/null || true
+	rm _example/example cmd/ephemerald/ephemerald 2>/dev/null || true
 
 release:
 	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser

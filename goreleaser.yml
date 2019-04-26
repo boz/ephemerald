@@ -1,5 +1,5 @@
 build:
-  main: ephemerald/main.go
+  main: cmd/ephemerald/main.go
   binary: ephemerald
   goos:
     - darwin
