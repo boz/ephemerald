@@ -18,6 +18,7 @@ import (
 )
 
 type Pool interface {
+	ID() types.ID
 	Ready() <-chan struct{}
 
 	Checkout(context.Context) (params.Params, error)
@@ -91,6 +92,10 @@ type pool struct {
 	lc      lifecycle.Lifecycle
 
 	l logrus.FieldLogger
+}
+
+func (p *pool) ID() types.ID {
+	return p.id
 }
 
 func (p *pool) Ready() <-chan struct{} {

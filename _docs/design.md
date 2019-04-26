@@ -1,27 +1,31 @@
 # Instance Lifecycle Hooks
 
-1. initialize
+1. ready
+
+  * check if container has started
+
+1. init
 
   * create tables
   * insert data
-
-1. healthcheck
-
-  * connect to service
 
 1. reset
 
   * delete rows
 
+TODO:
+
+1. checkstart
+1. init
+1. checkready
+1. reset
+
+checkstart -> init -> checkready -> reset -> checkready
+
 # Instance Grouping
 
   * Pool 
     * _N_ running images for a distinct container configuration.
-
-  > * GroupPool
-  >   * _N_ unique pools
-  >   * network connectivity
-  >   * aggregate state of children
 
   * PoolSet
     * _N_ pools
@@ -34,6 +38,13 @@
 rails - need pg, redis for every test
 
 ```yaml
+- name: pg
+  image: postgres
+  size: 4
+
+- name: redis
+  image: redis
+  size: 4
 ```
 
 ## anarchy
@@ -45,43 +56,24 @@ golang: checkout as needed.
 
 # API
 
-## Create a pool set
+## Pool
 
-```
-POST /pool-set(/pool-name?)
+### Create pool
 
--> pool-set-id
-```
+POST /pool -> types.Pool
 
-## Delete a pool set
+### Delete pool
 
-```
-DELETE /pool-set/{pool-set-id}
+DELETE /pool/{pool-id}
 
--> pool-set-id
-```
+### Checkout instance
 
-## Checkout one instance of each item in a pool set
+PUT /pool/{pool-id}/checkout -> types.Checkout
 
-```
-POST /pool-set/{pool-set-id}/checkout(/pool-name?)
+### Release instance
 
--> checkout-id
-```
+DELETE /pool/{pool-id}/checkout/{instance-id}
 
-## Release
-
-```
-DELETE /pool-set/{pool-set-id}/checkout/{checkout-id}
-
--> 
-```
-
-## Events
-
-```
-SUBSCRIBE /pool-set/{pool-set-id}
-```
 
 ## Action-Complete
 

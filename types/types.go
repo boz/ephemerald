@@ -72,6 +72,15 @@ type LifecycleAction struct {
 	MaxRetries uint
 }
 
+type Checkout struct {
+	PoolID     ID                `json:"pool-id"`
+	InstanceID ID                `json:"instance-id"`
+	NumResets  int               `json:"num-resets"`
+	Host       string            `json:"host"`
+	Port       string            `json:"port"`
+	Params     map[string]string `json:"params"`
+}
+
 func NewID() (ID, error) {
 	id := rand.Uint64()
 	return ID(strconv.FormatUint(id, 16)), nil
