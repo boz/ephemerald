@@ -11,7 +11,7 @@ import (
 	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/node"
-	"github.com/boz/ephemerald/pool"
+	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/ui"
@@ -72,40 +72,34 @@ func main() {
 
 	scheduler := scheduler.New(ctx, bus, node)
 
+	pset, err := poolset.New(ctx, bus, scheduler)
+	kingpin.FatalIfError(err, "poolset")
+
 	ui, err := ui.NewEVLog(ctx, bus, os.Stdout)
 	kingpin.FatalIfError(err, "ui")
-
-	pools := map[string]pool.Pool{}
 
 	for _, pfile := range *poolFiles {
 		var pcfg config.Pool
 
 		if err := config.ReadFile(pfile, &pcfg); err != nil {
+			log.WithError(err).WithField("pool-file", pfile).Error("reading pool config")
 			kingpin.Errorf("error reading pool config %v: %v", pfile, err)
 			continue
 		}
 
-		if _, ok := pools[pcfg.Name]; ok {
-			kingpin.Errorf("error creating pool %v: duplicate pool found", pcfg.Name)
-			continue
-		}
-
-		pool, err := pool.Create(ctx, bus, scheduler, pcfg)
+		_, err := pset.Create(ctx, pcfg)
 		if err != nil {
+			log.WithError(err).WithField("pool-file", pfile).Error("creating pool")
 			kingpin.Errorf("error creating pool %v: %v", pcfg.Name, err)
-			continue
 		}
-
-		pools[pcfg.Name] = pool
 	}
-
-	log.WithField("num-pools", len(pools)).Info("starting pools")
 
 	builder := net.NewServerBuilder()
 	builder.WithPort(*listenPort)
 
 	server, err := builder.Create()
 	if err != nil {
+		log.WithError(err).Error("creating server")
 		kingpin.FatalIfError(err, "can't create server")
 	}
 
@@ -115,18 +109,17 @@ func main() {
 
 	select {
 	case <-sdonech:
+		log.Info("server done")
 	case <-stopch:
+		log.Info("shutdown requested")
 		server.Close()
 	}
 
-	for _, pool := range pools {
-		pool.Shutdown()
-	}
+	log.Info("shutting down pools...")
+	pset.Shutdown()
+	<-pset.Done()
 
-	for _, pool := range pools {
-		<-pool.Done()
-	}
-
+	log.Info("shutting down UI...")
 	ui.Stop()
 	cancel()
 	bus.Shutdown()

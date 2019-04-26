@@ -68,7 +68,7 @@ DELETE /pool/{pool-id}
 
 ### Checkout instance
 
-PUT /pool/{pool-id}/checkout -> types.Checkout
+POST /pool/{pool-id}/checkout -> types.Checkout
 
 ### Release instance
 

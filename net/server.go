@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/boz/ephemerald/poolset"
 	"github.com/gorilla/mux"
 )
 
@@ -12,14 +13,14 @@ type Server struct {
 	l   *net.TCPListener
 	srv *http.Server
 
-	// pools ephemerald.PoolSet
+	pset poolset.PoolSet
 
 	closech chan bool
 }
 
 type ServerBuilder struct {
 	address string
-	// pools   ephemerald.PoolSet
+	pset    poolset.PoolSet
 }
 
 func NewServerBuilder() *ServerBuilder {
@@ -28,10 +29,10 @@ func NewServerBuilder() *ServerBuilder {
 	}
 }
 
-// func (sb *ServerBuilder) WithPoolSet(pools ephemerald.PoolSet) *ServerBuilder {
-// 	sb.pools = pools
-// 	return sb
-// }
+func (sb *ServerBuilder) WithPoolSet(pset poolset.PoolSet) *ServerBuilder {
+	sb.pset = pset
+	return sb
+}
 
 func (sb *ServerBuilder) WithAddress(address string) *ServerBuilder {
 	sb.address = address
@@ -47,20 +48,21 @@ func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
 func (sb *ServerBuilder) Create() (*Server, error) {
 	server := &Server{
 		closech: make(chan bool),
-		// pools:   sb.pools,
+		pset:    sb.pset,
 	}
 
 	r := mux.NewRouter()
 
-	r.HandleFunc(rpcCheckoutPath, server.handleCheckoutBatch).
-		Methods("POST")
-	r.HandleFunc(rpcCheckoutPath+"/{pool}", server.handleCheckoutPool).
+	r.HandleFunc("/pool", server.handlePoolCreate).
 		Methods("POST")
 
-	r.HandleFunc(rpcReturnPath, server.handleReturnBatch).
-		Headers("Content-Type", rpcContentType).
+	r.HandleFunc("/pool/{pool-id}/checkout", server.handlePoolInstanceCheckout).
+		Methods("POST")
+
+	r.HandleFunc("/pool/{pool-id}/checkout/{instance-id}", server.handlePoolInstanceRelease).
 		Methods("DELETE")
-	r.HandleFunc(rpcReturnPath+"/{pool}/{id}", server.handleReturn).
+
+	r.HandleFunc("/pool/{pool-id}", server.handlePoolDelete).
 		Methods("DELETE")
 
 	l, err := net.Listen("tcp", sb.address)
@@ -80,7 +82,6 @@ func (sb *ServerBuilder) Create() (*Server, error) {
 func (s *Server) Run() {
 	defer close(s.closech)
 	s.srv.Serve(s.l)
-	s.stopPools()
 }
 
 func (s *Server) Close() {
@@ -101,119 +102,122 @@ func (s *Server) Port() int {
 	return p
 }
 
-func (s *Server) stopPools() {
-	// s.pools.Stop()
+func (s *Server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
+}
+func (s *Server) handlePoolDelete(w http.ResponseWriter, r *http.Request) {
+}
+func (s *Server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Request) {
+}
+func (s *Server) handlePoolInstanceRelease(w http.ResponseWriter, r *http.Request) {
 }
 
-func (s *Server) handleCheckoutBatch(w http.ResponseWriter, r *http.Request) {
-	// _, _, err := net.SplitHostPort(r.Host)
-	// if err != nil {
-	// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
-	// 	return
-	// }
+// _, _, err := net.SplitHostPort(r.Host)
+// if err != nil {
+// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+// 	return
+// }
 
-	// // ps, err := s.pools.CheckoutWith(r.Context())
+// // ps, err := s.pools.CheckoutWith(r.Context())
 
-	// // for name, p := range ps {
-	// // 	// p2, e := p.ForHost(host)
-	// // 	// if e != nil {
-	// // 	// 	err = e
-	// // 	// 	break
-	// // 	// }
-	// // 	// ps[name] = p2
-	// // }
+// // for name, p := range ps {
+// // 	// p2, e := p.ForHost(host)
+// // 	// if e != nil {
+// // 	// 	err = e
+// // 	// 	break
+// // 	// }
+// // 	// ps[name] = p2
+// // }
 
-	// if err != nil {
-	// 	// s.pools.ReturnAll(ps)
-	// 	// http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
-	// 	return
-	// }
+// if err != nil {
+// 	// s.pools.ReturnAll(ps)
+// 	// http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+// 	return
+// }
 
-	// // buf, err := json.Marshal(ps)
-	// if err != nil {
-	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-	// 	s.pools.ReturnAll(ps)
-	// 	return
-	// }
+// // buf, err := json.Marshal(ps)
+// if err != nil {
+// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+// 	s.pools.ReturnAll(ps)
+// 	return
+// }
 
-	// w.Header().Set("Content-Type", rpcContentType)
-	// w.Write(buf)
-}
+// w.Header().Set("Content-Type", rpcContentType)
+// w.Write(buf)
 
-func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
-	// host, _, err := net.SplitHostPort(r.Host)
-	// if err != nil {
-	// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
-	// 	return
-	// }
+// func (s *Server) handleCheckoutPool(w http.ResponseWriter, r *http.Request) {
+// host, _, err := net.SplitHostPort(r.Host)
+// if err != nil {
+// 	http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+// 	return
+// }
 
-	// poolName := mux.Vars(r)["pool"]
-	// if poolName == "" {
-	// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
-	// 	return
-	// }
+// poolName := mux.Vars(r)["pool"]
+// if poolName == "" {
+// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
+// 	return
+// }
 
-	// ps, err := s.pools.CheckoutWith(r.Context(), poolName)
-	// if err != nil {
-	// 	s.pools.ReturnAll(ps)
-	// 	http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
-	// 	return
-	// }
+// ps, err := s.pools.CheckoutWith(r.Context(), poolName)
+// if err != nil {
+// 	s.pools.ReturnAll(ps)
+// 	http.Error(w, fmt.Sprint(err), http.StatusRequestTimeout)
+// 	return
+// }
 
-	// params, ok := ps[poolName]
-	// if !ok {
-	// 	s.pools.ReturnAll(ps)
-	// 	http.Error(w, "Pool not found", http.StatusInternalServerError)
-	// 	return
-	// }
+// params, ok := ps[poolName]
+// if !ok {
+// 	s.pools.ReturnAll(ps)
+// 	http.Error(w, "Pool not found", http.StatusInternalServerError)
+// 	return
+// }
 
-	// params, err = params.ForHost(host)
-	// if err != nil {
-	// 	s.pools.ReturnAll(ps)
-	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-	// 	return
-	// }
+// params, err = params.ForHost(host)
+// if err != nil {
+// 	s.pools.ReturnAll(ps)
+// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+// 	return
+// }
 
-	// buf, err := json.Marshal(params)
-	// if err != nil {
-	// 	s.pools.ReturnAll(ps)
-	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-	// 	return
-	// }
-	// w.Header().Set("Content-Type", rpcContentType)
-	// w.Write(buf)
-}
+// buf, err := json.Marshal(params)
+// if err != nil {
+// 	s.pools.ReturnAll(ps)
+// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+// 	return
+// }
+// w.Header().Set("Content-Type", rpcContentType)
+// w.Write(buf)
+// }
 
-func (s *Server) handleReturnBatch(w http.ResponseWriter, r *http.Request) {
-	// ps := params.Set{}
+// func (s *Server) handleReturnBatch(w http.ResponseWriter, r *http.Request) {
+// ps := params.Set{}
 
-	// dec := json.NewDecoder(r.Body)
+// dec := json.NewDecoder(r.Body)
 
-	// if err := dec.Decode(&ps); err != nil {
-	// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-	// 	return
-	// }
-	// s.pools.ReturnAll(ps)
+// if err := dec.Decode(&ps); err != nil {
+// 	http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+// 	return
+// }
+// s.pools.ReturnAll(ps)
 
-	// w.Header().Set("Content-Type", rpcContentType)
-	// w.WriteHeader(http.StatusOK)
-}
+// w.Header().Set("Content-Type", rpcContentType)
+// w.WriteHeader(http.StatusOK)
+// }
 
-func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
-	// pool := mux.Vars(r)["pool"]
-	// if pool == "" {
-	// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
-	// 	return
-	// }
+// func (s *Server) handleReturn(w http.ResponseWriter, r *http.Request) {
+// pool := mux.Vars(r)["pool"]
+// if pool == "" {
+// 	http.Error(w, "Invalid pool name", http.StatusBadRequest)
+// 	return
+// }
 
-	// id := mux.Vars(r)["id"]
-	// if id == "" {
-	// 	http.Error(w, "Invalid ID", http.StatusBadRequest)
-	// 	return
-	// }
+// id := mux.Vars(r)["id"]
+// if id == "" {
+// 	http.Error(w, "Invalid ID", http.StatusBadRequest)
+// 	return
+// }
 
-	// s.pools.Return(pool, itemID(id))
+// s.pools.Return(pool, itemID(id))
 
-	// w.Header().Set("Content-Type", rpcContentType)
-	// w.WriteHeader(http.StatusOK)
-}
+// w.Header().Set("Content-Type", rpcContentType)
+// w.WriteHeader(http.StatusOK)
+// }
