@@ -70,7 +70,7 @@ func main() {
 	node, err := node.NewFromEnv(ctx)
 	kingpin.FatalIfError(err, "node")
 
-	scheduler := scheduler.New(bus, node)
+	scheduler := scheduler.New(ctx, bus, node)
 
 	ui, err := ui.NewEVLog(ctx, bus, os.Stdout)
 	kingpin.FatalIfError(err, "ui")

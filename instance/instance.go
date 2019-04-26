@@ -169,6 +169,7 @@ func (i *instance) run() {
 		cid      string
 		cinfo    dtypes.ContainerJSON
 		actionch <-chan error
+		ok       bool
 	)
 
 	if err := i.publishAction(types.EventActionStart); err != nil {
@@ -192,14 +193,14 @@ func (i *instance) run() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cid, err = i.create()
-	if err != nil {
+	cid, ok, err = i.create()
+	if !ok {
 		i.lc.ShutdownInitiated(err)
 		goto kill
 	}
 
-	cinfo, err = i.start(cid)
-	if err != nil {
+	cinfo, ok, err = i.start(cid)
+	if !ok {
 		i.lc.ShutdownInitiated(err)
 		goto kill
 	}
@@ -379,7 +380,7 @@ func (i *instance) subscribe() (pubsub.Subscription, error) {
 	return sub, err
 }
 
-func (i *instance) create() (string, error) {
+func (i *instance) create() (string, bool, error) {
 	i.enterState(types.InstanceStateCreate)
 
 	// todo: timeout
@@ -393,9 +394,9 @@ func (i *instance) create() (string, error) {
 	select {
 	case err := <-i.lc.ShutdownRequest():
 		res := <-runch
-		return res.Value().(string), err
+		return res.Value().(string), false, err
 	case res := <-runch:
-		return res.Value().(string), res.Err()
+		return res.Value().(string), res.Err() == nil, res.Err()
 	}
 }
 
@@ -434,7 +435,7 @@ func (i *instance) doCreate(ctx context.Context) (string, error) {
 
 }
 
-func (i *instance) start(cid string) (dtypes.ContainerJSON, error) {
+func (i *instance) start(cid string) (dtypes.ContainerJSON, bool, error) {
 	i.enterState(types.InstanceStateStart)
 
 	// todo: timeout
@@ -449,14 +450,14 @@ func (i *instance) start(cid string) (dtypes.ContainerJSON, error) {
 	case err := <-i.lc.ShutdownRequest():
 		res := <-runch
 		if val, ok := res.Value().(dtypes.ContainerJSON); ok {
-			return val, err
+			return val, false, err
 		}
-		return dtypes.ContainerJSON{}, err
+		return dtypes.ContainerJSON{}, false, err
 	case res := <-runch:
 		if res.Err() != nil {
-			return dtypes.ContainerJSON{}, res.Err()
+			return dtypes.ContainerJSON{}, false, res.Err()
 		}
-		return res.Value().(dtypes.ContainerJSON), nil
+		return res.Value().(dtypes.ContainerJSON), true, nil
 	}
 }
 

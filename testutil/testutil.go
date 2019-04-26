@@ -9,7 +9,6 @@ import (
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/node"
-	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pool"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
@@ -36,22 +35,31 @@ func Log() logrus.FieldLogger {
 	return l
 }
 
-func RunPoolFromFile(t *testing.T, path string, fn func(params.Params)) {
-	// WithPoolFromFile(t, path, func(pool ephemerald.Pool) {
-	// 	item, err := pool.Checkout()
-	// 	require.NoError(t, err)
+func Bus(t *testing.T, ctx context.Context) pubsub.Service {
+	bus, err := pubsub.NewBus(ctx)
+	require.NoError(t, err)
+	return bus
+}
 
-	// 	if fn != nil {
-	// 		fn(item)
-	// 	}
+func Node(t *testing.T, ctx context.Context) node.Node {
+	node, err := node.NewFromEnv(ctx)
+	require.NoError(t, err)
+	return node
+}
 
-	// 	assert.NotNil(t, item)
-	// 	// pool.Return(item)
-	// })
+func RunPoolFromFile(t *testing.T, path string) {
+	WithPoolFromFile(t, path, func(pool pool.Pool) {
+		ctx := context.Background()
+
+		params, err := pool.Checkout(ctx)
+		require.NoError(t, err)
+
+		assert.NoError(t, pool.Release(ctx, params.State().ID))
+	})
 }
 
 func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(Context())
 	defer cancel()
 
 	bus, err := pubsub.NewBus(ctx)
@@ -63,7 +71,7 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
 	node, err := node.NewFromEnv(ctx)
 	require.NoError(t, err)
 
-	sched := scheduler.New(bus, node)
+	sched := scheduler.New(ctx, bus, node)
 
 	var cfg config.Pool
 
@@ -79,11 +87,13 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
 		<-pool.Done()
 	}()
 
-	// require.NoError(t, pool.WaitReady())
-
 	if fn != nil {
 		fn(pool)
 	}
+}
+
+func ReadFile(t *testing.T, fpath string, obj interface{}) {
+	require.NoError(t, config.ReadFile(fpath, obj))
 }
 
 func ReadJSON(t *testing.T, fpath string) []byte {

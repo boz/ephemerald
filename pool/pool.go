@@ -100,7 +100,7 @@ func (p *pool) ID() types.ID {
 }
 
 func (p *pool) Name() string {
-	return p.model.Name
+	return p.config.Name
 }
 
 func (p *pool) Ready() <-chan struct{} {
@@ -174,8 +174,9 @@ func (p *pool) run() {
 
 	defer p.publishStats(types.EventActionDone)
 
-	p.image, err = p.resolveImage()
-	if err != nil {
+	var ok bool
+	p.image, ok, err = p.resolveImage()
+	if !ok {
 		p.lc.ShutdownInitiated(err)
 		goto done
 	}
@@ -285,7 +286,7 @@ func (p *pool) subscribe() (pubsub.Subscription, error) {
 	return sub, err
 }
 
-func (p *pool) resolveImage() (reference.Canonical, error) {
+func (p *pool) resolveImage() (reference.Canonical, bool, error) {
 	ctx, cancel := context.WithCancel(p.ctx)
 
 	refch := runner.Do(func() runner.Result {
@@ -296,14 +297,14 @@ func (p *pool) resolveImage() (reference.Canonical, error) {
 	case err := <-p.lc.ShutdownRequest():
 		cancel()
 		<-refch
-		return nil, err
+		return nil, false, err
 	case result := <-refch:
 		cancel()
 		if result.Err() != nil {
 			p.l.WithError(result.Err()).Error("image-resolve")
-			return nil, result.Err()
+			return nil, false, result.Err()
 		}
-		return result.Value().(reference.Canonical), nil
+		return result.Value().(reference.Canonical), true, nil
 	}
 
 }

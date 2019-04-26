@@ -6,12 +6,14 @@ import (
 	"io/ioutil"
 
 	"github.com/boz/ephemerald/instance"
+	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/docker/distribution/reference"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 type Scheduler interface {
@@ -20,16 +22,19 @@ type Scheduler interface {
 	CreateInstance(context.Context, instance.Config) (instance.Instance, error)
 }
 
-func New(bus pubsub.Bus, node node.Node) Scheduler {
+func New(ctx context.Context, bus pubsub.Bus, node node.Node) Scheduler {
+	l := log.FromContext(ctx).WithField("cmp", "scheduler")
 	return &scheduler{
 		bus:  bus,
 		node: node,
+		l:    l,
 	}
 }
 
 type scheduler struct {
 	bus  pubsub.Bus
 	node node.Node
+	l    logrus.FieldLogger
 }
 
 func (s *scheduler) ResolveImage(ctx context.Context, name string) (reference.Canonical, error) {

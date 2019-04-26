@@ -16,7 +16,7 @@ import (
 type PoolSet interface {
 	Create(context.Context, config.Pool) (pool.Pool, error)
 	Get(context.Context, types.ID) (pool.Pool, error)
-	List(context.Context, types.ID) ([]pool.Pool, error)
+	List(context.Context) ([]pool.Pool, error)
 	Delete(context.Context, types.ID) error
 }
 
@@ -45,7 +45,7 @@ func New(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler) (Se
 	go pset.lc.WatchContext(ctx)
 	go pset.run()
 
-	return nil, nil
+	return pset, nil
 }
 
 type poolset struct {
@@ -62,6 +62,14 @@ type poolset struct {
 	ctx context.Context
 	lc  lifecycle.Lifecycle
 	l   logrus.FieldLogger
+}
+
+func (pset *poolset) Shutdown() {
+	pset.lc.Shutdown(nil)
+}
+
+func (pset *poolset) Done() <-chan struct{} {
+	return pset.lc.Done()
 }
 
 type creq struct {
@@ -274,7 +282,7 @@ loop:
 
 		case req := <-pset.lch:
 
-			objs := make([]pool.Pool, len(pset.pools), 0)
+			objs := make([]pool.Pool, 0, len(pset.pools))
 			for _, pool := range pset.pools {
 				objs = append(objs, pool)
 			}
