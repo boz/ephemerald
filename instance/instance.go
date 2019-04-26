@@ -406,7 +406,7 @@ func (i *instance) doCreate(ctx context.Context) (string, error) {
 			node.LabelEphemeraldPoolID:      string(i.PoolID()),
 			node.LabelEphemeraldContainerID: string(i.id),
 		},
-		Image:        i.config.Image.Name(),
+		Image:        i.config.Image.Digest().String(),
 		Cmd:          i.config.Container.Cmd,
 		Env:          i.config.Container.Env,
 		Volumes:      i.config.Container.Volumes,
