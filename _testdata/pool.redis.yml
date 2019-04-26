@@ -1,0 +1,7 @@
+name: redis
+image: redis
+size: 1
+port: 6379
+actions:
+  ready:
+    type: tcp.connect

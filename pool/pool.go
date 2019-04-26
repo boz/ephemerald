@@ -19,6 +19,7 @@ import (
 
 type Pool interface {
 	ID() types.ID
+	Name() string
 	Ready() <-chan struct{}
 
 	Checkout(context.Context) (params.Params, error)
@@ -96,6 +97,10 @@ type pool struct {
 
 func (p *pool) ID() types.ID {
 	return p.id
+}
+
+func (p *pool) Name() string {
+	return p.model.Name
 }
 
 func (p *pool) Ready() <-chan struct{} {

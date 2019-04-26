@@ -10,7 +10,16 @@ import (
 )
 
 func Test_Pool(t *testing.T) {
-	testutil.WithPoolFromFile(t, "../_testdata/pool.redis.json", func(pool pool.Pool) {
+	testutil.WithPoolFromFile(t, "../_testdata/pool.redis.yml", func(pool pool.Pool) {
+		ctx := context.Background()
+
+		params, err := pool.Checkout(ctx)
+		require.NoError(t, err)
+
+		require.NoError(t, pool.Release(ctx, params.State().ID))
+	})
+
+	testutil.WithPoolFromFile(t, "../_testdata/pool.postgres.yml", func(pool pool.Pool) {
 		ctx := context.Background()
 
 		params, err := pool.Checkout(ctx)

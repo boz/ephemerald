@@ -1,0 +1,7 @@
+name: postgres
+image: postgres
+size: 1
+port: 5432
+actions:
+  ready:
+    type: tcp.connect

@@ -224,6 +224,16 @@ func (pset *poolset) Delete(ctx context.Context, id types.ID) error {
 func (pset *poolset) run() {
 	defer pset.lc.ShutdownCompleted()
 
+	sub, err := pset.bus.Subscribe(func(ev types.BusEvent) bool {
+		return ev.GetType() == types.EventTypePool &&
+			ev.GetAction() == types.EventActionDone
+	})
+
+	if err != nil {
+		pset.lc.ShutdownInitiated(err)
+		return
+	}
+
 loop:
 	for {
 		select {
@@ -232,7 +242,19 @@ loop:
 			pset.lc.ShutdownInitiated(err)
 			break loop
 
+		case ev := <-sub.Events():
+			if _, ok := pset.pools[ev.GetPoolID()]; ok {
+				delete(pset.pools, ev.GetPoolID())
+			}
+
 		case req := <-pset.cch:
+
+			for _, pool := range pset.pools {
+				if pool.Name() == req.cfg.Name {
+					req.ech <- errors.New("duplicate name")
+					continue loop
+				}
+			}
 
 			pool, err := pool.Create(pset.ctx, pset.bus, pset.scheduler, req.cfg)
 			if err != nil {
@@ -270,6 +292,8 @@ loop:
 		}
 	}
 
+	sub.Close()
+
 	for _, pool := range pset.pools {
 		pool.Shutdown()
 	}
@@ -277,5 +301,7 @@ loop:
 	for _, pool := range pset.pools {
 		<-pool.Done()
 	}
+
+	<-sub.Done()
 
 }
