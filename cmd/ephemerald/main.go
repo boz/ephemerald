@@ -9,6 +9,7 @@ import (
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/log"
 	"github.com/boz/ephemerald/net"
+	"github.com/boz/ephemerald/net/server"
 	"github.com/boz/ephemerald/node"
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/pubsub"
@@ -93,13 +94,13 @@ func main() {
 		}
 	}
 
-	opts := []net.Opt{
-		net.WithAddress(*listenAddress),
-		net.WithPoolSet(pset),
+	opts := []server.Opt{
+		server.WithAddress(*listenAddress),
+		server.WithPoolSet(pset),
 	}
 
 	sdonech := make(chan struct{})
-	server, err := net.New(opts...)
+	server, err := server.New(opts...)
 	if err != nil {
 		kingpin.Errorf("can't create server: %v", err)
 		goto done

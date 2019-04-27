@@ -1,4 +1,4 @@
-package net
+package server
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/boz/ephemerald/config"
+	enet "github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/types"
 	"github.com/gorilla/mux"
@@ -45,7 +46,7 @@ type server struct {
 func New(opts ...Opt) (Server, error) {
 
 	s := &server{
-		address: DefaultListenAddress,
+		address: enet.DefaultListenAddress,
 	}
 
 	for _, opt := range opts {
@@ -119,7 +120,7 @@ func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", rpcContentType)
+	w.Header().Set("Content-Type", enet.RPCContentType)
 	w.Write(buf)
 }
 
@@ -163,7 +164,7 @@ func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", rpcContentType)
+	w.Header().Set("Content-Type", enet.RPCContentType)
 	w.Write(buf)
 }
 
