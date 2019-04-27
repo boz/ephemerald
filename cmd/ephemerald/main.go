@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/boz/ephemerald/config"
@@ -24,12 +23,12 @@ import (
 )
 
 var (
-	listenPort = kingpin.Flag("port", "Listen port. Default: "+strconv.Itoa(net.DefaultPort)).Short('p').
-			Envar("EPHEMERALD_PORT").
-			Default(strconv.Itoa(net.DefaultPort)).
-			Int()
+	listenAddress = kingpin.Flag("address", "Listen address. Default: "+net.DefaultListenAddress).Short('a').
+			Envar("EPHEMERALD_LISTEN_ADDRESS").
+			Default(net.DefaultListenAddress).
+			String()
 
-	poolFiles = kingpin.Flag("pool", "pool config file").Short('P').
+	poolFiles = kingpin.Flag("pool", "pool config file").Short('p').
 			ExistingFiles()
 
 	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
@@ -94,18 +93,22 @@ func main() {
 		}
 	}
 
-	builder := net.NewServerBuilder()
-	builder.WithPort(*listenPort)
-
-	server, err := builder.Create()
-	if err != nil {
-		log.WithError(err).Error("creating server")
-		kingpin.FatalIfError(err, "can't create server")
+	opts := []net.Opt{
+		net.WithAddress(*listenAddress),
+		net.WithPoolSet(pset),
 	}
 
-	sdonech := server.ServerCloseNotify()
+	sdonech := make(chan struct{})
+	server, err := net.New(opts...)
+	if err != nil {
+		kingpin.Errorf("can't create server: %v", err)
+		goto done
+	}
 
-	go server.Run()
+	go func() {
+		defer close(sdonech)
+		server.Run()
+	}()
 
 	select {
 	case <-sdonech:
@@ -114,6 +117,8 @@ func main() {
 		log.Info("shutdown requested")
 		server.Close()
 	}
+
+done:
 
 	log.Info("shutting down pools...")
 	pset.Shutdown()

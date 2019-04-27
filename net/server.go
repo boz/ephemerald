@@ -15,6 +15,7 @@ import (
 type Server interface {
 	Address() string
 	Run()
+	Close()
 }
 
 type Opt func(*server) error
