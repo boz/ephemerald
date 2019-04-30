@@ -400,8 +400,8 @@ func (p *pool) publishStats(action types.EventAction) {
 }
 
 func (p *pool) updateStats() {
-	p.model.Stats.Total = len(p.instances)
-	p.model.Stats.Ready = len(p.iready)
-	p.model.Stats.Checkout = len(p.icheckout)
-	p.model.Stats.Requests = len(p.crequests)
+	p.model.Containers.Total = len(p.instances)
+	p.model.Containers.Ready = len(p.iready)
+	p.model.Containers.Checkout = len(p.icheckout)
+	p.model.Containers.Requests = len(p.crequests)
 }

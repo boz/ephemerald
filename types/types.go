@@ -18,11 +18,11 @@ const (
 )
 
 type Pool struct {
-	ID    ID
-	Name  string
-	State PoolState
-	Size  int
-	Stats struct {
+	ID         ID
+	Name       string
+	State      PoolState
+	Size       int
+	Containers struct {
 		Total    int
 		Ready    int
 		Checkout int
@@ -48,10 +48,18 @@ type Instance struct {
 	ID        ID
 	PoolID    ID
 	State     InstanceState
-	Host      string
-	Port      string
 	Resets    int
 	MaxResets int
+	Host      string
+	Port      string
+}
+
+type Checkout struct {
+	InstanceID ID                `json:"instance-id"`
+	PoolID     ID                `json:"pool-id"`
+	Host       string            `json:"host"`
+	Port       string            `json:"port"`
+	Vars       map[string]string `json:"vars"`
 }
 
 type LifecycleActionState string
@@ -63,22 +71,22 @@ const (
 )
 
 type LifecycleAction struct {
-	PoolID     ID
-	InstanceID ID
 	Name       string
 	Type       string
 	State      LifecycleActionState
 	Retries    uint
 	MaxRetries uint
-}
 
-type Checkout struct {
-	PoolID     ID                `json:"pool-id"`
-	InstanceID ID                `json:"instance-id"`
-	NumResets  int               `json:"num-resets"`
-	Host       string            `json:"host"`
-	Port       string            `json:"port"`
-	Params     map[string]string `json:"params"`
+	Instance struct {
+		ID        ID     `json:"id"`
+		PoolID    ID     `json:"pool-id"`
+		NumResets int    `json:"num-resets"`
+		MaxResets int    `json:"max-resets"`
+		Host      string `json:"host"`
+		Port      string `json:"port"`
+	}
+
+	Vars map[string]string
 }
 
 func NewID() (ID, error) {
