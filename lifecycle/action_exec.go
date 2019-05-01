@@ -111,7 +111,7 @@ func (a *actionExec) Create() (Action, error) {
 func (a *actionExec) Do(e Env, p params.Params) error {
 
 	env := []string{
-		fmt.Sprintf("EPHEMERALD_ID=%v", p.ID()),
+		fmt.Sprintf("EPHEMERALD_ID=%v", p.InstanceID()),
 		fmt.Sprintf("EPHEMERALD_HOST=%v", p.Host()),
 		fmt.Sprintf("EPHEMERALD_PORT=%v", p.Port()),
 	}

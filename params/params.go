@@ -5,59 +5,146 @@ import (
 	"errors"
 	"fmt"
 	"text/template"
+
+	"github.com/boz/ephemerald/types"
 )
+
+type RenderContext interface {
+	InstanceID() types.ID
+	PoolID() types.ID
+	NumResets() int
+	MaxResets() int
+	Host() string
+	Port() string
+	Var(key string) (string, error)
+}
+
+type Params interface {
+	RenderContext
+
+	Render(string) (string, error)
+	RenderTemplate(*template.Template) (string, error)
+	MergeVars(map[string]string) Params
+	ToCheckout() (*types.Checkout, error)
+}
 
 var NotFoundError = errors.New("key not found")
 
-type ActionContext struct {
-	InstanceID ID                `json:"instance-id"`
-	PoolID     ID                `json:"pool-id"`
-	NumResets  int               `json:"num-resets"`
-	MaxResets  int               `json:"max-resets"`
-	Host       string            `json:"host"`
-	Port       string            `json:"port"`
-	Vars       map[string]string `json:"vars"`
+type actionContext struct {
+	instanceID types.ID          `json:"instance-id"`
+	poolID     types.ID          `json:"pool-id"`
+	numResets  int               `json:"num-resets"`
+	maxResets  int               `json:"max-resets"`
+	host       string            `json:"host"`
+	port       string            `json:"port"`
+	vars       map[string]string `json:"vars"`
 }
 
-func (ac *ActionContext) Var(name string) (string, error) {
-	return newRenderContext(ac).Var(name)
-}
+func Create(i types.Instance, vars map[string]string) Params {
 
-func (ac *ActionContext) Render(value string) (string, error) {
-	return newRenderContext(ac).render(value)
-}
-
-func (ac *ActionContext) RenderTemplate(tmpl *template.Template) (string, error) {
-	return newRenderContext(ac).renderTemplate(tmpl)
-}
-
-func (ac ActionContext) clone() ActionContext {
-	vars := make(map[string]string, len(ac.Vars))
-	for k, v := range ac.Vars {
-		vars[k] = v
+	ac := &actionContext{
+		instanceID: i.ID,
+		poolID:     i.PoolID,
+		numResets:  i.Resets,
+		maxResets:  i.MaxResets,
+		host:       i.Host,
+		port:       i.Port,
+		vars:       make(map[string]string, len(vars)),
 	}
-	ac.Vars = vars
+
+	for k, v := range vars {
+		ac.vars[k] = v
+	}
+
 	return ac
 }
 
-func newRenderContext(ac *ActionContext) *renderContext {
+func (ac *actionContext) InstanceID() types.ID { return ac.instanceID }
+func (ac *actionContext) PoolID() types.ID     { return ac.poolID }
+func (ac *actionContext) NumResets() int       { return ac.numResets }
+func (ac *actionContext) MaxResets() int       { return ac.maxResets }
+func (ac *actionContext) Host() string         { return ac.host }
+func (ac *actionContext) Port() string         { return ac.port }
+
+func (ac *actionContext) Var(name string) (string, error) {
+	return newRenderContext(ac).Var(name)
+}
+
+func (ac *actionContext) Render(value string) (string, error) {
+	return newRenderContext(ac).render(value)
+}
+
+func (ac *actionContext) RenderTemplate(tmpl *template.Template) (string, error) {
+	return newRenderContext(ac).renderTemplate(tmpl)
+}
+
+func (ac actionContext) MergeVars(vars map[string]string) Params {
+	mvars := make(map[string]string, len(ac.vars)+len(vars))
+
+	for k, v := range ac.vars {
+		mvars[k] = v
+	}
+
+	for k, v := range vars {
+		if _, ok := mvars[k]; !ok {
+			mvars[k] = v
+		}
+	}
+
+	ac.vars = mvars
+
+	return &ac
+}
+
+func (ac *actionContext) ToCheckout() (*types.Checkout, error) {
+	co := &types.Checkout{
+		InstanceID: ac.instanceID,
+		PoolID:     ac.poolID,
+		Host:       ac.host,
+		Port:       ac.port,
+		Vars:       make(map[string]string, len(ac.vars)),
+	}
+
+	rc := newRenderContext(ac)
+
+	for k, _ := range ac.vars {
+		v, err := rc.Var(k)
+		if err != nil {
+			return nil, err
+		}
+		co.Vars[k] = v
+	}
+
+	return co, nil
+}
+
+func (ac actionContext) clone() actionContext {
+	vars := make(map[string]string, len(ac.vars))
+	for k, v := range ac.vars {
+		vars[k] = v
+	}
+	ac.vars = vars
+	return ac
+}
+
+func newRenderContext(ac *actionContext) *renderContext {
 	return &renderContext{
 		ac:    ac.clone(),
-		rvars: make(map[string]bool, len(ac.Vars)),
+		rvars: make(map[string]bool, len(ac.vars)),
 	}
 }
 
 type renderContext struct {
-	ac    ActionContext
+	ac    actionContext
 	rvars map[string]bool
 }
 
-func (rc *renderContext) InstanceID() ID { return rc.ac.InstanceID }
-func (rc *renderContext) PoolID() ID     { return rc.ac.PoolID }
-func (rc *renderContext) NumResets() int { return rc.ac.NumResets }
-func (rc *renderContext) MaxResets() int { return rc.ac.MaxResets }
-func (rc *renderContext) Host() string   { return rc.ac.Host }
-func (rc *renderContext) Port() string   { return rc.ac.Port }
+func (rc *renderContext) InstanceID() types.ID { return rc.ac.instanceID }
+func (rc *renderContext) PoolID() types.ID     { return rc.ac.poolID }
+func (rc *renderContext) NumResets() int       { return rc.ac.numResets }
+func (rc *renderContext) MaxResets() int       { return rc.ac.maxResets }
+func (rc *renderContext) Host() string         { return rc.ac.host }
+func (rc *renderContext) Port() string         { return rc.ac.port }
 
 func (rc *renderContext) Var(key string) (string, error) {
 	if rc.rvars[key] {
@@ -66,7 +153,7 @@ func (rc *renderContext) Var(key string) (string, error) {
 	rc.rvars[key] = true
 	defer func() { rc.rvars[key] = false }()
 
-	raw, ok := rc.ac.Vars[key]
+	raw, ok := rc.ac.vars[key]
 	if !ok {
 		return "", fmt.Errorf("unknown key: %v", key)
 	}

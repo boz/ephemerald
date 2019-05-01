@@ -40,8 +40,7 @@ func newActionRunner(bus pubsub.Bus, instance types.Instance, ctx context.Contex
 		bus:    bus,
 		action: action,
 		model: &types.LifecycleAction{
-			PoolID:     instance.PoolID,
-			InstanceID: instance.ID,
+			Instance:   instance,
 			State:      types.LifecycleActionStateRunning,
 			Name:       actionName,
 			Type:       actionType,

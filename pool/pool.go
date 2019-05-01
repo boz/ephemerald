@@ -7,7 +7,6 @@ import (
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/instance"
 	"github.com/boz/ephemerald/log"
-	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/runner"
 	"github.com/boz/ephemerald/scheduler"
@@ -22,7 +21,7 @@ type Pool interface {
 	Name() string
 	Ready() <-chan struct{}
 
-	Checkout(context.Context) (params.Params, error)
+	Checkout(context.Context) (*types.Checkout, error)
 	Release(context.Context, types.ID) error
 
 	Shutdown()
@@ -108,15 +107,15 @@ func (p *pool) Ready() <-chan struct{} {
 }
 
 type checkoutReq struct {
-	ch  chan<- params.Params
+	ch  chan<- *types.Checkout
 	ctx context.Context
 }
 
-func (p *pool) Checkout(ctx context.Context) (params.Params, error) {
+func (p *pool) Checkout(ctx context.Context) (*types.Checkout, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch := make(chan params.Params)
+	ch := make(chan *types.Checkout)
 
 	req := checkoutReq{ch: ch, ctx: ctx}
 
@@ -345,7 +344,7 @@ loop:
 		for id, instance := range p.iready {
 			delete(p.iready, id)
 
-			params, err := instance.Checkout(p.ctx)
+			co, err := instance.Checkout(p.ctx)
 			if err != nil {
 				p.l.WithField("iid", id).Warn("checkout failed")
 				continue
@@ -358,7 +357,7 @@ loop:
 				case <-req.ctx.Done():
 					p.l.Warn("stale request")
 
-				case req.ch <- params:
+				case req.ch <- co:
 					p.icheckout[id] = instance
 					continue loop
 				}

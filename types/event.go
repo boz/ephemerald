@@ -65,7 +65,7 @@ func (ev Event) GetPoolID() ID {
 	case ev.Instance != nil:
 		return ev.Instance.PoolID
 	case ev.LifecycleAction != nil:
-		return ev.LifecycleAction.PoolID
+		return ev.LifecycleAction.Instance.PoolID
 	default:
 		return ID("")
 	}
@@ -76,7 +76,7 @@ func (ev Event) GetInstanceID() ID {
 	case ev.Instance != nil:
 		return ev.Instance.ID
 	case ev.LifecycleAction != nil:
-		return ev.LifecycleAction.InstanceID
+		return ev.LifecycleAction.Instance.ID
 	default:
 		return ID("")
 	}

@@ -50,9 +50,9 @@ func (a *actionHttpGet) Create() (Action, error) {
 
 func (a *actionHttpGet) Do(e Env, p params.Params) error {
 
-	p = p.MergeConfig(map[string]string{"url": a.Url})
+	p = p.MergeVars(map[string]string{"url": a.Url})
 
-	url, err := p.Get("url")
+	url, err := p.Var("url")
 	if err != nil {
 		return err
 	}

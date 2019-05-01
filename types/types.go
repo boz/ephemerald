@@ -77,14 +77,7 @@ type LifecycleAction struct {
 	Retries    uint
 	MaxRetries uint
 
-	Instance struct {
-		ID        ID     `json:"id"`
-		PoolID    ID     `json:"pool-id"`
-		NumResets int    `json:"num-resets"`
-		MaxResets int    `json:"max-resets"`
-		Host      string `json:"host"`
-		Port      string `json:"port"`
-	}
+	Instance Instance
 
 	Vars map[string]string
 }

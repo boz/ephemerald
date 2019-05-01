@@ -25,7 +25,7 @@ import (
 type Instance interface {
 	ID() types.ID
 	PoolID() types.ID
-	Checkout(context.Context) (params.Params, error)
+	Checkout(context.Context) (*types.Checkout, error)
 	Release(context.Context) error
 	Shutdown()
 	Done() <-chan struct{}
@@ -56,10 +56,11 @@ func Create(ctx context.Context, bus pubsub.Bus, node node.Node, config Config) 
 	i := &instance{
 		id: id,
 		model: &types.Instance{
-			ID:     id,
-			PoolID: config.PoolID,
-			State:  types.InstanceStateCreate,
-			Host:   node.Endpoint(),
+			ID:        id,
+			PoolID:    config.PoolID,
+			State:     types.InstanceStateCreate,
+			MaxResets: config.MaxResets,
+			Host:      node.Endpoint(),
 		},
 		node:       node,
 		config:     config,
@@ -99,16 +100,16 @@ func (i *instance) PoolID() types.ID {
 }
 
 type checkoutReq struct {
-	pch chan<- params.Params
+	pch chan<- *types.Checkout
 	ech chan<- error
 	ctx context.Context
 }
 
-func (i *instance) Checkout(ctx context.Context) (params.Params, error) {
+func (i *instance) Checkout(ctx context.Context) (*types.Checkout, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	pch := make(chan params.Params)
+	pch := make(chan *types.Checkout)
 	ech := make(chan error)
 	req := checkoutReq{pch: pch, ech: ech, ctx: ctx}
 
@@ -127,8 +128,8 @@ func (i *instance) Checkout(ctx context.Context) (params.Params, error) {
 		return nil, errors.New("not running")
 	case err := <-ech:
 		return nil, err
-	case params := <-pch:
-		return params, nil
+	case val := <-pch:
+		return val, nil
 	}
 }
 
@@ -207,11 +208,7 @@ func (i *instance) run() {
 
 	i.model.Port = tcpPortFor(cinfo, i.config.Port)
 
-	iparams = params.Create(params.State{
-		ID:   i.id,
-		Host: i.node.Endpoint(),
-		Port: i.model.Port,
-	}, i.config.Params)
+	iparams = params.Create(*i.model, i.config.Params)
 
 	actionch = i.runAction(types.InstanceStateCheck, ctx, iparams, actions.DoReady)
 
@@ -230,11 +227,19 @@ loop:
 				continue loop
 			}
 
+			co, err := iparams.ToCheckout()
+			if err != nil {
+				req.ech <- err
+				i.l.WithError(err).Error("checkout: params->checkout failure")
+				i.lc.ShutdownInitiated(err)
+				break loop
+			}
+
 			select {
 			case <-req.ctx.Done():
 				i.l.Warn("checkout: stale request")
 				continue loop
-			case req.pch <- iparams:
+			case req.pch <- co:
 			}
 
 			i.enterState(types.InstanceStateCheckout)
