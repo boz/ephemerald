@@ -8,6 +8,7 @@ import (
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
 	"github.com/boz/ephemerald/testutil"
+	"github.com/boz/ephemerald/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,18 +40,18 @@ func TestParseAction_defaults(t *testing.T) {
 }
 
 func TestActionExec(t *testing.T) {
-	runActionFromFile(t, "action.exec.json", "exec", params.State{}, true, "exec")
-	runActionFromFile(t, "action.exec.yaml", "exec", params.State{}, true, "exec")
+	runActionFromFile(t, "action.exec.json", "exec", types.Instance{}, true, "exec")
+	runActionFromFile(t, "action.exec.yaml", "exec", types.Instance{}, true, "exec")
 }
 
 func TestActionHttpPing(t *testing.T) {
-	runActionFromFile(t, "action.http.get.json", "http.get", params.State{}, true, "http.get")
-	runActionFromFile(t, "action.http.get.yaml", "http.get", params.State{}, true, "http.get")
+	runActionFromFile(t, "action.http.get.json", "http.get", types.Instance{}, true, "http.get")
+	runActionFromFile(t, "action.http.get.yaml", "http.get", types.Instance{}, true, "http.get")
 }
 
 func TestActionTCPConnect(t *testing.T) {
-	runActionFromFile(t, "action.tcp.connect.json", "tcp.connect", params.State{Host: "google.com", Port: "80"}, true, "tcp.connect")
-	runActionFromFile(t, "action.tcp.connect.yaml", "tcp.connect", params.State{Host: "google.com", Port: "80"}, true, "tcp.connect")
+	runActionFromFile(t, "action.tcp.connect.json", "tcp.connect", types.Instance{Host: "google.com", Port: "80"}, true, "tcp.connect")
+	runActionFromFile(t, "action.tcp.connect.yaml", "tcp.connect", types.Instance{Host: "google.com", Port: "80"}, true, "tcp.connect")
 }
 
 func actionFromFile(t *testing.T, name string) lifecycle.Action {
@@ -65,8 +66,8 @@ func actionFromFile(t *testing.T, name string) lifecycle.Action {
 	return action
 }
 
-func runActionFromFile(t *testing.T, name string, at string, pstate params.State, ok bool, msg string) {
-	p := params.Create(pstate, params.Config{})
+func runActionFromFile(t *testing.T, name string, at string, instance types.Instance, ok bool, msg string) {
+	p := params.Create(instance, map[string]string{})
 	action := actionFromFile(t, name)
 	require.Equal(t, action.Config().Type, at, msg)
 

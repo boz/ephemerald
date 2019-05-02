@@ -1,12 +1,10 @@
 package redis
 
-import "github.com/boz/ephemerald/params"
-
 type redisParams struct {
 	Database string
 }
 
-func (p redisParams) ParamConfig() params.Config {
+func (p redisParams) overrides() map[string]string {
 	pc := make(map[string]string)
 	if p.Database != "" {
 		pc["database"] = p.Database
@@ -14,7 +12,7 @@ func (p redisParams) ParamConfig() params.Config {
 	return pc
 }
 
-func defaultParamConfig() params.Config {
+func defaultParamConfig() map[string]string {
 	return map[string]string{
 		"database": "0",
 	}

@@ -77,7 +77,7 @@ func (a actionPGExec) Create() (lifecycle.Action, error) {
 
 func (a *actionPGExec) Do(e lifecycle.Env, p params.Params) error {
 
-	p = params.MergeDefaultsWithOverride(p, a.pgParams.ParamConfig(), defaultParamConfig())
+	p = params.MergeDefaultsWithOverride(p, a.pgParams.overrides(), defaultParamConfig())
 
 	db, err := openDB(e, p)
 	if err != nil {

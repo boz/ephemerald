@@ -4,54 +4,56 @@ import (
 	"testing"
 
 	"github.com/boz/ephemerald/params"
+	"github.com/boz/ephemerald/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Get(t *testing.T) {
+func Test_Var(t *testing.T) {
 
 	cfg := map[string]string{
 		"a": "a-value",
 		"b": "{{.Host}}",
-		"c": `{{.Get "a"}}:{{.Get "b"}}`,
-		"d": `{{.Get "d"}}`,
-		"e": `{{.Get "f"}}`,
-		"f": `{{.Get "e"}}`,
+		"c": `{{.Var "a"}}:{{.Var "b"}}`,
+		"d": `{{.Var "d"}}`,
+		"e": `{{.Var "f"}}`,
+		"f": `{{.Var "e"}}`,
 	}
 
-	p := params.Create(params.State{
+	p := params.Create(types.Instance{
 		Host: "foo",
+		Port: "8080",
 	}, cfg)
 
 	{
-		val, err := p.Get("a")
+		val, err := p.Var("a")
 		assert.NoError(t, err)
 		assert.Equal(t, "a-value", val)
 	}
 
 	{
-		val, err := p.Get("b")
+		val, err := p.Var("b")
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", val)
 	}
 
 	{
-		val, err := p.Get("c")
+		val, err := p.Var("c")
 		assert.NoError(t, err)
 		assert.Equal(t, "a-value:foo", val)
 	}
 
 	{
-		_, err := p.Get("d")
+		_, err := p.Var("d")
 		assert.Error(t, err)
 	}
 
 	{
-		_, err := p.Get("e")
+		_, err := p.Var("e")
 		assert.Error(t, err)
 	}
 
 	{
-		_, err := p.Get("f")
+		_, err := p.Var("f")
 		assert.Error(t, err)
 	}
 

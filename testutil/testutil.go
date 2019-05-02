@@ -51,10 +51,10 @@ func RunPoolFromFile(t *testing.T, path string) {
 	WithPoolFromFile(t, path, func(pool pool.Pool) {
 		ctx := context.Background()
 
-		params, err := pool.Checkout(ctx)
+		co, err := pool.Checkout(ctx)
 		require.NoError(t, err)
 
-		assert.NoError(t, pool.Release(ctx, params.State().ID))
+		assert.NoError(t, pool.Release(ctx, co.InstanceID))
 	})
 }
 

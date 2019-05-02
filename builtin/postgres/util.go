@@ -24,15 +24,15 @@ func openDB(e lifecycle.Env, p params.Params) (*sql.DB, error) {
 }
 
 func pgURL(p params.Params) (string, error) {
-	username, err := p.Get("username")
+	username, err := p.Var("username")
 	if err != nil {
 		return "", err
 	}
-	password, err := p.Get("password")
+	password, err := p.Var("password")
 	if err != nil {
 		return "", err
 	}
-	database, err := p.Get("database")
+	database, err := p.Var("database")
 	if err != nil {
 		return "", err
 	}

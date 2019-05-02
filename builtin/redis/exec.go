@@ -43,11 +43,11 @@ func (a actionRedisExec) Create() (lifecycle.Action, error) {
 
 func (a *actionRedisExec) Do(e lifecycle.Env, p params.Params) error {
 
-	p = params.MergeDefaultsWithOverride(p, a.redisParams.ParamConfig(), defaultParamConfig())
+	p = params.MergeDefaultsWithOverride(p, a.redisParams.overrides(), defaultParamConfig())
 
 	address := net.JoinHostPort(p.Host(), p.Port())
 
-	dbs, err := p.Get("database")
+	dbs, err := p.Var("database")
 	if err != nil {
 		return err
 	}

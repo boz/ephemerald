@@ -63,7 +63,7 @@ func (a actionPGTruncate) Create() (lifecycle.Action, error) {
 }
 
 func (a *actionPGTruncate) Do(e lifecycle.Env, p params.Params) error {
-	p = params.MergeDefaultsWithOverride(p, a.pgParams.ParamConfig(), defaultParamConfig())
+	p = params.MergeDefaultsWithOverride(p, a.pgParams.overrides(), defaultParamConfig())
 	db, err := openDB(e, p)
 	if err != nil {
 		return err

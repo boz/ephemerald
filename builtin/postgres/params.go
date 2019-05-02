@@ -1,14 +1,12 @@
 package postgres
 
-import "github.com/boz/ephemerald/params"
-
 type pgParams struct {
 	Username string
 	Password string
 	Database string
 }
 
-func (pgp pgParams) ParamConfig() params.Config {
+func (pgp pgParams) overrides() map[string]string {
 	p := make(map[string]string)
 	if pgp.Username != "" {
 		p["username"] = pgp.Username
@@ -22,7 +20,7 @@ func (pgp pgParams) ParamConfig() params.Config {
 	return p
 }
 
-func defaultParamConfig() params.Config {
+func defaultParamConfig() map[string]string {
 	return map[string]string{
 		"username": "postgres",
 		"password": "postgres",

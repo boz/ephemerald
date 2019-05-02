@@ -36,7 +36,7 @@ type Config struct {
 	Image     reference.Canonical
 	Port      int
 	Container config.Container
-	Params    params.Config
+	Params    map[string]string
 	Actions   lifecycle.Config
 	MaxResets int // TODO
 }
