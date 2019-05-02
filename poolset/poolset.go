@@ -32,6 +32,7 @@ func New(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler) (Se
 		bus:       bus,
 		scheduler: scheduler,
 		pools:     make(map[types.ID]pool.Pool),
+		deleted:   make(map[types.ID]pool.Pool),
 
 		cch: make(chan creq),
 		gch: make(chan greq),
@@ -52,7 +53,8 @@ type poolset struct {
 	bus       pubsub.Bus
 	scheduler scheduler.Scheduler
 
-	pools map[types.ID]pool.Pool
+	pools   map[types.ID]pool.Pool
+	deleted map[types.ID]pool.Pool
 
 	cch chan creq
 	gch chan greq
@@ -253,6 +255,7 @@ loop:
 		case ev := <-sub.Events():
 			if _, ok := pset.pools[ev.GetPoolID()]; ok {
 				delete(pset.pools, ev.GetPoolID())
+				delete(pset.deleted, ev.GetPoolID())
 			}
 
 		case req := <-pset.cch:
@@ -292,6 +295,8 @@ loop:
 
 			if pool, ok := pset.pools[req.id]; ok {
 				pool.Shutdown()
+				delete(pset.pools, req.id)
+				pset.deleted[req.id] = pool
 				req.ech <- nil
 			} else {
 				req.ech <- errors.New("not found")
@@ -302,11 +307,12 @@ loop:
 
 	sub.Close()
 
-	for _, pool := range pset.pools {
+	for id, pool := range pset.pools {
 		pool.Shutdown()
+		pset.deleted[id] = pool
 	}
 
-	for _, pool := range pset.pools {
+	for _, pool := range pset.deleted {
 		<-pool.Done()
 	}
 

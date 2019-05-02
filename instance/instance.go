@@ -166,7 +166,6 @@ func (i *instance) run() {
 	defer i.lc.ShutdownCompleted()
 
 	var (
-		iparams  params.Params
 		cid      string
 		cinfo    dtypes.ContainerJSON
 		actionch <-chan error
@@ -208,9 +207,7 @@ func (i *instance) run() {
 
 	i.model.Port = tcpPortFor(cinfo, i.config.Port)
 
-	iparams = params.Create(*i.model, i.config.Params)
-
-	actionch = i.runAction(types.InstanceStateCheck, ctx, iparams, actions.DoReady)
+	actionch = i.runAction(types.InstanceStateCheck, ctx, actions.DoReady)
 
 loop:
 	for {
@@ -227,7 +224,7 @@ loop:
 				continue loop
 			}
 
-			co, err := iparams.ToCheckout()
+			co, err := i.newParams().ToCheckout()
 			if err != nil {
 				req.ech <- err
 				i.l.WithError(err).Error("checkout: params->checkout failure")
@@ -258,7 +255,7 @@ loop:
 				break loop
 			}
 
-			actionch = i.runAction(types.InstanceStateReset, ctx, iparams, actions.DoReset)
+			actionch = i.runAction(types.InstanceStateReset, ctx, actions.DoReset)
 
 		case err := <-actionch:
 			actionch = nil
@@ -269,7 +266,7 @@ loop:
 					break loop
 				}
 
-				actionch = i.runAction(types.InstanceStateInitialize, ctx, iparams, actions.DoInit)
+				actionch = i.runAction(types.InstanceStateInitialize, ctx, actions.DoInit)
 
 			case types.InstanceStateInitialize:
 				if err != nil {
@@ -285,8 +282,7 @@ loop:
 					break loop
 				}
 				i.model.Resets++
-				i.enterState(types.InstanceStateInitialize)
-				actionch = i.runAction(types.InstanceStateInitialize, ctx, iparams, actions.DoInit)
+				actionch = i.runAction(types.InstanceStateInitialize, ctx, actions.DoInit)
 			}
 		}
 	}
@@ -307,13 +303,18 @@ kill:
 	<-sub.Done()
 }
 
-func (i *instance) runAction(state types.InstanceState, ctx context.Context, iparams params.Params, fn func(context.Context, params.Params) error) <-chan error {
+func (i *instance) runAction(state types.InstanceState, ctx context.Context, fn func(context.Context, params.Params) error) <-chan error {
 	i.enterState(state)
+	p := i.newParams()
 	errch := make(chan error, 1)
 	go func() {
-		errch <- fn(ctx, iparams)
+		errch <- fn(ctx, p)
 	}()
 	return errch
+}
+
+func (i *instance) newParams() params.Params {
+	return params.Create(*i.model, i.config.Params)
 }
 
 func (i *instance) publishAction(action types.EventAction) error {
