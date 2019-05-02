@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/boz/ephemerald/lifecycle"
 	"github.com/boz/ephemerald/params"
@@ -42,6 +43,6 @@ func pgURL(p params.Params) (string, error) {
 	return fmt.Sprintf("postgres://%v@%v:%v/%v?sslmode=disable",
 		ui.String(),
 		url.QueryEscape(p.Host()),
-		url.QueryEscape(p.Port()),
+		url.QueryEscape(strconv.Itoa(p.Port())),
 		url.QueryEscape(database)), nil
 }

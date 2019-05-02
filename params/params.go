@@ -15,7 +15,7 @@ type RenderContext interface {
 	NumResets() int
 	MaxResets() int
 	Host() string
-	Port() string
+	Port() int
 	Var(key string) (string, error)
 }
 
@@ -36,7 +36,7 @@ type actionContext struct {
 	numResets  int               `json:"num-resets"`
 	maxResets  int               `json:"max-resets"`
 	host       string            `json:"host"`
-	port       string            `json:"port"`
+	port       int               `json:"port"`
 	vars       map[string]string `json:"vars"`
 }
 
@@ -64,7 +64,7 @@ func (ac *actionContext) PoolID() types.ID     { return ac.poolID }
 func (ac *actionContext) NumResets() int       { return ac.numResets }
 func (ac *actionContext) MaxResets() int       { return ac.maxResets }
 func (ac *actionContext) Host() string         { return ac.host }
-func (ac *actionContext) Port() string         { return ac.port }
+func (ac *actionContext) Port() int            { return ac.port }
 
 func (ac *actionContext) Var(name string) (string, error) {
 	return newRenderContext(ac).Var(name)
@@ -144,7 +144,7 @@ func (rc *renderContext) PoolID() types.ID     { return rc.ac.poolID }
 func (rc *renderContext) NumResets() int       { return rc.ac.numResets }
 func (rc *renderContext) MaxResets() int       { return rc.ac.maxResets }
 func (rc *renderContext) Host() string         { return rc.ac.host }
-func (rc *renderContext) Port() string         { return rc.ac.port }
+func (rc *renderContext) Port() int            { return rc.ac.port }
 
 func (rc *renderContext) Var(key string) (string, error) {
 	if rc.rvars[key] {

@@ -51,14 +51,14 @@ type Instance struct {
 	Resets    int
 	MaxResets int
 	Host      string
-	Port      string
+	Port      int
 }
 
 type Checkout struct {
 	InstanceID ID                `json:"instance-id"`
 	PoolID     ID                `json:"pool-id"`
 	Host       string            `json:"host"`
-	Port       string            `json:"port"`
+	Port       int               `json:"port"`
 	Vars       map[string]string `json:"vars"`
 }
 

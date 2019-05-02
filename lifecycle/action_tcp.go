@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"encoding/json"
 	"net"
+	"strconv"
 
 	"github.com/boz/ephemerald/params"
 )
@@ -27,7 +28,7 @@ func (a actionTCPConnect) Create() (Action, error) {
 }
 
 func (a *actionTCPConnect) Do(e Env, p params.Params) error {
-	address := net.JoinHostPort(p.Host(), p.Port())
+	address := net.JoinHostPort(p.Host(), strconv.Itoa(p.Port()))
 	con, err := net.DialTimeout("tcp", address, a.Timeout)
 	if err != nil {
 		e.Log().WithError(err).Info("connect failed")

@@ -21,7 +21,7 @@ func Test_Var(t *testing.T) {
 
 	p := params.Create(types.Instance{
 		Host: "foo",
-		Port: "8080",
+		Port: 8080,
 	}, cfg)
 
 	{

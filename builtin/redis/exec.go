@@ -45,7 +45,7 @@ func (a *actionRedisExec) Do(e lifecycle.Env, p params.Params) error {
 
 	p = params.MergeDefaultsWithOverride(p, a.redisParams.overrides(), defaultParamConfig())
 
-	address := net.JoinHostPort(p.Host(), p.Port())
+	address := net.JoinHostPort(p.Host(), strconv.Itoa(p.Port()))
 
 	dbs, err := p.Var("database")
 	if err != nil {

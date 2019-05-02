@@ -22,5 +22,5 @@ func TestTCPPorts(t *testing.T) {
 	ports := tcpPortsFor(status)
 	assert.Equal(t, 1, len(ports))
 
-	assert.Equal(t, "32768", ports["5432"])
+	assert.Equal(t, 32768, ports["5432"])
 }

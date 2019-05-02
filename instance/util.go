@@ -6,13 +6,13 @@ import (
 	dtypes "github.com/docker/docker/api/types"
 )
 
-func tcpPortFor(status dtypes.ContainerJSON, port int) string {
+func tcpPortFor(status dtypes.ContainerJSON, port int) int {
 	ports := tcpPortsFor(status)
 	return ports[strconv.Itoa(port)]
 }
 
-func tcpPortsFor(status dtypes.ContainerJSON) map[string]string {
-	ports := make(map[string]string)
+func tcpPortsFor(status dtypes.ContainerJSON) map[string]int {
+	ports := make(map[string]int)
 
 	if status.Config == nil {
 		return ports
@@ -29,7 +29,12 @@ func tcpPortsFor(status dtypes.ContainerJSON) map[string]string {
 		if !ok || len(eport) == 0 {
 			continue
 		}
-		ports[port.Port()] = eport[0].HostPort
+		hport, err := strconv.Atoi(eport[0].HostPort)
+		if err != nil {
+			// XXX: handle error
+			continue
+		}
+		ports[port.Port()] = hport
 	}
 
 	return ports
