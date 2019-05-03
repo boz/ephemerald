@@ -17,7 +17,7 @@ func init() {
 
 type actionHttpGet struct {
 	ActionConfig
-	Url string
+	Url string `json:"url,omitempty"`
 }
 
 func actionHttpGetParse(buf []byte) (Generator, error) {

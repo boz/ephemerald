@@ -82,17 +82,22 @@ func (c *client) Create(ctx context.Context, cfg config.Pool) (*types.Pool, erro
 		return nil, err
 	}
 
+	c.l.Debug(string(buf))
+
 	resp, err := c.doRequest(ctx, "POST", poolBasePath, bytes.NewBuffer(buf))
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
 		return nil, err
 	}
+
 	buf, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+
+	c.l.Debug(string(buf))
 
 	var pool types.Pool
 	if err := json.Unmarshal(buf, &pool); err != nil {
@@ -103,7 +108,7 @@ func (c *client) Create(ctx context.Context, cfg config.Pool) (*types.Pool, erro
 
 func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
 	resp, err := c.doRequest(ctx, "GET", path.Join(poolBasePath, string(id)), nil)
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
@@ -124,7 +129,7 @@ func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
 
 func (c *client) List(ctx context.Context) ([]types.Pool, error) {
 	resp, err := c.doRequest(ctx, "GET", poolBasePath, nil)
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
@@ -145,7 +150,7 @@ func (c *client) List(ctx context.Context) ([]types.Pool, error) {
 
 func (c *client) Delete(ctx context.Context, id types.ID) error {
 	resp, err := c.doRequest(ctx, "DELETE", path.Join(poolBasePath, string(id)), nil)
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	return err
@@ -153,7 +158,7 @@ func (c *client) Delete(ctx context.Context, id types.ID) error {
 
 func (c *client) Checkout(ctx context.Context, id types.ID) (*types.Checkout, error) {
 	resp, err := c.doRequest(ctx, "POST", path.Join(poolBasePath, string(id), "checkout"), nil)
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
@@ -174,14 +179,14 @@ func (c *client) Checkout(ctx context.Context, id types.ID) (*types.Checkout, er
 
 func (c *client) Release(ctx context.Context, pid types.ID, id types.ID) error {
 	resp, err := c.doRequest(ctx, "DELETE", path.Join(poolBasePath, string(pid), "checkout", string(id)), nil)
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	return err
 }
 
 func (c *client) doRequest(ctx context.Context, method string, path string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, path, body)
+	req, err := http.NewRequest(method, c.host+path, body)
 	if err != nil {
 		return nil, err
 	}

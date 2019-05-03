@@ -1,9 +1,59 @@
 package net_test
 
 import (
+	"testing"
+
 	_ "github.com/boz/ephemerald/builtin/postgres"
 	_ "github.com/boz/ephemerald/builtin/redis"
+	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/log"
+	"github.com/boz/ephemerald/net/client"
+	"github.com/boz/ephemerald/net/server"
+	"github.com/boz/ephemerald/poolset"
+	"github.com/boz/ephemerald/scheduler"
+	"github.com/boz/ephemerald/testutil"
+	"github.com/stretchr/testify/require"
 )
+
+func TestClientServer(t *testing.T) {
+	ctx := testutil.Context()
+	node := testutil.Node(t, ctx)
+	bus := testutil.Bus(t, ctx)
+	defer func() {
+		require.NoError(t, bus.Shutdown())
+	}()
+	sched := scheduler.New(ctx, bus, node)
+
+	pset, err := poolset.New(ctx, bus, sched)
+	require.NoError(t, err)
+
+	svr, err := server.New(server.WithAddress("localhost:0"), server.WithPoolSet(pset))
+	require.NoError(t, err)
+
+	addr := svr.Address()
+	donech := make(chan struct{})
+	go func() {
+		defer close(donech)
+		svr.Run()
+	}()
+
+	var rcfg config.Pool
+
+	testutil.ReadFile(t, "../_testdata/pool.redis.yml", &rcfg)
+
+	client, err := client.New(client.WithHost("http://"+addr), client.WithLog(log.FromContext(ctx)))
+	require.NoError(t, err)
+
+	pool, err := client.Pool().Create(ctx, rcfg)
+	require.NoError(t, err)
+
+	{
+		resp, err := client.Pool().Get(ctx, pool.ID)
+		require.NoError(t, err)
+		require.Equal(t, pool.ID, resp.ID)
+	}
+
+}
 
 // func TestClientServer(t *testing.T) {
 

@@ -39,8 +39,8 @@ type server struct {
 	address string
 	pset    poolset.PoolSet
 
-	l   *net.TCPListener
-	srv *http.Server
+	listener *net.TCPListener
+	srv      *http.Server
 }
 
 func New(opts ...Opt) (Server, error) {
@@ -78,7 +78,7 @@ func New(opts ...Opt) (Server, error) {
 		return nil, err
 	}
 
-	s.l = l.(*net.TCPListener)
+	s.listener = l.(*net.TCPListener)
 
 	s.srv = &http.Server{
 		Handler: r,
@@ -88,15 +88,15 @@ func New(opts ...Opt) (Server, error) {
 }
 
 func (s *server) Run() {
-	s.srv.Serve(s.l)
+	s.srv.Serve(s.listener)
 }
 
 func (s *server) Close() {
-	s.l.Close()
+	s.listener.Close()
 }
 
 func (s *server) Address() string {
-	return s.l.Addr().String()
+	return s.listener.Addr().String()
 }
 
 func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {

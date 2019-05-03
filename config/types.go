@@ -6,22 +6,22 @@ import (
 )
 
 type Pool struct {
-	Name      string
-	Size      int
-	Image     string
-	Port      int
-	Container *Container
-	Params    map[string]string
-	Actions   lifecycle.Config
+	Name      string            `json:"name"`
+	Size      int               `json:"size"`
+	Image     string            `json:"image"`
+	Port      int               `json:"port"`
+	Container *Container        `json:"container,omitempty"`
+	Params    map[string]string `json:"params,omitempty"`
+	Actions   lifecycle.Config  `json:"actions,omitempty"`
 }
 
 type Container struct {
 	// docker/docker/api/types/container/config.go
-	Labels map[string]string
+	Labels map[string]string `json:"labels,omitempty"`
 
 	// unused
-	Env        []string
-	Cmd        strslice.StrSlice
+	Env        []string          `json:"env,omitempty"`
+	Cmd        strslice.StrSlice `json:"cmd,omitempty"`
 	Volumes    map[string]struct{}
 	Entrypoint strslice.StrSlice // Entrypoint to run when starting the container
 	User       string

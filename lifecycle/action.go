@@ -24,10 +24,10 @@ type Action interface {
 }
 
 type ActionConfig struct {
-	Type    string
-	Retries int
-	Timeout time.Duration
-	Delay   time.Duration
+	Type    string        `json:"type"`
+	Retries int           `json:"retries"`
+	Timeout time.Duration `json:"timeout"`
+	Delay   time.Duration `json:"delay"`
 }
 
 func (ac ActionConfig) Config() ActionConfig {

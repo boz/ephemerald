@@ -18,16 +18,16 @@ const (
 )
 
 type Pool struct {
-	ID         ID
-	Name       string
-	State      PoolState
-	Size       int
+	ID         ID        `json:"id"`
+	Name       string    `json:"name"`
+	State      PoolState `json:"state"`
+	Size       int       `json:"size"`
 	Containers struct {
-		Total    int
-		Ready    int
-		Checkout int
-		Requests int
-	}
+		Total    int `json:"total"`
+		Ready    int `json:"ready"`
+		Checkout int `json:"checkout"`
+		Requests int `json:"requests"`
+	} `json:"containers"`
 }
 
 type InstanceState string
@@ -45,13 +45,13 @@ const (
 )
 
 type Instance struct {
-	ID        ID
-	PoolID    ID
-	State     InstanceState
-	Resets    int
-	MaxResets int
-	Host      string
-	Port      int
+	ID        ID            `json:"id"`
+	PoolID    ID            `json:"pool-id"`
+	State     InstanceState `json:"state"`
+	Resets    int           `json:"resets,omitempty"`
+	MaxResets int           `json:"max-resets,omitempty"`
+	Host      string        `json:"host,omitempty"`
+	Port      int           `json:"port,omitempty"`
 }
 
 type Checkout struct {
@@ -71,15 +71,15 @@ const (
 )
 
 type LifecycleAction struct {
-	Name       string
-	Type       string
-	State      LifecycleActionState
-	Retries    uint
-	MaxRetries uint
+	Name       string               `json:"name"`
+	Type       string               `json:"type"`
+	State      LifecycleActionState `json:"state"`
+	Retries    uint                 `json:"retries"`
+	MaxRetries uint                 `json:"max-retries"`
 
-	Instance Instance
+	Instance Instance `json:"instance"`
 
-	Vars map[string]string
+	Vars map[string]string `json:"vars,omitempty"`
 }
 
 func NewID() (ID, error) {

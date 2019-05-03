@@ -22,10 +22,10 @@ func init() {
 
 type actionExec struct {
 	ActionConfig
-	Path string
-	Args []string
-	Env  []string
-	Dir  string
+	Path string   `json:"path"`
+	Args []string `json:"args,omitempty"`
+	Env  []string `json:"env,omitempty"`
+	Dir  string   `json:"dir,omitempty"`
 }
 
 func actionExecParse(buf []byte) (Generator, error) {
