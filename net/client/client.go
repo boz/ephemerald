@@ -82,8 +82,6 @@ func (c *client) Create(ctx context.Context, cfg config.Pool) (*types.Pool, erro
 		return nil, err
 	}
 
-	c.l.Debug(string(buf))
-
 	resp, err := c.doRequest(ctx, "POST", poolBasePath, bytes.NewBuffer(buf))
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
@@ -96,8 +94,6 @@ func (c *client) Create(ctx context.Context, cfg config.Pool) (*types.Pool, erro
 	if err != nil {
 		return nil, err
 	}
-
-	c.l.Debug(string(buf))
 
 	var pool types.Pool
 	if err := json.Unmarshal(buf, &pool); err != nil {
@@ -124,6 +120,7 @@ func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
 	if err := json.Unmarshal(buf, &pool); err != nil {
 		return nil, err
 	}
+
 	return &pool, nil
 }
 

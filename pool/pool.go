@@ -23,6 +23,7 @@ type Pool interface {
 
 	Checkout(context.Context) (*types.Checkout, error)
 	Release(context.Context, types.ID) error
+	Model(context.Context) (*types.Pool, error)
 
 	Shutdown()
 	Done() <-chan struct{}
@@ -59,6 +60,7 @@ func Create(ctx context.Context, bus pubsub.Bus, scheduler scheduler.Scheduler, 
 		checkoutch: make(chan checkoutReq),
 		releasech:  make(chan types.ID),
 		readych:    make(chan struct{}),
+		modelch:    make(chan chan<- *types.Pool),
 
 		ctx: ctx,
 		lc:  lifecycle.New(),
@@ -86,6 +88,7 @@ type pool struct {
 	crequests  []checkoutReq
 	checkoutch chan checkoutReq
 	releasech  chan types.ID
+	modelch    chan chan<- *types.Pool
 
 	readych chan struct{}
 	ctx     context.Context
@@ -145,6 +148,27 @@ func (p *pool) Release(ctx context.Context, id types.ID) error {
 		return errors.New("not running")
 	case p.releasech <- id:
 		return nil
+	}
+}
+
+func (p *pool) Model(ctx context.Context) (*types.Pool, error) {
+
+	ch := make(chan *types.Pool, 1)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-p.lc.ShuttingDown():
+		return nil, errors.New("not running")
+	case p.modelch <- ch:
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-p.lc.ShuttingDown():
+		return nil, errors.New("not running")
+	case model := <-ch:
+		return model, nil
 	}
 }
 
@@ -245,7 +269,10 @@ loop:
 				p.l.WithField("iid", id).
 					WithError(err).Warn("release: error releasing")
 			}
+		case ch := <-p.modelch:
+			ch <- &(*p.model)
 		}
+
 	}
 
 done:

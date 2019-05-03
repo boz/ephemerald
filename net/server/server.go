@@ -64,6 +64,9 @@ func New(opts ...Opt) (Server, error) {
 	r.HandleFunc("/pool", s.handlePoolCreate).
 		Methods("POST")
 
+	r.HandleFunc("/pool/{pool-id}", s.handlePoolGet).
+		Methods("GET")
+
 	r.HandleFunc("/pool/{pool-id}/checkout", s.handlePoolInstanceCheckout).
 		Methods("POST")
 
@@ -113,7 +116,11 @@ func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	obj := pool.ID() // TODO: Model()
+	obj, err := pool.Model(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	buf, err := json.Marshal(obj)
 	if err != nil {
@@ -139,6 +146,35 @@ func (s *server) handlePoolDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *server) handlePoolGet(w http.ResponseWriter, r *http.Request) {
+	pid, ok := mux.Vars(r)["pool-id"]
+	if !ok {
+		http.Error(w, "pool ID required", http.StatusBadRequest)
+		return
+	}
+
+	pool, err := s.pset.Get(r.Context(), types.ID(pid))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	obj, err := pool.Model(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	buf, err := json.Marshal(obj)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", enet.RPCContentType)
+	w.Write(buf)
+}
+
 func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Request) {
 	pid, ok := mux.Vars(r)["pool-id"]
 	if !ok {
@@ -152,13 +188,12 @@ func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	_, err = pool.Checkout(r.Context())
+	obj, err := pool.Checkout(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	obj := "TODO: replace with co.model"
 	buf, err := json.Marshal(obj)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
