@@ -7,18 +7,18 @@ import (
 )
 
 type Config struct {
-	Ready Generator
+	Live  Generator
 	Init  Generator
 	Reset Generator
 }
 
 func (c *Config) UnmarshalJSON(buf []byte) error {
 	{
-		ac, err := parseGenerator(buf, "ready")
+		ac, err := parseGenerator(buf, "live")
 		if err != nil {
-			return parseError("ready", err)
+			return parseError("live", err)
 		}
-		c.Ready = ac
+		c.Live = ac
 	}
 	{
 		ac, err := parseGenerator(buf, "init")

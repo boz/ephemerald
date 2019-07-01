@@ -1,6 +1,6 @@
 # Instance Lifecycle Hooks
 
-1. ready
+1. live
 
   * check if container has started
 
@@ -20,7 +20,7 @@ TODO:
 1. checkready
 1. reset
 
-checkstart -> init -> checkready -> reset -> checkready
+live -> init -> ready -> reset -> ready
 
 # Instance Grouping
 

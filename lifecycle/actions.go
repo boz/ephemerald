@@ -17,8 +17,8 @@ type Actions interface {
 	HasInit() bool
 	DoInit(context.Context, params.Params) error
 
-	HasReady() bool
-	DoReady(context.Context, params.Params) error
+	HasLive() bool
+	DoLive(context.Context, params.Params) error
 
 	HasReset() bool
 	DoReset(context.Context, params.Params) error
@@ -28,12 +28,12 @@ func CreateActions(instance types.Instance, bus pubsub.Bus, config *Config) (Act
 
 	a := &actions{instance: instance, bus: bus}
 
-	if config.Ready != nil {
-		action, err := config.Ready.Create()
+	if config.Live != nil {
+		action, err := config.Live.Create()
 		if err != nil {
 			return nil, err
 		}
-		a.ready = action
+		a.live = action
 	}
 
 	if config.Init != nil {
@@ -58,19 +58,19 @@ func CreateActions(instance types.Instance, bus pubsub.Bus, config *Config) (Act
 type actions struct {
 	instance types.Instance
 	bus      pubsub.Bus
-	ready    Action
+	live     Action
 	init     Action
 	reset    Action
 }
 
-func (m *actions) HasReady() bool {
-	return m.ready != nil
+func (m *actions) HasLive() bool {
+	return m.live != nil
 }
-func (m *actions) DoReady(ctx context.Context, p params.Params) error {
-	if !m.HasReady() {
-		return m.runAction(ctx, newActionNoop(), p, "ready")
+func (m *actions) DoLive(ctx context.Context, p params.Params) error {
+	if !m.HasLive() {
+		return m.runAction(ctx, newActionNoop(), p, "live")
 	}
-	return m.runAction(ctx, m.ready, p, "ready")
+	return m.runAction(ctx, m.live, p, "live")
 }
 
 func (m *actions) HasInit() bool {

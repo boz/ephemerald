@@ -207,7 +207,7 @@ func (i *instance) run() {
 
 	i.model.Port = tcpPortFor(cinfo, i.config.Port)
 
-	actionch = i.runAction(types.InstanceStateCheck, ctx, actions.DoReady)
+	actionch = i.runAction(types.InstanceStateCheck, ctx, actions.DoLive)
 
 loop:
 	for {

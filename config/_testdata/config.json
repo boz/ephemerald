@@ -9,7 +9,7 @@
   },
 
   "actions": {
-    "ready": {
+    "live": {
       "type": "noop"
     },
     "reset": {

@@ -3,5 +3,5 @@ image: postgres
 size: 1
 port: 5432
 actions:
-  ready:
+  live:
     type: tcp.connect
