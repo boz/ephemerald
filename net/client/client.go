@@ -125,7 +125,7 @@ func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
 }
 
 func (c *client) List(ctx context.Context) ([]types.Pool, error) {
-	resp, err := c.doRequest(ctx, "GET", poolBasePath, nil)
+	resp, err := c.doRequest(ctx, "GET", poolBasePath+"s", nil)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}

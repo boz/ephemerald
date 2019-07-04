@@ -61,6 +61,9 @@ func New(opts ...Opt) (Server, error) {
 
 	r := mux.NewRouter()
 
+	r.HandleFunc("/pools", s.handlePoolList).
+		Methods("GET")
+
 	r.HandleFunc("/pool", s.handlePoolCreate).
 		Methods("POST")
 
@@ -100,6 +103,32 @@ func (s *server) Close() {
 
 func (s *server) Address() string {
 	return s.listener.Addr().String()
+}
+
+func (s *server) handlePoolList(w http.ResponseWriter, r *http.Request) {
+	pools, err := s.pset.List(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	models := make([]types.Pool, 0, len(pools))
+	for _, pool := range pools {
+		model, err := pool.Model(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		models = append(models, *model)
+	}
+
+	buf, err := json.Marshal(models)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", enet.RPCContentType)
+	w.Write(buf)
 }
 
 func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {

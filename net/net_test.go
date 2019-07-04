@@ -1,6 +1,7 @@
 package net_test
 
 import (
+	"fmt"
 	"testing"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
@@ -12,6 +13,8 @@ import (
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/testutil"
+	rredis "github.com/garyburd/redigo/redis"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,9 +29,11 @@ func TestClientServer(t *testing.T) {
 
 	pset, err := poolset.New(ctx, bus, sched)
 	require.NoError(t, err)
+	defer pset.Shutdown()
 
 	svr, err := server.New(server.WithAddress("localhost:0"), server.WithPoolSet(pset))
 	require.NoError(t, err)
+	defer svr.Close()
 
 	addr := svr.Address()
 	donech := make(chan struct{})
@@ -41,87 +46,55 @@ func TestClientServer(t *testing.T) {
 
 	testutil.ReadFile(t, "../_testdata/pool.redis.yml", &rcfg)
 
-	client, err := client.New(client.WithHost("http://"+addr), client.WithLog(log.FromContext(ctx)))
+	client, err := client.New(client.WithHost("http://"+addr),
+		client.WithLog(log.FromContext(ctx)))
 	require.NoError(t, err)
 
+	// create
 	pool, err := client.Pool().Create(ctx, rcfg)
 	require.NoError(t, err)
 
-	{
+	{ // get
 		resp, err := client.Pool().Get(ctx, pool.ID)
 		require.NoError(t, err)
 		require.Equal(t, pool.ID, resp.ID)
 	}
 
+	{ // list
+		resp, err := client.Pool().List(ctx)
+		require.NoError(t, err)
+		require.Len(t, resp, 1)
+		require.Equal(t, pool.ID, resp[0].ID)
+	}
+
+	{ // checkout + release
+		resp, err := client.Pool().Checkout(ctx, pool.ID)
+		require.NoError(t, err)
+		require.Equal(t, pool.ID, resp.PoolID)
+		defer func() {
+			assert.NoError(t, client.Pool().Release(ctx, resp.PoolID, resp.InstanceID))
+		}()
+
+		address := fmt.Sprintf("%v:%v", resp.Host, resp.Port)
+
+		db := 0
+
+		// TODO: send DB back in vars.
+		// require.Contains(t, resp.Vars, "database")
+		// db, err := strconv.Atoi(resp.Vars["database"])
+		// require.NoError(t, err)
+
+		conn, err := rredis.Dial("tcp", address,
+			rredis.DialDatabase(db))
+		require.NoError(t, err)
+
+		defer func() {
+			assert.NoError(t, conn.Close())
+		}()
+		require.NoError(t, conn.Send("PING"))
+	}
+
+	{ // delete
+		require.NoError(t, client.Pool().Delete(ctx, pool.ID))
+	}
 }
-
-// func TestClientServer(t *testing.T) {
-
-// 	log := logrus.New()
-// 	log.Level = logrus.DebugLevel
-
-// 	uie := testutil.Emitter()
-
-// 	ctx := context.Background()
-
-// 	configs, err := config.ReadFile(log, uie, "_testdata/config.yaml")
-// 	require.NoError(t, err)
-
-// 	pools, err := ephemerald.NewPoolSet(log, ctx, configs)
-// 	require.NoError(t, err)
-
-// 	server, err := net.NewServerBuilder().
-// 		WithPort(0).
-// 		WithPoolSet(pools).
-// 		Create()
-// 	if err != nil {
-// 		pools.Stop()
-// 		require.NoError(t, err)
-// 	}
-
-// 	donech := server.ServerCloseNotify()
-// 	defer func() {
-// 		<-donech
-// 	}()
-// 	defer server.Close()
-
-// 	go server.Run()
-
-// 	client, err := net.NewClientBuilder().
-// 		WithPort(server.Port()).
-// 		Create()
-// 	require.NoError(t, err)
-
-// 	func() {
-// 		pset, err := client.CheckoutBatch()
-// 		require.NoError(t, err)
-// 		defer func() {
-// 			require.NoError(t, client.ReturnBatch(pset))
-// 		}()
-
-// 		rparam, ok := pset["redis"]
-// 		require.True(t, ok)
-// 		doTestOperation(t, rparam, "multi")
-// 	}()
-
-// 	func() {
-// 		rparam, err := client.Checkout("redis")
-// 		require.NoError(t, err)
-// 		defer func() {
-// 			require.NoError(t, client.Return("redis", rparam))
-// 		}()
-// 		// doTestOperation(t, rparam, "single")
-// 	}()
-// }
-
-// func doTestOperation(t *testing.T, rparam params.Params, message string) {
-// 	require.NotNil(t, rparam, message)
-// 	// require.NotEmpty(t, rparam.Url, message)
-
-// 	rdb, err := redigo.DialURL(rparam.Url)
-// 	require.NoError(t, err, message)
-// 	defer rdb.Close()
-
-// 	_, err = rdb.Do("PING")
-// 	require.NoError(t, err, message)
-// }
