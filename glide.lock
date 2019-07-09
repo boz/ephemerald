@@ -24,7 +24,7 @@ imports:
   - reference
 - name: github.com/docker/docker
   version: c513a4c6c2989445efb75f84b5f62440d1a7bf0c
-  repo: git@github.com:docker/engine.git
+  repo: https://github.com/docker/engine.git
   subpackages:
   - api
   - api/types
