@@ -10,7 +10,7 @@ import:
   - reference
 - package: github.com/docker/docker
   version: ^v18.09.4
-  repo: git@github.com:docker/engine.git
+  repo: https://github.com/docker/engine.git
   subpackages:
   - api/types
   - api/types/container
