@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/pool"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
+	"github.com/sirupsen/logrus"
 )
 
 type PoolSet interface {
