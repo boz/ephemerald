@@ -51,7 +51,7 @@ func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 			if dt != jsonparser.Array {
 				return nil, fmt.Errorf("postgres.exec: bad params type")
 			}
-			err = json.Unmarshal(buf, action.Params)
+			err = json.Unmarshal(buf, &action.Params)
 			if err != nil {
 				return nil, err
 			}

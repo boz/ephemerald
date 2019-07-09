@@ -31,13 +31,13 @@ type Params interface {
 var NotFoundError = errors.New("key not found")
 
 type actionContext struct {
-	instanceID types.ID          `json:"instance-id"`
-	poolID     types.ID          `json:"pool-id"`
-	numResets  int               `json:"num-resets"`
-	maxResets  int               `json:"max-resets"`
-	host       string            `json:"host"`
-	port       int               `json:"port"`
-	vars       map[string]string `json:"vars"`
+	instanceID types.ID
+	poolID     types.ID
+	numResets  int
+	maxResets  int
+	host       string
+	port       int
+	vars       map[string]string
 }
 
 func Create(i types.Instance, vars map[string]string) Params {
