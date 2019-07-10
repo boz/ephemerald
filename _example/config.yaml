@@ -8,7 +8,7 @@ pools:
       database: "0"
       url: redis://{{.Hostname}}:{{.Port}}/{{.Database}}
     actions:
-      healthcheck:
+      live:
         type: redis.ping
       reset:
         type: redis.truncate
@@ -21,7 +21,9 @@ pools:
       database: postgres
       url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
     actions:
-      initialize:
+      live:
+        type: postgres.ping
+      init:
         type: postgres.exec
         query: |
           CREATE TABLE users (
@@ -29,7 +31,5 @@ pools:
             name VARCHAR(255) NOT NULL,
             UNIQUE(name)
           )
-      healthcheck:
-        type: postgres.ping
       reset:
         type: postgres.truncate

@@ -8,11 +8,11 @@
     "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
   },
   "actions": {
-    "initialize": {
-      "type": "redis.exec"
-    },
-    "healthcheck": {
+    "live": {
       "type": "redis.ping"
+    },
+    "init": {
+      "type": "redis.exec"
     },
     "reset": {
       "type": "redis.truncate"

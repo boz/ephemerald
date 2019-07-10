@@ -83,11 +83,11 @@ pools:
       database: postgres
       url: postgres://{{.Username}}:@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
     actions:
-      healthcheck:
+      live:
         type: postgres.ping
         retries: 10
         delay:   50ms
-      initialize:
+      init:
         type:    exec
         path:    make
         args:    [ 'db:migrate' ]
@@ -138,13 +138,13 @@ options are:
 
 ### Lifecycle Actions
 
-There are three lifecycle actions: `healthcheck`, `initialize`, and `reset`.
+There are three lifecycle actions: `live`, `init`, and `reset`.
 
- * `healthcheck` is used to determine when the container is ready to be used.
- * `initialize` is used to initialize the container (run migrations, etc...)
+ * `live` is used to determine when the container is ready to be used.
+ * `init` is used to init the container (run migrations, etc...)
  * `reset` may be used to revert the container to a state where it can be used again.
 
-All of them are optional (though `healthcheck` should be used).  If `reset` is not given,
+All of them are optional (though `live` should be used).  If `reset` is not given,
 the container will be killed and a new one will be created to replace it.
 
 Each action has, at a minimum, the following three parameters:
@@ -165,7 +165,7 @@ Does nothing.  Useful as the `reset` action so that a container is always reused
 
 #### exec
 
-Execute a command on the host operating system.  Useful for running migrations to initialize a database.
+Execute a command on the host operating system.  Useful for running migrations to init a database.
 
 Extra Parameters:
 
@@ -228,7 +228,7 @@ args:    "Robert'); DROP TABLE STUDENTS;--"
 
 #### postgres.ping
 
-Pings the database.  Useful for healthcheck.
+Pings the database.  Useful for live.
 
 #### postgres.truncate
 

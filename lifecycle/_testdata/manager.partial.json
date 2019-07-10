@@ -1,5 +1,5 @@
 {
-  "initialize": {
+  "init": {
     "type": "noop"
   }
 }

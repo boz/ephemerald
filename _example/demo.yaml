@@ -35,7 +35,7 @@ pools:
       database: postgres
       url: postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable
     actions:
-      initialize:
+      init:
         type: postgres.exec
         query: |
           CREATE TABLE users (

@@ -1,8 +1,8 @@
 {
-  "initialize": {
+  "live": {
     "type": "noop"
   },
-  "healthcheck": {
+  "init": {
     "type": "noop"
   },
   "reset": {

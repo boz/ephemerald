@@ -75,7 +75,7 @@ type tablePanel struct {
 }
 
 func containersWidget() *tablePanel {
-	maxLifecycleLen := len("healthcheck")
+	maxLifecycleLen := len("live")
 	maxActionLen := len("postgres.truncate")
 
 	tw := newTableWidget("Containers")
