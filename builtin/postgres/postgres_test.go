@@ -1,26 +1,46 @@
 package postgres_test
 
-// func TestActionsPingExec(t *testing.T) {
-// 	files := []string{"pool.json", "pool.yaml"}
+import (
+	"database/sql"
+	"fmt"
+	"testing"
 
-// 	for _, file := range files {
-// 		testutil.RunPoolFromFile(t, file, func(p params.Params) {
-// 			db, err := sql.Open("postgres", p.Url)
-// 			require.NoError(t, err, file)
-// 			defer db.Close()
+	"github.com/boz/ephemerald/testutil"
+	"github.com/boz/ephemerald/types"
+	"github.com/stretchr/testify/require"
+)
 
-// 			rows, err := db.Query("SELECT COUNT(*) FROM users")
-// 			require.NoError(t, err, file)
-// 			defer rows.Close()
+func TestActionsPingExec(t *testing.T) {
+	t.SkipNow()
 
-// 			require.True(t, rows.Next(), file)
+	files := []string{"_testdata/pool.json", "_testdata/pool.yaml"}
 
-// 			var count int
-// 			require.NoError(t, rows.Scan(&count), file)
-// 			require.Equal(t, 0, count, file)
-// 		})
-// 	}
-// }
+	for _, file := range files {
+		testutil.WithCheckoutFromFile(t, file, func(co *types.Checkout) {
+
+			url := fmt.Sprintf("postgres://%v:%v@%v:%v/%v?sslmode=disable",
+				co.Vars["username"],
+				co.Vars["password"],
+				co.Host,
+				co.Port,
+				co.Vars["database"])
+
+			db, err := sql.Open("postgres", url)
+			require.NoError(t, err, file)
+			defer db.Close()
+
+			rows, err := db.Query("SELECT COUNT(*) FROM users")
+			require.NoError(t, err, file)
+			defer rows.Close()
+
+			require.True(t, rows.Next(), file)
+
+			var count int
+			require.NoError(t, rows.Scan(&count), file)
+			require.Equal(t, 0, count, file)
+		})
+	}
+}
 
 // func TestActionTruncate(t *testing.T) {
 // 	testutil.WithPoolFromFile(t, "pool.json", func(pool ephemerald.Pool) {

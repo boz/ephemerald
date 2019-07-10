@@ -48,11 +48,17 @@ func Node(t *testing.T, ctx context.Context) node.Node {
 }
 
 func RunPoolFromFile(t *testing.T, path string) {
+	WithCheckoutFromFile(t, path, func(_ *types.Checkout) {
+	})
+}
+
+func WithCheckoutFromFile(t *testing.T, path string, fn func(*types.Checkout)) {
 	WithPoolFromFile(t, path, func(pool pool.Pool) {
 		ctx := context.Background()
-
 		co, err := pool.Checkout(ctx)
 		require.NoError(t, err)
+
+		fn(co)
 
 		assert.NoError(t, pool.Release(ctx, co.InstanceID))
 	})
