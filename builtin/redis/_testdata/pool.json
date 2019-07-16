@@ -1,12 +1,8 @@
 {
-  "name": "redis-test"
+  "name": "redis-test",
   "size": 1,
-  "image": "redis"
+  "image": "redis",
   "port": 6379,
-  "params": {
-    "database": "0",
-    "url": "redis://{{.Hostname}}:{{.Port}}/{{.Database}}"
-  },
   "actions": {
     "live": {
       "type": "redis.ping"

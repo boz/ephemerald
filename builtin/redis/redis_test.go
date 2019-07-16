@@ -1,47 +1,32 @@
 package redis_test
 
-// func TestActionExec(t *testing.T) {
-// 	files := []string{"pool.json", "pool.yaml"}
+import (
+	"fmt"
+	"testing"
 
-// 	for _, file := range files {
-// 		testutil.RunPoolFromFile(t, file, func(p params.Params) {
-// 			db, err := rredis.DialURL(p.Url)
-// 			require.NoError(t, err, file)
-// 			defer db.Close()
+	"github.com/boz/ephemerald/testutil"
+	"github.com/boz/ephemerald/types"
+	rredis "github.com/garyburd/redigo/redis"
+	"github.com/stretchr/testify/require"
+)
 
-// 			_, err = db.Do("PING")
-// 			require.NoError(t, err, file)
-// 		})
-// 	}
-// }
+func TestActionExec(t *testing.T) {
+	files := []string{"_testdata/pool.json", "_testdata/pool.yaml"}
 
-// func TestActionTruncate(t *testing.T) {
-// 	testutil.WithPoolFromFile(t, "pool.json", func(pool ephemerald.Pool) {
-// 		func() {
-// 			p, err := pool.Checkout()
-// 			require.NoError(t, err)
-// 			defer pool.Return(p)
+	for _, file := range files {
+		testutil.WithCheckoutFromFile(t, file, func(co *types.Checkout) {
 
-// 			db, err := rredis.DialURL(p.Url)
-// 			require.NoError(t, err)
-// 			defer db.Close()
+			address := fmt.Sprintf("%v:%v", co.Host, co.Port)
+			db := 0
 
-// 			_, err = db.Do("SET", "testkey", "true")
-// 			require.NoError(t, err)
-// 		}()
+			conn, err := rredis.Dial("tcp", address,
+				rredis.DialDatabase(db))
+			require.NoError(t, err)
 
-// 		func() {
-// 			p, err := pool.Checkout()
-// 			require.NoError(t, err)
-// 			defer pool.Return(p)
+			defer conn.Close()
 
-// 			db, err := rredis.DialURL(p.Url)
-// 			require.NoError(t, err)
-// 			defer db.Close()
-
-// 			result, err := db.Do("GET", "testkey")
-// 			require.NoError(t, err)
-// 			assert.Empty(t, result)
-// 		}()
-// 	})
-// }
+			_, err = conn.Do("PING")
+			require.NoError(t, err, file)
+		})
+	}
+}

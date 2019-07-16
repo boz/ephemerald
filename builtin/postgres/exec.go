@@ -45,13 +45,13 @@ func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 	}
 
 	{
-		buf, dt, _, err := jsonparser.Get(buf, "params")
+		buf, dt, _, err := jsonparser.Get(buf, "args")
 		switch {
 		case err == nil:
 			if dt != jsonparser.Array {
 				return nil, fmt.Errorf("postgres.exec: bad params type")
 			}
-			err = json.Unmarshal(buf, &action.Params)
+			err = json.Unmarshal(buf, &action.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -67,8 +67,8 @@ func actionPGExecParse(buf []byte) (lifecycle.Generator, error) {
 type actionPGExec struct {
 	lifecycle.ActionConfig
 	pgParams
-	Query  string
-	Params []string
+	Query string
+	Args  []string
 }
 
 func (a actionPGExec) Create() (lifecycle.Action, error) {
@@ -85,8 +85,8 @@ func (a *actionPGExec) Do(e lifecycle.Env, p params.Params) error {
 	}
 	defer db.Close()
 
-	args := make([]interface{}, 0, len(a.Params))
-	for _, arg := range a.Params {
+	args := make([]interface{}, 0, len(a.Args))
+	for _, arg := range a.Args {
 		args = append(args, arg)
 	}
 

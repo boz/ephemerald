@@ -79,11 +79,6 @@ func TestClientServer(t *testing.T) {
 
 		db := 0
 
-		// TODO: send DB back in vars.
-		// require.Contains(t, resp.Vars, "database")
-		// db, err := strconv.Atoi(resp.Vars["database"])
-		// require.NoError(t, err)
-
 		conn, err := rredis.Dial("tcp", address,
 			rredis.DialDatabase(db))
 		require.NoError(t, err)

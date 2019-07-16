@@ -56,11 +56,11 @@ func WithCheckoutFromFile(t *testing.T, path string, fn func(*types.Checkout)) {
 	WithPoolFromFile(t, path, func(pool pool.Pool) {
 		ctx := context.Background()
 		co, err := pool.Checkout(ctx)
-		require.NoError(t, err)
+		require.NoError(t, err, path)
 
 		fn(co)
 
-		assert.NoError(t, pool.Release(ctx, co.InstanceID))
+		assert.NoError(t, pool.Release(ctx, co.InstanceID), path)
 	})
 }
 
@@ -69,13 +69,13 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
 	defer cancel()
 
 	bus, err := pubsub.NewBus(ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, basename)
 	defer func() {
-		require.NoError(t, bus.Shutdown())
+		require.NoError(t, bus.Shutdown(), basename)
 	}()
 
 	node, err := node.NewFromEnv(ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, basename)
 
 	sched := scheduler.New(ctx, bus, node)
 
@@ -83,10 +83,10 @@ func WithPoolFromFile(t *testing.T, basename string, fn func(pool.Pool)) {
 
 	err = config.ReadFile(basename, &cfg)
 
-	require.NoError(t, err)
+	require.NoError(t, err, basename)
 
 	pool, err := pool.Create(ctx, bus, sched, cfg)
-	require.NoError(t, err)
+	require.NoError(t, err, basename)
 
 	defer func() {
 		pool.Shutdown()

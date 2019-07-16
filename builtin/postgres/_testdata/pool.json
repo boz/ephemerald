@@ -3,12 +3,6 @@
   "size": 1,
   "image": "postgres",
   "port": 5432,
-  "params": {
-    "username": "postgres",
-    "password": "",
-    "database": "postgres",
-    "url": "postgres://{{.Username}}:{{.Password}}@{{.Hostname}}:{{.Port}}/{{.Database}}?sslmode=disable"
-  },
   "actions": {
     "live": {
       "type": "postgres.ping"
