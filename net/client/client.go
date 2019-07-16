@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -190,5 +191,15 @@ func (c *client) doRequest(ctx context.Context, method string, path string, body
 	req = req.WithContext(ctx)
 	req.Header.Add("Content-Type", contentType)
 
-	return c.chttp.Do(req)
+	resp, err := c.chttp.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		txt, _ := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		return resp, fmt.Errorf("%v: %v", resp.Status, string(txt))
+	}
+	return resp, nil
 }

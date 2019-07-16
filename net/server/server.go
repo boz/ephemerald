@@ -240,7 +240,7 @@ func (s *server) handlePoolInstanceRelease(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	id, ok := mux.Vars(r)["id"]
+	id, ok := mux.Vars(r)["instance-id"]
 	if !ok {
 		http.Error(w, "Checkout ID required", http.StatusBadRequest)
 		return

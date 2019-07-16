@@ -71,9 +71,6 @@ func TestClientServer(t *testing.T) {
 		resp, err := client.Pool().Checkout(ctx, pool.ID)
 		require.NoError(t, err)
 		require.Equal(t, pool.ID, resp.PoolID)
-		defer func() {
-			assert.NoError(t, client.Pool().Release(ctx, resp.PoolID, resp.InstanceID))
-		}()
 
 		address := fmt.Sprintf("%v:%v", resp.Host, resp.Port)
 
@@ -86,7 +83,9 @@ func TestClientServer(t *testing.T) {
 		defer func() {
 			assert.NoError(t, conn.Close())
 		}()
-		require.NoError(t, conn.Send("PING"))
+		assert.NoError(t, conn.Send("PING"))
+
+		assert.NoError(t, client.Pool().Release(ctx, resp.PoolID, resp.InstanceID))
 	}
 
 	{ // delete
