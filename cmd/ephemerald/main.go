@@ -14,7 +14,6 @@ import (
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
-	"github.com/boz/ephemerald/ui"
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
@@ -75,9 +74,6 @@ func main() {
 	pset, err := poolset.New(ctx, bus, scheduler)
 	kingpin.FatalIfError(err, "poolset")
 
-	ui, err := ui.NewEVLog(ctx, bus, os.Stdout)
-	kingpin.FatalIfError(err, "ui")
-
 	for _, pfile := range *poolFiles {
 		var pcfg config.Pool
 
@@ -126,7 +122,6 @@ done:
 	<-pset.Done()
 
 	log.Info("shutting down UI...")
-	ui.Stop()
 	cancel()
 	bus.Shutdown()
 
