@@ -2,11 +2,14 @@ before:
   hooks:
 
 builds:
-  - main: cmd/ephemerald/main
+  - main: cmd/ephemerald/main.go
     ldflags:
-      - -X version.version={{.Version}}
-      - -X version.commit={{.FullCommit}}
-      - -X version.date={{.Date}}
+      - -s -w -X github.com/boz/ephemerald/version.version={{.Version}} -X github.com/boz/ephemerald/version.commit={{.FullCommit}} -X github.com/boz/ephemerald/version.date={{.Date}}
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: linux
+        goarch: 386
 
 archives:
   - files:

@@ -24,9 +24,8 @@ import (
 )
 
 var (
-	listenAddress = kingpin.Flag("address", "Listen address. Default: "+net.DefaultListenAddress).
+	listenAddress = kingpin.Flag("listen-address", "Listen address. Default: "+net.DefaultListenAddress).
 			Short('l').
-			Envar("LISTEN_ADDRESS").
 			Default(net.DefaultListenAddress).
 			String()
 
@@ -36,12 +35,10 @@ var (
 
 	flagLogLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
 			Short('v').
-			Envar("LOG_LEVEL").
 			Default("info").
 			Enum("debug", "info", "warn", "error")
 
 	flagLogFile = kingpin.Flag("log-file", "Log file.  Default: /dev/stderr").
-			Envar("LOG_FILE").
 			Default("/dev/stderr").
 			String()
 )
@@ -51,6 +48,9 @@ func main() {
 	kingpin.CommandLine.Author("Adam Bozanich <adam.boz@gmail.com>")
 	kingpin.CommandLine.Version(version.String())
 	kingpin.HelpFlag.Short('h')
+	kingpin.CommandLine.DefaultEnvars()
+
+	kingpin.Parse()
 
 	log, ctx := createLog()
 

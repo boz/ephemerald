@@ -28,7 +28,7 @@ example:
 	(cd _example && $(GOCMD) build -o example)
 
 clean:
-	rm -f _example/example ./ephemerald
+	rm -rf _example/example ./ephemerald ./dist
 
 .PHONY: devdeps
 devdeps:
