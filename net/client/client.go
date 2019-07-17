@@ -91,16 +91,8 @@ func (c *client) Create(ctx context.Context, cfg config.Pool) (*types.Pool, erro
 		return nil, err
 	}
 
-	buf, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var pool types.Pool
-	if err := json.Unmarshal(buf, &pool); err != nil {
-		return nil, err
-	}
-	return &pool, nil
+	var obj types.Pool
+	return &obj, readJSON(resp, &obj)
 }
 
 func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
@@ -112,17 +104,8 @@ func (c *client) Get(ctx context.Context, id types.ID) (*types.Pool, error) {
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var pool types.Pool
-	if err := json.Unmarshal(buf, &pool); err != nil {
-		return nil, err
-	}
-
-	return &pool, nil
+	var obj types.Pool
+	return &obj, readJSON(resp, &obj)
 }
 
 func (c *client) List(ctx context.Context) ([]types.Pool, error) {
@@ -134,16 +117,8 @@ func (c *client) List(ctx context.Context) ([]types.Pool, error) {
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var pools []types.Pool
-	if err := json.Unmarshal(buf, &pools); err != nil {
-		return nil, err
-	}
-	return pools, nil
+	var obj []types.Pool
+	return obj, readJSON(resp, &obj)
 }
 
 func (c *client) Delete(ctx context.Context, id types.ID) error {
@@ -163,16 +138,8 @@ func (c *client) Checkout(ctx context.Context, id types.ID) (*types.Checkout, er
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	var obj types.Checkout
-	if err := json.Unmarshal(buf, &obj); err != nil {
-		return nil, err
-	}
-	return &obj, nil
+	return &obj, readJSON(resp, &obj)
 }
 
 func (c *client) Release(ctx context.Context, pid types.ID, id types.ID) error {
@@ -200,4 +167,15 @@ func (c *client) doRequest(ctx context.Context, method string, path string, body
 		return resp, errors.New(resp.Status)
 	}
 	return resp, nil
+}
+
+func readJSON(resp *http.Response, obj interface{}) error {
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(buf, &obj); err != nil {
+		return err
+	}
+	return nil
 }

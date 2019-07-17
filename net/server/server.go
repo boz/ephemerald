@@ -152,16 +152,7 @@ func (s *server) handlePoolList(w http.ResponseWriter, r *http.Request) {
 		models = append(models, *model)
 	}
 
-	buf, err := json.Marshal(models)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", enet.RPCContentType)
-	if _, err := w.Write(buf); err != nil {
-		log.FromContext(r.Context()).
-			WithError(err).Error("writing response")
-	}
+	writeJSON(r.Context(), w, models)
 }
 
 func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
@@ -184,16 +175,7 @@ func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf, err := json.Marshal(obj)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", enet.RPCContentType)
-	if _, err := w.Write(buf); err != nil {
-		log.FromContext(r.Context()).
-			WithError(err).Error("writing response")
-	}
+	writeJSON(r.Context(), w, obj)
 }
 
 func (s *server) handlePoolDelete(w http.ResponseWriter, r *http.Request) {
@@ -230,17 +212,7 @@ func (s *server) handlePoolGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf, err := json.Marshal(obj)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", enet.RPCContentType)
-	if _, err := w.Write(buf); err != nil {
-		log.FromContext(r.Context()).
-			WithError(err).Error("writing response")
-	}
+	writeJSON(r.Context(), w, obj)
 }
 
 func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Request) {
@@ -262,16 +234,7 @@ func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	buf, err := json.Marshal(obj)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", enet.RPCContentType)
-	if _, err := w.Write(buf); err != nil {
-		log.FromContext(r.Context()).
-			WithError(err).Error("writing response")
-	}
+	writeJSON(r.Context(), w, obj)
 }
 
 func (s *server) handlePoolInstanceRelease(w http.ResponseWriter, r *http.Request) {
@@ -300,4 +263,18 @@ func (s *server) handlePoolInstanceRelease(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func writeJSON(ctx context.Context, w http.ResponseWriter, obj interface{}) {
+	buf, err := json.Marshal(obj)
+	if err != nil {
+		log.FromContext(ctx).WithError(err).Error("marshal response")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(buf); err != nil {
+		log.FromContext(ctx).WithError(err).Error("writing response")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Header().Set("Content-Type", enet.RPCContentType)
 }
