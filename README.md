@@ -2,9 +2,9 @@
 
 Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests.
 
-[![asciicast](https://asciinema.org/a/117629.png)](https://asciinema.org/a/117629)
+Original version at tag [prototype-final](https://github.com/boz/ephemerald/tree/prototype-final)
 
-It has [REST API](#api) for accessing server instances from any language and comes with a built-in [go client](net/client.go). See the [examples](_example/) directory for example configurations and client usage.
+It has [REST API](#api) for accessing server instances from any language and comes with a built-in [go client](net/client/client.go). See the [examples](_example/) directory for example configurations and client usage.
 
 The ephemerald server can run on a remote host; container connection parameters are rewritten so that the client
 connects to the right place.  This way ephemerald can run on a large server and be used from less powerful
@@ -384,13 +384,11 @@ $ brew install boz/repo/ephemerald
 ```
 
 ## TODO
-
+ * Params
  * Configuration
-   * Current parsing is a disaster
-   * Allow yaml
    * Allow built-in defaults (postgres, redis, etc...)
  * Polish/Optimize/Cleanup/Refactor UI.
- * Re-add remote actions (websockets API)
+ * Remote actions
  * Clients: nodejs, ruby, python, etc...
  * Documentation
  * Tests
