@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -197,9 +197,7 @@ func (c *client) doRequest(ctx context.Context, method string, path string, body
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		txt, _ := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		return resp, fmt.Errorf("%v: %v", resp.Status, string(txt))
+		return resp, errors.New(resp.Status)
 	}
 	return resp, nil
 }

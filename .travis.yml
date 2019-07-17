@@ -7,7 +7,7 @@ go:
 
 before_install:
   - curl https://glide.sh/get | sh
-  - go install github.com/golangci/golangci-lint/cmd/golangci-lint
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint
 
 install:
   - make deps
