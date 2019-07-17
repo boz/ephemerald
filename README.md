@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.org/boz/ephemerald.svg?branch=master)](https://travis-ci.org/boz/ephemerald)
+[![codecov](https://codecov.io/gh/boz/ephemerald/branch/master/graph/badge.svg)](https://codecov.io/gh/boz/ephemerald)
+[![GolangCI](https://golangci.com/badges/github.com/boz/ephemerald.svg)](https://golangci.com)
+
 # ephemerald
 
 Ephemerald manages pools of short-lived servers to be used for testing purposes.  It was built to allow paralallel integration tests.
