@@ -11,10 +11,10 @@ type PoolState string
 
 const (
 	PoolStateStart    PoolState = "starting"
-	PoolStateResolve            = "image-pull"
-	PoolStateRun                = "running"
-	PoolStateShutdown           = "shutting-down"
-	PoolStateDone               = "done"
+	PoolStateResolve  PoolState = "image-pull"
+	PoolStateRun      PoolState = "running"
+	PoolStateShutdown PoolState = "shutting-down"
+	PoolStateDone     PoolState = "done"
 )
 
 type Pool struct {
@@ -34,14 +34,14 @@ type InstanceState string
 
 const (
 	InstanceStateCreate     InstanceState = "creating"
-	InstanceStateStart                    = "starting"
-	InstanceStateCheck                    = "checking"
-	InstanceStateInitialize               = "initializing"
-	InstanceStateReady                    = "ready"
-	InstanceStateCheckout                 = "checkout"
-	InstanceStateReset                    = "resetting"
-	InstanceStateKill                     = "killing"
-	InstanceStateDone                     = "done"
+	InstanceStateStart      InstanceState = "starting"
+	InstanceStateCheck      InstanceState = "checking"
+	InstanceStateInitialize InstanceState = "initializing"
+	InstanceStateReady      InstanceState = "ready"
+	InstanceStateCheckout   InstanceState = "checkout"
+	InstanceStateReset      InstanceState = "resetting"
+	InstanceStateKill       InstanceState = "killing"
+	InstanceStateDone       InstanceState = "done"
 )
 
 type Instance struct {
@@ -66,8 +66,8 @@ type LifecycleActionState string
 
 const (
 	LifecycleActionStateRunning   LifecycleActionState = "running"
-	LifecycleActionStateRetryWait                      = "retry-wait"
-	LifecycleActionStateDone                           = "done"
+	LifecycleActionStateRetryWait LifecycleActionState = "retry-wait"
+	LifecycleActionStateDone      LifecycleActionState = "done"
 )
 
 type LifecycleAction struct {

@@ -39,7 +39,7 @@ func TestClientServer(t *testing.T) {
 	donech := make(chan struct{})
 	go func() {
 		defer close(donech)
-		svr.Run()
+		assert.NoError(t, svr.Run())
 	}()
 
 	var rcfg config.Pool

@@ -11,10 +11,6 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-const (
-	maxSize = 200
-)
-
 func ReadFile(fpath string, obj interface{}) error {
 	file, err := os.Open(fpath)
 	if err != nil {

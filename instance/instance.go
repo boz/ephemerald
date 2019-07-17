@@ -483,7 +483,7 @@ func (i *instance) doStart(ctx context.Context, cid string) (dtypes.ContainerJSO
 	return info, nil
 }
 
-func (i *instance) kill(cid string) error {
+func (i *instance) kill(cid string) {
 	i.enterState(types.InstanceStateKill)
 
 	// todo: timeout
@@ -492,7 +492,6 @@ func (i *instance) kill(cid string) error {
 
 	if err := i.node.Client().ContainerKill(ctx, cid, "KILL"); err != nil {
 		i.l.WithError(err).Warn("kill")
-		return err
 	}
-	return nil
+	// TODO: retry
 }

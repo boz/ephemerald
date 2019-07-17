@@ -1,30 +1,35 @@
 GOCMD := GO111MODULE=auto go
 
+.PHONY: build deps test test-nocache vet lint
 build:
 	$(GOCMD) build ./...
 
 deps:
 	glide install -v
+	go get
 
 test:
 	$(GOCMD) test ./...
 
+test-nocache:
+	$(GOCMD) test -count=1 ./...
+
 vet:
 	$(GOCMD) vet ./...
 
+lint:
+	golangci-lint run
+
+.PHONY: server example clean
 server:
 	(cd cmd/ephemerald && $(GOCMD) build)
 
 example:
 	(cd _example && $(GOCMD) build -o example)
 
-install:
-	$(GOCMD) install ./ephemerald
-
 clean:
 	rm _example/example cmd/ephemerald/ephemerald 2>/dev/null || true
 
-release:
-	GITHUB_TOKEN=$$GITHUB_REPO_TOKEN goreleaser
-
-.PHONY: build deps test vet server example release clean
+.PHONY: devdeps
+devdeps:
+	go get github.com/golangci/golangci-lint/cmd/golangci-lint

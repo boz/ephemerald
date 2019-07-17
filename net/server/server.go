@@ -1,21 +1,24 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 
 	"github.com/boz/ephemerald/config"
+	"github.com/boz/ephemerald/log"
 	enet "github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/types"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 type Server interface {
 	Address() string
-	Run()
+	Run() error
 	Close()
 }
 
@@ -35,10 +38,18 @@ func WithPoolSet(pset poolset.PoolSet) Opt {
 	}
 }
 
+func WithLog(log logrus.FieldLogger) Opt {
+	return func(s *server) error {
+		s.log = log
+		return nil
+	}
+}
+
 type server struct {
 	address string
 	pset    poolset.PoolSet
 
+	log      logrus.FieldLogger
 	listener *net.TCPListener
 	srv      *http.Server
 }
@@ -59,7 +70,21 @@ func New(opts ...Opt) (Server, error) {
 		return nil, errors.New("WithPoolSet required")
 	}
 
+	if s.log == nil {
+		s.log = log.Default().WithField("cmp", "net/server")
+	}
+
 	r := mux.NewRouter()
+
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := log.NewContext(req.Context(), s.log.WithFields(logrus.Fields{
+				"uri":    req.RequestURI,
+				"method": req.Method,
+			}))
+			next.ServeHTTP(w, req.WithContext(ctx))
+		})
+	})
 
 	r.HandleFunc("/pools", s.handlePoolList).
 		Methods("GET")
@@ -93,12 +118,17 @@ func New(opts ...Opt) (Server, error) {
 	return s, nil
 }
 
-func (s *server) Run() {
-	s.srv.Serve(s.listener)
+func (s *server) Run() error {
+	if err := s.srv.Serve(s.listener); err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 func (s *server) Close() {
-	s.listener.Close()
+	if err := s.srv.Shutdown(context.TODO()); err != nil {
+		s.log.WithError(err).Warn("closing down")
+	}
 }
 
 func (s *server) Address() string {
@@ -128,7 +158,10 @@ func (s *server) handlePoolList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", enet.RPCContentType)
-	w.Write(buf)
+	if _, err := w.Write(buf); err != nil {
+		log.FromContext(r.Context()).
+			WithError(err).Error("writing response")
+	}
 }
 
 func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +190,10 @@ func (s *server) handlePoolCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", enet.RPCContentType)
-	w.Write(buf)
+	if _, err := w.Write(buf); err != nil {
+		log.FromContext(r.Context()).
+			WithError(err).Error("writing response")
+	}
 }
 
 func (s *server) handlePoolDelete(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +237,10 @@ func (s *server) handlePoolGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", enet.RPCContentType)
-	w.Write(buf)
+	if _, err := w.Write(buf); err != nil {
+		log.FromContext(r.Context()).
+			WithError(err).Error("writing response")
+	}
 }
 
 func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +268,10 @@ func (s *server) handlePoolInstanceCheckout(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	w.Header().Set("Content-Type", enet.RPCContentType)
-	w.Write(buf)
+	if _, err := w.Write(buf); err != nil {
+		log.FromContext(r.Context()).
+			WithError(err).Error("writing response")
+	}
 }
 
 func (s *server) handlePoolInstanceRelease(w http.ResponseWriter, r *http.Request) {

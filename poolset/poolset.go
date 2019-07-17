@@ -10,7 +10,6 @@ import (
 	"github.com/boz/ephemerald/scheduler"
 	"github.com/boz/ephemerald/types"
 	"github.com/boz/go-lifecycle"
-	"github.com/sirupsen/logrus"
 )
 
 type PoolSet interface {
@@ -63,7 +62,6 @@ type poolset struct {
 
 	ctx context.Context
 	lc  lifecycle.Lifecycle
-	l   logrus.FieldLogger
 }
 
 func (pset *poolset) Shutdown() {

@@ -209,7 +209,11 @@ func (p *pool) run() {
 loop:
 	for {
 
-		p.fill()
+		if err := p.fill(); err != nil {
+			p.lc.ShutdownInitiated(err)
+			break loop
+		}
+
 		p.publishStats(types.EventActionUpdate)
 
 		select {

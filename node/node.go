@@ -14,7 +14,7 @@ type Node interface {
 }
 
 func NewFromEnv(ctx context.Context) (Node, error) {
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}

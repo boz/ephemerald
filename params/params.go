@@ -107,7 +107,7 @@ func (ac *actionContext) ToCheckout() (*types.Checkout, error) {
 
 	rc := newRenderContext(ac)
 
-	for k, _ := range ac.vars {
+	for k := range ac.vars {
 		v, err := rc.Var(k)
 		if err != nil {
 			return nil, err

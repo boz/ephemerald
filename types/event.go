@@ -6,29 +6,29 @@ type EventType string
 
 const (
 	EventTypeDocker          EventType = "docker"
-	EventTypePool                      = "pool"
-	EventTypeInstance                  = "instance"
-	EventTypeLifecycleAction           = "lifecycle-action"
+	EventTypePool            EventType = "pool"
+	EventTypeInstance        EventType = "instance"
+	EventTypeLifecycleAction EventType = "lifecycle-action"
 )
 
 type EventAction string
 
 const (
 	EventActionStart         EventAction = "start"
-	EventActionEnterState                = "enter-state"
-	EventActionReady                     = "ready"
-	EventActionUpdate                    = "update"
-	EventActionShutdown                  = "shutting-down"
-	EventActionDone                      = "done"
-	EventActionAttemptFailed             = "attempt-failed"
+	EventActionEnterState    EventAction = "enter-state"
+	EventActionReady         EventAction = "ready"
+	EventActionUpdate        EventAction = "update"
+	EventActionShutdown      EventAction = "shutting-down"
+	EventActionDone          EventAction = "done"
+	EventActionAttemptFailed EventAction = "attempt-failed"
 )
 
 type Status string
 
 const (
-	StatusInProgress = "in-progress"
-	StatusSuccess    = "success"
-	StatusFailure    = "failure"
+	StatusInProgress Status = "in-progress"
+	StatusSuccess    Status = "success"
+	StatusFailure    Status = "failure"
 )
 
 var _ BusEvent = Event{}

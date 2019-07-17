@@ -40,10 +40,6 @@ var (
 		Envar("EPHEMERALD_LOG_FILE").
 		Default("/dev/null").
 		OpenFile(os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-
-	uiType = kingpin.Flag("ui", "UI type (tui, stream, or none). Default: tui").
-		Default("tui").
-		Enum("tui", "stream", "none")
 )
 
 func main() {
@@ -104,7 +100,9 @@ func main() {
 
 	go func() {
 		defer close(sdonech)
-		server.Run()
+		if err := server.Run(); err != nil {
+			log.WithError(err).Warn("server run")
+		}
 	}()
 
 	select {
@@ -123,7 +121,10 @@ done:
 
 	log.Info("shutting down UI...")
 	cancel()
-	bus.Shutdown()
+
+	if err := bus.Shutdown(); err != nil {
+		log.WithError(err).Warn("bus shutdown")
+	}
 
 	<-stopch
 }

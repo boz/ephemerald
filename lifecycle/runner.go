@@ -17,13 +17,12 @@ var (
 )
 
 type actionRunner struct {
-	bus      pubsub.Bus
-	instance types.Instance
-	action   Action
-	model    *types.LifecycleAction
-	p        params.Params
-	ctx      context.Context
-	log      logrus.FieldLogger
+	bus    pubsub.Bus
+	action Action
+	model  *types.LifecycleAction
+	p      params.Params
+	ctx    context.Context
+	log    logrus.FieldLogger
 }
 
 func newActionRunner(bus pubsub.Bus, instance types.Instance, ctx context.Context, action Action, p params.Params, actionName string) *actionRunner {
@@ -68,12 +67,14 @@ func (ar *actionRunner) Run() error {
 			return ar.publishResult(ar.ctx.Err())
 		}
 
-		ar.bus.Publish(types.Event{
+		if err := ar.bus.Publish(types.Event{
 			Type:            types.EventTypeLifecycleAction,
 			Action:          types.EventActionStart,
 			LifecycleAction: &(*ar.model),
 			Status:          types.StatusInProgress,
-		})
+		}); err != nil {
+			return err
+		}
 
 		err, ok = ar.doAttempt(timeout)
 
@@ -88,13 +89,15 @@ func (ar *actionRunner) Run() error {
 
 		ar.model.State = types.LifecycleActionStateRetryWait
 
-		ar.bus.Publish(types.Event{
+		if err := ar.bus.Publish(types.Event{
 			Type:            types.EventTypeLifecycleAction,
 			Action:          types.EventActionAttemptFailed,
 			LifecycleAction: &(*ar.model),
 			Status:          types.StatusInProgress,
 			Message:         err.Error(),
-		})
+		}); err != nil {
+			return err
+		}
 
 		select {
 		case <-ar.ctx.Done():
@@ -122,7 +125,9 @@ func (ar *actionRunner) publishResult(err error) error {
 		ev.Message = err.Error()
 	}
 
-	ar.bus.Publish(ev)
+	if err := ar.bus.Publish(ev); err != nil {
+		ar.log.WithError(err).Warn("publish result")
+	}
 
 	return err
 }
