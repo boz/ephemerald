@@ -15,10 +15,10 @@ install:
 jobs:
   include:
     - script:
-      - .build/run
+      - .build/test
       - go vet ./...
       - golangci-lint run
 
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  #- bash <(curl -s https://codecov.io/bash)
 
