@@ -14,6 +14,7 @@ import (
 	"github.com/boz/ephemerald/poolset"
 	"github.com/boz/ephemerald/pubsub"
 	"github.com/boz/ephemerald/scheduler"
+	"github.com/boz/ephemerald/version"
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/boz/ephemerald/builtin/postgres"
@@ -24,7 +25,7 @@ import (
 
 var (
 	listenAddress = kingpin.Flag("address", "Listen address. Default: "+net.DefaultListenAddress).
-			Short('a').
+			Short('l').
 			Envar("LISTEN_ADDRESS").
 			Default(net.DefaultListenAddress).
 			String()
@@ -34,7 +35,7 @@ var (
 			ExistingFiles()
 
 	flagLogLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
-			Short('l').
+			Short('v').
 			Envar("LOG_LEVEL").
 			Default("info").
 			Enum("debug", "info", "warn", "error")
@@ -45,23 +46,11 @@ var (
 			String()
 )
 
-func createLog() (logrus.FieldLogger, context.Context) {
-
-	level, err := logrus.ParseLevel(*flagLogLevel)
-	kingpin.FatalIfError(err, "Invalid log level")
-
-	file, err := os.OpenFile(*flagLogFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-	kingpin.FatalIfError(err, "Error opening log file")
-
-	logger := logrus.New()
-	logger.SetLevel(level)
-	logger.SetOutput(file)
-
-	return logger, log.NewContext(context.Background(), logger)
-}
-
 func main() {
-	kingpin.Parse()
+
+	kingpin.CommandLine.Author("Adam Bozanich <adam.boz@gmail.com>")
+	kingpin.CommandLine.Version(version.String())
+	kingpin.HelpFlag.Short('h')
 
 	log, ctx := createLog()
 
@@ -154,4 +143,19 @@ func handleSignals(ctx context.Context, cancel context.CancelFunc) <-chan struct
 		}
 	}()
 	return donech
+}
+
+func createLog() (logrus.FieldLogger, context.Context) {
+
+	level, err := logrus.ParseLevel(*flagLogLevel)
+	kingpin.FatalIfError(err, "Invalid log level")
+
+	file, err := os.OpenFile(*flagLogFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	kingpin.FatalIfError(err, "Error opening log file")
+
+	logger := logrus.New()
+	logger.SetLevel(level)
+	logger.SetOutput(file)
+
+	return logger, log.NewContext(context.Background(), logger)
 }

@@ -1,0 +1,31 @@
+before:
+  hooks:
+
+builds:
+  - main: cmd/ephemerald/main
+    ldflags:
+      - -X version.version={{.Version}}
+      - -X version.commit={{.FullCommit}}
+      - -X version.date={{.Date}}
+
+archives:
+  - files:
+    - none*
+
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+
+brews:
+  - github:
+      owner: boz
+      name: homebrew-repo
+    homepage: "https://github.com/boz/ephemerald"
+    description: "Manage ephemeral docker containers for parallel testing."

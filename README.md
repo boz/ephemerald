@@ -395,4 +395,5 @@ $ brew install boz/repo/ephemerald
  * Remote actions
  * Clients: nodejs, ruby, python, etc...
  * Documentation
+ * docker mode (DinD)
  * Tests

@@ -17,3 +17,13 @@ func Commit() string {
 func Date() string {
 	return date
 }
+
+func String() string {
+	if version != "" {
+		return version
+	}
+	if commit != "" {
+		return commit
+	}
+	return "(unknown)"
+}
