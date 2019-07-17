@@ -8,6 +8,7 @@ go:
 cache:
   directories:
   - $HOME/.glide/cache
+  - $GOPATH/src/github.com/golangci
 
 before_install:
   - curl https://glide.sh/get | sh
