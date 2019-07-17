@@ -1,5 +1,5 @@
-hash: e5e3c658ae670b9d65645c395cd0610473a36237ad7009318dcbe2db1dc13f85
-updated: 2019-07-08T21:52:53.876511967-07:00
+hash: a4bebcd9a8086ab3b0d4081b5c54755b176a4bfb745ee332e8e570cea711aa69
+updated: 2019-07-16T22:51:00.849705-04:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -58,13 +58,9 @@ imports:
   subpackages:
   - internal
   - redis
-- name: github.com/gdamore/encoding
-  version: 6289cdc94c00ac4aa177771c5fce7af2f96b626d
 - name: github.com/gdamore/tcell
   version: 061f3f89b01ffb73e0b6a6812de029714fda9e81
   subpackages:
-  - terminfo
-  - terminfo/dynamic
   - views
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
@@ -77,14 +73,10 @@ imports:
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/lib/pq
-  version: bc6a3c0594130b1e34005880bc600b6d3f49fa7f
+  version: 3427c32cb71afc948325f299f040e53c1dd78979
   subpackages:
   - oid
   - scram
-- name: github.com/lucasb-eyer/go-colorful
-  version: 30298f24079860c4dee452fdef6519b362a4a026
-- name: github.com/mattn/go-runewidth
-  version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
 - name: github.com/Microsoft/go-winio
   version: 84b4ab48a50763fe7b3abcef38e5205c12027fac
 - name: github.com/opencontainers/go-digest
@@ -118,12 +110,6 @@ imports:
   subpackages:
   - unix
   - windows
-- name: golang.org/x/text
-  version: b19bf474d317b857955b12035d2c5acb57ce8b01
-  subpackages:
-  - encoding
-  - encoding/internal/identifier
-  - transform
 - name: gopkg.in/alecthomas/kingpin.v2
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
 - name: gopkg.in/yaml.v2
