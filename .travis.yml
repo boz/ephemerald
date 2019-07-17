@@ -5,9 +5,14 @@ services:
 go:
   - 1.12
 
+cache:
+  directories:
+  - $HOME/.glide/cache
+  - $GOPATH/src/github.com/golangci/golangci-lint
+
 before_install:
   - curl https://glide.sh/get | sh
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint
+  - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 install:
   - make deps

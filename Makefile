@@ -6,7 +6,7 @@ build:
 
 deps:
 	glide install -v
-	go get
+	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 test:
 	$(GOCMD) test ./...
