@@ -8,7 +8,6 @@ go:
 cache:
   directories:
   - $HOME/.glide/cache
-  - $GOPATH/src/github.com/golangci/golangci-lint
 
 before_install:
   - curl https://glide.sh/get | sh
@@ -23,7 +22,3 @@ jobs:
       - .build/test
       - go vet ./...
       - golangci-lint run
-
-after_success:
-  #- bash <(curl -s https://codecov.io/bash)
-
