@@ -22,13 +22,13 @@ lint:
 
 .PHONY: server example clean
 server:
-	(cd cmd/ephemerald && $(GOCMD) build)
+	$(GOCMD) build -o ephemerald ./cmd/ephemerald
 
 example:
 	(cd _example && $(GOCMD) build -o example)
 
 clean:
-	rm _example/example cmd/ephemerald/ephemerald 2>/dev/null || true
+	rm -f _example/example ./ephemerald
 
 .PHONY: devdeps
 devdeps:

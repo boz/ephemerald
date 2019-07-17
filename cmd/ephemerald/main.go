@@ -23,39 +23,49 @@ import (
 )
 
 var (
-	listenAddress = kingpin.Flag("address", "Listen address. Default: "+net.DefaultListenAddress).Short('a').
-			Envar("EPHEMERALD_LISTEN_ADDRESS").
+	listenAddress = kingpin.Flag("address", "Listen address. Default: "+net.DefaultListenAddress).
+			Short('a').
+			Envar("LISTEN_ADDRESS").
 			Default(net.DefaultListenAddress).
 			String()
 
-	poolFiles = kingpin.Flag("pool", "pool config file").Short('p').
+	poolFiles = kingpin.Flag("pool", "pool config file").
+			Short('p').
 			ExistingFiles()
 
-	logLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
-			Envar("EPHEMERALD_LOG_LEVEL").
+	flagLogLevel = kingpin.Flag("log-level", "Log level (debug, info, warn, error).  Default: info").
+			Short('l').
+			Envar("LOG_LEVEL").
 			Default("info").
 			Enum("debug", "info", "warn", "error")
 
-	logFile = kingpin.Flag("log-file", "Log file.  Default: /dev/null").
-		Envar("EPHEMERALD_LOG_FILE").
-		Default("/dev/null").
-		OpenFile(os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	flagLogFile = kingpin.Flag("log-file", "Log file.  Default: /dev/stderr").
+			Envar("LOG_FILE").
+			Default("/dev/stderr").
+			String()
 )
+
+func createLog() (logrus.FieldLogger, context.Context) {
+
+	level, err := logrus.ParseLevel(*flagLogLevel)
+	kingpin.FatalIfError(err, "Invalid log level")
+
+	file, err := os.OpenFile(*flagLogFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	kingpin.FatalIfError(err, "Error opening log file")
+
+	logger := logrus.New()
+	logger.SetLevel(level)
+	logger.SetOutput(file)
+
+	return logger, log.NewContext(context.Background(), logger)
+}
 
 func main() {
 	kingpin.Parse()
 
-	level, err := logrus.ParseLevel(*logLevel)
-	kingpin.FatalIfError(err, "invalid log level")
+	log, ctx := createLog()
 
-	l := log.Default()
-	l.SetLevel(level)
-	l.SetOutput(*logFile)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = log.NewContext(ctx, l)
-
-	log := l.WithField("cmp", "main")
+	ctx, cancel := context.WithCancel(ctx)
 
 	stopch := handleSignals(ctx, cancel)
 
@@ -89,6 +99,7 @@ func main() {
 	opts := []server.Opt{
 		server.WithAddress(*listenAddress),
 		server.WithPoolSet(pset),
+		server.WithLog(log),
 	}
 
 	sdonech := make(chan struct{})
@@ -119,7 +130,6 @@ done:
 	pset.Shutdown()
 	<-pset.Done()
 
-	log.Info("shutting down UI...")
 	cancel()
 
 	if err := bus.Shutdown(); err != nil {
