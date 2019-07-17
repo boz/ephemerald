@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -euf -o pipefail
+
+go build ./...
+
+go test -count=1 -covermode=atomic -coverprofile=coverage.txt -coverpkg=./... ./...

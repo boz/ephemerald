@@ -7,21 +7,17 @@ go:
 
 before_install:
   - curl https://glide.sh/get | sh
+  - go install github.com/golangci/golangci-lint/cmd/golangci-lint
 
 install:
   - make deps
 
 jobs:
   include:
-    - stage: Build
-      script:
-        - go build ./...
-    - stage: Vet
-      script:
-        - go vet ./...
-    - stage: Test
-      script:
-        - go test -count=1 -covermode=atomic -coverprofile=coverage.txt -coverpkg=./... ./...
+    - script:
+      - .build/run
+      - go vet ./...
+      - golangci-lint run
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
