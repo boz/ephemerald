@@ -22,5 +22,4 @@ jobs:
   include:
     - script:
       - .build/test
-      - go vet ./...
       - golangci-lint run
