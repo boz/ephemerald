@@ -12,14 +12,13 @@ import (
 
 	"github.com/boz/ephemerald/config"
 	"github.com/boz/ephemerald/log"
+	"github.com/boz/ephemerald/net"
 	"github.com/boz/ephemerald/types"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	defaultAddress = "localhost:6000"
-	contentType    = "application/json"
-	poolBasePath   = "/pool"
+	poolBasePath = "/pool"
 )
 
 type Interface interface {
@@ -60,7 +59,7 @@ type client struct {
 
 func New(opts ...Opt) (Interface, error) {
 	c := &client{
-		host:  defaultAddress,
+		host:  net.DefaultConnectAddress,
 		l:     log.Default(),
 		chttp: &http.Client{},
 	}
@@ -156,7 +155,7 @@ func (c *client) doRequest(ctx context.Context, method string, path string, body
 		return nil, err
 	}
 	req = req.WithContext(ctx)
-	req.Header.Add("Content-Type", contentType)
+	req.Header.Add("Content-Type", net.RPCContentType)
 
 	resp, err := c.chttp.Do(req)
 	if err != nil {
