@@ -207,7 +207,7 @@ func (i *instance) run() {
 
 	i.model.Port = tcpPortFor(cinfo, i.config.Port)
 
-	actionch = i.runAction(types.InstanceStateCheck, ctx, actions.DoLive)
+	actionch = i.runAction(ctx, types.InstanceStateCheck, actions.DoLive)
 
 loop:
 	for {
@@ -255,7 +255,7 @@ loop:
 				break loop
 			}
 
-			actionch = i.runAction(types.InstanceStateReset, ctx, actions.DoReset)
+			actionch = i.runAction(ctx, types.InstanceStateReset, actions.DoReset)
 
 		case err := <-actionch:
 			actionch = nil
@@ -266,7 +266,7 @@ loop:
 					break loop
 				}
 
-				actionch = i.runAction(types.InstanceStateInitialize, ctx, actions.DoInit)
+				actionch = i.runAction(ctx, types.InstanceStateInitialize, actions.DoInit)
 
 			case types.InstanceStateInitialize:
 				if err != nil {
@@ -282,7 +282,7 @@ loop:
 					break loop
 				}
 				i.model.Resets++
-				actionch = i.runAction(types.InstanceStateInitialize, ctx, actions.DoInit)
+				actionch = i.runAction(ctx, types.InstanceStateInitialize, actions.DoInit)
 			}
 		}
 	}
@@ -303,7 +303,7 @@ kill:
 	<-sub.Done()
 }
 
-func (i *instance) runAction(state types.InstanceState, ctx context.Context, fn func(context.Context, params.Params) error) <-chan error {
+func (i *instance) runAction(ctx context.Context, state types.InstanceState, fn func(context.Context, params.Params) error) <-chan error {
 	i.enterState(state)
 	p := i.newParams()
 	errch := make(chan error, 1)
